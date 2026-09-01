@@ -75,3 +75,36 @@ Preencher durante o spike. `—` = não testado.
 Banco, sincronização, planejamento, notas, Pomodoro, Obsidian, MCP, relatórios,
 design system. Se aparecer vontade de construir qualquer um deles aqui, a
 resposta é não — vai para a Fase 1.
+
+---
+
+# Achados
+
+## A-001 — Janela de curso ficava sem saída
+**2026-09-01**
+
+No primeiro teste do modo integrado a janela abriu e não fechava. Causa provável:
+site que entra em tela cheia por conta própria engole as decorações da janela, e
+como a página remota não tem canal de volta para o app (por decisão de
+segurança), não sobrava nenhum controle.
+
+Correção: o controle passou para a janela principal, que lista as janelas de
+curso abertas e oferece **Fechar** e **Sair da tela cheia**. Isso é o §3.9 do
+plano ("recuperar controles se o site também entrar em tela cheia") aparecendo
+mais cedo do que o previsto — e não é gambiarra de spike, é o desenho certo:
+quem não pode ter privilégio é a página, não o usuário.
+
+## A-002 — Painel de diagnóstico não aparecia na página remota
+**2026-09-01**
+
+O overlay aplicava estilo via `setAttribute('style', ...)`. Páginas com
+`style-src` estrita bloqueiam o **atributo** `style`, e o painel virava texto
+sem formatação perdido no rodapé da página. CSSOM (`el.style.x = y`) não é
+alcançado pela CSP — a correção foi trocar a forma de aplicar o estilo.
+
+Achado mais importante do que a correção: **depender de script injetado em
+página de terceiro é frágil por natureza.** A sonda de CDM foi movida para a
+janela principal, que é página nossa. Disponibilidade de Widevine é propriedade
+do motor, não da origem, então a pergunta que decide D-001 é respondida sem
+tocar na Hotmart. Na página remota ficou só o que de fato precisa estar lá:
+saber se *aquele curso específico* pede DRM.

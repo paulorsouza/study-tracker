@@ -29,12 +29,25 @@ O app é ferramenta pessoal na v1. Consequências:
 - Métricas de §2 do plano (retenção semanal/mensal, taxa de falha por SO) ficam
   suspensas: não fazem sentido com um usuário.
 
-## D-003 — Linux e Windows são ambos bloqueantes na Fase 0
-**2026-09-01 · decidido**
+## D-003 — Windows primeiro; Linux é marco posterior
+**2026-09-01 · decidido** (revisto no mesmo dia)
 
-O usuário estuda nos dois sistemas de verdade. A matriz de compatibilidade só
-está completa com resultado nos dois. **Pendente:** definir qual distro e como
-testar (máquina real, dual boot ou VM) — ver Q-001.
+Versão original: os dois sistemas eram bloqueantes na Fase 0.
+
+Revisão: o ambiente Linux é **outro computador**, não dual boot nem VM. Testar
+lá custa troca de máquina a cada iteração, o que trava o ritmo por um risco que
+não bloqueia nada do trabalho local. Então:
+
+- a Fase 0 fecha só com a coluna Windows da matriz;
+- Linux vira marco próprio, rodado em lote quando houver o que testar;
+- **a consequência precisa ficar consciente:** D-001 só pode ser reavaliada de
+  verdade depois do teste no Linux. Até lá, seguir com Tauri é uma aposta em
+  aberto, não uma decisão validada. Quanto mais código de Fase 2 for escrito
+  antes disso, mais caro fica reverter.
+
+Mitigação: a Fase 1 (fundação local) não depende do motor de webview. Dá para
+avançar bastante sem aumentar a exposição a esse risco. Já a Fase 2 não deveria
+começar antes da coluna Linux existir.
 
 ## D-004 — Modo de abertura é por curso, não por plataforma
 **2026-09-01 · decidido**
@@ -65,9 +78,9 @@ DOM da página em que o usuário já está logado, sempre disparada por clique d
 
 # Perguntas abertas
 
-## Q-001 — Ambiente Linux de teste
-Qual distro, e a Fase 0 roda em máquina real, dual boot ou VM? VM complica o
-teste de DRM e de aceleração de vídeo — que é justamente o que precisa medir.
+## ~~Q-001 — Ambiente Linux de teste~~ · respondida em 2026-09-01
+Outro computador. Testes em lote, depois da versão Windows. Ver D-003.
+
 
 ## Q-002 — Corte de MVP
 O plano tem 6 fases e nenhuma linha dizendo qual é a menor versão utilizável.

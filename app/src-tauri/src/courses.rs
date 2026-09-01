@@ -5,34 +5,40 @@
 //! Hotmart ou da T2 não tem `invoke`, não alcança comando nativo e não vê o
 //! estado do app. O único código do app que roda lá dentro é o overlay de
 //! diagnóstico abaixo, que só lê e desenha.
+//!
+//! Como a página remota não tem canal de volta por decisão de segurança, o
+//! controle da janela mora do lado de cá: a janela principal lista as janelas
+//! de curso abertas e consegue fechá-las e tirá-las de tela cheia. Sem isso,
+//! um site que entra em tela cheia e engole as decorações deixa a janela sem
+//! saída — que foi exatamente o que aconteceu no primeiro teste.
 
-use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+
+const PREFIXO: &str = "curso-";
 
 /// Sonda de DRM injetada antes do carregamento da página.
 ///
-/// Responde a pergunta que decide D-001: o motor embarcado consegue tocar
-/// conteúdo protegido? A sonda faz duas coisas — testa se o CDM Widevine
-/// existe, e intercepta o pedido real do player para saber se aquele curso
-/// específico usa DRM (na Hotmart isso varia por produtor, ver D-004).
+/// Só responde a metade específica da pergunta: *este curso* pede DRM? A outra
+/// metade — *este motor* tem CDM? — é medida na janela principal, que é página
+/// nossa e não depende da CSP de terceiro.
+///
+/// Todo o estilo aqui é aplicado por CSSOM (`el.style.x = y`) e nunca por
+/// atributo `style=`. A diferença importa: `style-src` sem `unsafe-inline`
+/// bloqueia o atributo, mas não alcança o CSSOM. Com `setAttribute('style')`
+/// o painel virava texto solto no rodapé de qualquer página com CSP estrita.
 const DIAG_SCRIPT: &str = r#"
 (function () {
   if (window.__estudosDiag) return;
   window.__estudosDiag = true;
 
   var linhas = [];
-  var caixa = null;
+  var corpo = null;
 
   function log(txt) {
     linhas.push(new Date().toLocaleTimeString() + '  ' + txt);
-    desenhar();
+    if (corpo) corpo.textContent = linhas.join('\n');
   }
 
-  function desenhar() {
-    if (!caixa || !document.body) return;
-    caixa.querySelector('[data-corpo]').textContent = linhas.join('\n');
-  }
-
-  // --- 1. o CDM existe neste motor? ---
   var config = [{
     initDataTypes: ['cenc'],
     videoCapabilities: [{ contentType: 'video/mp4;codecs="avc1.42E01E"' }]
@@ -45,23 +51,15 @@ const DIAG_SCRIPT: &str = r#"
   } catch (e) { /* ignora */ }
 
   if (!pedir) {
-    log('EME ausente: navigator.requestMediaKeySystemAccess nao existe');
+    log('EME ausente neste contexto');
   } else {
-    ['com.widevine.alpha', 'com.microsoft.playready', 'org.w3.clearkey'].forEach(function (ks) {
-      pedir(ks, config).then(
-        function () { log('CDM disponivel: ' + ks); },
-        function (err) { log('CDM indisponivel: ' + ks + ' (' + err.name + ')'); }
-      );
-    });
-
-    // --- 2. este curso pede DRM? ---
+    // Intercepta o pedido real do player: e o que diz se ESTE curso usa DRM.
     navigator.requestMediaKeySystemAccess = function (ks, cfg) {
       log('>>> A PAGINA PEDIU DRM: ' + ks);
       return pedir(ks, cfg);
     };
   }
 
-  // --- 3. o video efetivamente toca? ---
   var vistos = new WeakSet();
   function vigiarVideos() {
     var vs = document.querySelectorAll('video');
@@ -71,49 +69,55 @@ const DIAG_SCRIPT: &str = r#"
       vistos.add(v);
       log('<video> encontrado (' + vs.length + ' na pagina)');
       v.addEventListener('playing', function () { log('video: tocando'); });
+      v.addEventListener('encrypted', function () { log('video: fluxo criptografado (DRM ativo)'); });
       v.addEventListener('error', function (e) {
         var err = e.target.error;
         log('video: ERRO code=' + (err ? err.code : '?') + ' ' + (err ? err.message : ''));
       });
-      v.addEventListener('encrypted', function () { log('video: fluxo criptografado (DRM ativo)'); });
     }
+  }
+
+  function estilo(el, props) {
+    for (var k in props) { try { el.style[k] = props[k]; } catch (e) {} }
   }
 
   function montar() {
     if (!document.body) return;
 
-    caixa = document.createElement('div');
-    caixa.setAttribute('style', [
-      'position:fixed', 'right:12px', 'bottom:12px', 'z-index:2147483647',
-      'width:380px', 'max-height:40vh', 'overflow:auto',
-      'background:rgba(17,17,20,.94)', 'color:#e6e6e6',
-      'font:11px/1.5 ui-monospace,Consolas,monospace',
-      'border:1px solid #444', 'border-radius:8px', 'padding:8px 10px',
-      'white-space:pre-wrap', 'box-shadow:0 4px 24px rgba(0,0,0,.5)'
-    ].join(';'));
+    var caixa = document.createElement('div');
+    estilo(caixa, {
+      position: 'fixed', right: '12px', bottom: '12px', zIndex: '2147483647',
+      width: '380px', maxHeight: '40vh', overflow: 'auto',
+      background: 'rgba(17,17,20,.94)', color: '#e6e6e6',
+      font: '11px/1.5 ui-monospace,Consolas,monospace',
+      border: '1px solid #444', borderRadius: '8px', padding: '8px 10px',
+      whiteSpace: 'pre-wrap', boxShadow: '0 4px 24px rgba(0,0,0,.5)'
+    });
 
     var topo = document.createElement('div');
-    topo.setAttribute('style', 'display:flex;justify-content:space-between;margin-bottom:6px;color:#9ad');
-    topo.innerHTML = '<b>diagnostico do spike</b>';
+    estilo(topo, { display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#9ad' });
+
+    var titulo = document.createElement('b');
+    titulo.textContent = 'diagnostico do spike';
 
     var fechar = document.createElement('button');
     fechar.textContent = 'x';
-    fechar.setAttribute('style', 'background:none;border:0;color:#9ad;cursor:pointer;font:inherit');
-    fechar.onclick = function () { caixa.remove(); caixa = null; };
+    estilo(fechar, { background: 'none', border: '0', color: '#9ad', cursor: 'pointer', font: 'inherit' });
+    fechar.onclick = function () { caixa.remove(); };
+
+    topo.appendChild(titulo);
     topo.appendChild(fechar);
 
-    var corpo = document.createElement('div');
-    corpo.setAttribute('data-corpo', '');
-
+    corpo = document.createElement('div');
     caixa.appendChild(topo);
     caixa.appendChild(corpo);
     document.body.appendChild(caixa);
 
     log('url: ' + location.href);
-    desenhar();
-
     vigiarVideos();
-    new MutationObserver(vigiarVideos).observe(document.body, { childList: true, subtree: true });
+    try {
+      new MutationObserver(vigiarVideos).observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* ignora */ }
   }
 
   if (document.readyState === 'loading') {
@@ -124,35 +128,90 @@ const DIAG_SCRIPT: &str = r#"
 })();
 "#;
 
-#[tauri::command]
-pub fn abrir_curso(app: tauri::AppHandle, url: String, titulo: String) -> Result<(), String> {
-    let parsed = tauri::Url::parse(&url).map_err(|e| format!("URL inválida: {e}"))?;
-
+fn validar(url: &str) -> Result<tauri::Url, String> {
+    let parsed = tauri::Url::parse(url).map_err(|e| format!("URL inválida: {e}"))?;
     // Só http(s). Bloqueia file:, javascript:, data: e esquemas customizados
     // antes de chegarem ao motor (§8 do plano).
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err(format!("esquema não permitido: {}", parsed.scheme()));
     }
+    Ok(parsed)
+}
 
-    // Rótulo estável por URL: reabrir o mesmo curso foca a janela existente em
-    // vez de empilhar cópias.
+#[tauri::command]
+pub fn abrir_curso(app: tauri::AppHandle, url: String, titulo: String) -> Result<String, String> {
+    let parsed = validar(&url)?;
+
+    // Rótulo estável por host: reabrir a mesma plataforma foca a janela
+    // existente em vez de empilhar cópias.
     let label = format!(
-        "curso-{}",
+        "{PREFIXO}{}",
         parsed.host_str().unwrap_or("x").replace('.', "-")
     );
 
-    if let Some(existente) = tauri::Manager::get_webview_window(&app, &label) {
+    if let Some(existente) = app.get_webview_window(&label) {
+        let _ = existente.unminimize();
         let _ = existente.set_focus();
-        return Ok(());
+        return Ok(label);
     }
 
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(titulo)
         .inner_size(1280.0, 820.0)
+        .decorations(true)
+        .closable(true)
+        .focused(true)
         .initialization_script(DIAG_SCRIPT)
         .build()
         .map_err(|e| format!("falha ao abrir janela: {e}"))?;
 
+    Ok(label)
+}
+
+/// Janelas de curso abertas agora. A principal usa isto para oferecer o
+/// controle que a página remota não pode ter.
+#[tauri::command]
+pub fn janelas_curso(app: tauri::AppHandle) -> Vec<String> {
+    let mut labels: Vec<String> = app
+        .webview_windows()
+        .into_keys()
+        .filter(|l| l.starts_with(PREFIXO))
+        .collect();
+    labels.sort();
+    labels
+}
+
+#[tauri::command]
+pub fn fechar_curso(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    // O rótulo vem da interface; conferir o prefixo impede que um bug de tela
+    // feche a janela principal.
+    if !label.starts_with(PREFIXO) {
+        return Err(format!("rótulo fora do escopo de curso: {label}"));
+    }
+    let janela = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("janela não encontrada: {label}"))?;
+
+    // Sair da tela cheia antes de fechar: uma janela que o site deixou em
+    // tela cheia pode ignorar o fechamento em alguns gerenciadores de janela.
+    let _ = janela.set_fullscreen(false);
+    janela.close().map_err(|e| format!("falha ao fechar: {e}"))
+}
+
+/// §3.9 do plano: recuperar os controles quando o site entra em tela cheia por
+/// conta própria e engole as decorações da janela.
+#[tauri::command]
+pub fn sair_tela_cheia(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    if !label.starts_with(PREFIXO) {
+        return Err(format!("rótulo fora do escopo de curso: {label}"));
+    }
+    let janela = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("janela não encontrada: {label}"))?;
+    janela
+        .set_fullscreen(false)
+        .map_err(|e| format!("falha ao sair de tela cheia: {e}"))?;
+    let _ = janela.set_focus();
     Ok(())
 }
 
@@ -161,10 +220,7 @@ pub fn abrir_curso(app: tauri::AppHandle, url: String, titulo: String) -> Result
 #[tauri::command]
 pub fn abrir_no_navegador(app: tauri::AppHandle, url: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
-    let parsed = tauri::Url::parse(&url).map_err(|e| format!("URL inválida: {e}"))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err(format!("esquema não permitido: {}", parsed.scheme()));
-    }
+    let parsed = validar(&url)?;
     app.opener()
         .open_url(parsed.as_str(), None::<&str>)
         .map_err(|e| format!("falha ao abrir navegador: {e}"))
