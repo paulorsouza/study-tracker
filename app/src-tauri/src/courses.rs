@@ -12,9 +12,38 @@
 //! um site que entra em tela cheia e engole as decorações deixa a janela sem
 //! saída — que foi exatamente o que aconteceu no primeiro teste.
 
+use crate::db::Db;
+use crate::library;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 const PREFIXO: &str = "curso-";
+
+/// Onde cada janela de curso está agora. Existe para a janela principal poder
+/// oferecer "salvar como curso" a partir da aula aberta, mesmo antes de o curso
+/// existir no banco.
+#[derive(Default)]
+pub struct UltimasUrls(pub Mutex<HashMap<String, String>>);
+
+/// URL de fluxo de autenticação não é "onde o usuário parou de estudar", e a
+/// query dela carrega `code` e `state`. Guardar isso como última aula seria
+/// errado e inseguro ao mesmo tempo.
+fn e_autenticacao(u: &tauri::Url) -> bool {
+    let host = u.host_str().unwrap_or("");
+    let path = u.path();
+    let query = u.query().unwrap_or("");
+
+    host.contains("accounts.google.")
+        || host.starts_with("sso.")
+        || host.contains("login.")
+        || path.contains("/login")
+        || path.contains("/auth/")
+        || path.contains("/oauth")
+        || query.contains("code=")
+        || query.contains("token=")
+        || query.contains("state=")
+}
 
 /// Sonda de DRM injetada antes do carregamento da página.
 ///
@@ -59,6 +88,28 @@ const DIAG_SCRIPT: &str = r#"
       return pedir(ks, cfg);
     };
   }
+
+  // Plataforma de curso costuma abrir a aula com target="_blank" ou
+  // window.open. Numa webview embarcada o pedido de nova janela e descartado
+  // sem erro nenhum: o clique simplesmente nao faz nada. Redireciona os dois
+  // casos para a propria janela.
+  try {
+    window.open = function (u) {
+      log('window.open interceptado -> ' + (u || '(vazio)'));
+      if (u) { location.assign(u); }
+      return null;
+    };
+  } catch (e) { /* ignora */ }
+
+  document.addEventListener('click', function (ev) {
+    var alvo = ev.target;
+    if (!alvo || !alvo.closest) return;
+    var a = alvo.closest('a[target="_blank"]');
+    if (!a || !a.href) return;
+    ev.preventDefault();
+    log('link _blank interceptado -> ' + a.href);
+    location.assign(a.href);
+  }, true);
 
   var vistos = new WeakSet();
   function vigiarVideos() {
@@ -169,15 +220,20 @@ pub async fn abrir_curso(
     app: tauri::AppHandle,
     url: String,
     titulo: String,
+    curso_id: Option<String>,
 ) -> Result<String, String> {
     let parsed = validar(&url)?;
 
-    // Rótulo estável por host: reabrir a mesma plataforma foca a janela
-    // existente em vez de empilhar cópias.
-    let label = format!(
-        "{PREFIXO}{}",
-        parsed.host_str().unwrap_or("x").replace('.', "-")
-    );
+    // Rótulo estável: por curso quando ele existe no banco, por host quando é
+    // navegação avulsa. Reabrir foca a janela existente em vez de empilhar
+    // cópias.
+    let label = match &curso_id {
+        Some(id) => format!("{PREFIXO}{id}"),
+        None => format!(
+            "{PREFIXO}{}",
+            parsed.host_str().unwrap_or("x").replace('.', "-")
+        ),
+    };
 
     if let Some(existente) = app.get_webview_window(&label) {
         let _ = existente.unminimize();
@@ -194,6 +250,30 @@ pub async fn abrir_curso(
         .closable(true)
         .focused(true)
         .initialization_script(DIAG_SCRIPT)
+        // Toda tentativa de navegação, aceita ou não. É o que distingue
+        // "o clique não fez nada" de "navegou e falhou" — sem isso, o
+        // diagnóstico vira chute. E é aqui que se aprende onde o usuário
+        // parou, sem pedir nada a ele.
+        .on_navigation({
+            let app = app.clone();
+            let label = label.clone();
+            let curso_id = curso_id.clone();
+            move |url| {
+                eprintln!("[curso] navegando -> {}", url_curta(url.as_str()));
+
+                if !e_autenticacao(url) {
+                    if let Some(estado) = app.try_state::<UltimasUrls>() {
+                        if let Ok(mut mapa) = estado.0.lock() {
+                            mapa.insert(label.clone(), url.to_string());
+                        }
+                    }
+                    if let (Some(id), Some(db)) = (curso_id.as_ref(), app.try_state::<Db>()) {
+                        library::registrar_ultima_url(&db, id, url.as_str());
+                    }
+                }
+                true
+            }
+        })
         // Instrumentação: sem isto, "abriu em branco" é indistinguível de
         // "navegou e a página não renderizou". O log do dev mostra a diferença.
         .on_page_load(|janela, payload| {
@@ -209,6 +289,13 @@ pub async fn abrir_curso(
 
     eprintln!("[curso] janela {label} construída");
     Ok(label)
+}
+
+/// Em que página a janela está agora. É o que permite "estou na aula certa,
+/// salva isto como curso" — depois disso, um clique volta direto para cá.
+#[tauri::command]
+pub fn url_atual(estado: tauri::State<UltimasUrls>, label: String) -> Option<String> {
+    estado.0.lock().ok()?.get(&label).cloned()
 }
 
 /// Janelas de curso abertas agora. A principal usa isto para oferecer o

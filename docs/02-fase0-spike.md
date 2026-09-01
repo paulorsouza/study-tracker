@@ -153,3 +153,32 @@ Vale a lição, porque ela vai se repetir: **o vazamento não nasceu no código 
 produção, nasceu no código de diagnóstico.** Qualquer instrumentação futura que
 toque URL, cabeçalho ou corpo de requisição precisa nascer redigida — a regra de
 §8 vale para o log temporário do dev igual ao log do app instalado.
+
+## A-006 — Curso não abria: pedido de nova janela descartado
+**2026-09-01**
+
+A plataforma abre a aula com `target="_blank"` / `window.open`. Webview
+embarcada **descarta o pedido de nova janela sem erro nenhum** — o clique
+simplesmente não faz nada, sem console, sem falha de rede, sem sintoma.
+
+Correção: o script injetado intercepta os dois casos e redireciona para a mesma
+janela. Com isso a navegação até a aula do Club funcionou.
+
+Este é o item "links que abrem nova janela" de §12 do plano, e vale promovê-lo
+de caso de teste a **requisito**: qualquer plataforma nova vai precisar do mesmo
+tratamento, e o sintoma é mudo — sem instrumentação de navegação não há como
+diagnosticar.
+
+## A-007 — Sessão pedida de novo após reinício
+**2026-09-01 · inconclusivo**
+
+Depois de um reinício, a Hotmart redirecionou para `/login` em vez de `/main`.
+Mas o reinício foi por `taskkill /F` durante a depuração, e o WebView2 grava
+cookie de forma preguiçosa — kill à força perde o que estava em memória.
+
+Pendente: fechar o app pela janela, reabrir e verificar. Só então isto vira
+resultado de P1. O perfil em si persiste (`AppData/Local/com.prs.estudos/EBWebView`
+existe e é reaproveitado), então não é diretório volátil.
+
+Observação colhida no caminho: o perfil traz uma pasta `WidevineCdm` — o
+WebView2 embarca o CDM, coerente com a sonda da janela principal.

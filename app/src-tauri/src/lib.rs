@@ -1,5 +1,6 @@
 mod courses;
 mod db;
+mod library;
 mod timer;
 
 use std::sync::Mutex;
@@ -22,6 +23,8 @@ pub fn run() {
                 device_id,
             });
 
+            app.manage(courses::UltimasUrls::default());
+
             let state = timer::TimerState::new(dir.join("spike-timer.jsonl"));
             app.manage(state);
             timer::spawn_heartbeat(app.handle().clone());
@@ -39,6 +42,11 @@ pub fn run() {
             courses::janelas_curso,
             courses::fechar_curso,
             courses::sair_tela_cheia,
+            courses::url_atual,
+            library::listar_cursos,
+            library::criar_curso,
+            library::excluir_curso,
+            library::favoritar_curso,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
