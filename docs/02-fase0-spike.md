@@ -53,6 +53,7 @@ Preencher durante o spike. `—` = não testado.
 | Cenário | Win / WebView2 | Linux / WebKitGTK | Observação |
 |---|---|---|---|
 | Hotmart — login e-mail+senha | — | — | |
+| Hotmart — login via Google OAuth | **OK** | — | WebView2 não foi bloqueado pelo Google |
 | Hotmart — verificação em duas etapas | — | — | |
 | Hotmart — sessão após reiniciar app | — | — | |
 | Hotmart — curso no Club, sem DRM | — | — | |
@@ -108,3 +109,47 @@ janela principal, que é página nossa. Disponibilidade de Widevine é proprieda
 do motor, não da origem, então a pergunta que decide D-001 é respondida sem
 tocar na Hotmart. Na página remota ficou só o que de fato precisa estar lá:
 saber se *aquele curso específico* pede DRM.
+
+## A-003 — Deadlock ao criar janela em comando síncrono
+**2026-09-01**
+
+Sintoma: a janela de curso abria em branco e não respondia ao fechamento.
+
+Causa: Tauri executa comando síncrono na thread principal, e
+`WebviewWindowBuilder::build()` bloqueia esperando essa mesma thread. Deadlock —
+a janela é criada, mas nunca pinta e nunca processa mensagens de janela. Foi
+diagnosticado errado duas vezes antes (CSP, tela cheia) porque "branca e travada"
+parecia problema de conteúdo, e era de threading.
+
+Correção: `abrir_curso`, `fechar_curso` e `sair_tela_cheia` viraram `async`, o
+que faz o Tauri executá-los no runtime assíncrono. Regra geral para este
+projeto: **todo comando que cria ou destrói janela é `async`.**
+
+## A-004 — P1 aprovado na Hotmart, incluindo OAuth do Google
+**2026-09-01**
+
+Com o deadlock resolvido, a cadeia completa de login rodou dentro do WebView2:
+`consumer.hotmart.com` → SSO da Hotmart → contas Google → callback → `/main`.
+
+O resultado que vale registrar é o segundo: **o Google não bloqueou a webview
+embarcada.** Login federado recusando webview ("este navegador pode não ser
+seguro") era um risco Alto de §17 do plano, com o modo navegador dedicado como
+única resposta. No Windows, esse risco não se materializou.
+
+Continua em aberto no Linux, onde o WebKitGTK apresenta outro user-agent.
+
+## A-005 — A instrumentação vazou o fluxo OAuth para o log
+**2026-09-01**
+
+O `on_page_load` registrava a URL completa. Numa cadeia OAuth a query string
+carrega `code`, `state` e `session_state` — e é o `code` que se troca por token
+de sessão. O log de desenvolvimento ficou com a sequência inteira do login em
+texto puro, violando §8 do plano ("logs sem tokens... ou URLs sensíveis
+completas").
+
+Correção: o log agora registra só esquema, host e caminho.
+
+Vale a lição, porque ela vai se repetir: **o vazamento não nasceu no código de
+produção, nasceu no código de diagnóstico.** Qualquer instrumentação futura que
+toque URL, cabeçalho ou corpo de requisição precisa nascer redigida — a regra de
+§8 vale para o log temporário do dev igual ao log do app instalado.

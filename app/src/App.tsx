@@ -24,6 +24,10 @@ type Cdm = { sistema: string; ok: boolean; detalhe: string };
 const PLATAFORMAS = [
   { nome: "Hotmart", url: "https://consumer.hotmart.com" },
   { nome: "T2 Educação", url: "https://app.t2.com.br/" },
+  // Página trivial, sem login, sem CSP hostil, sem JavaScript. Se esta abrir
+  // em branco, o problema é do motor embarcado e não da plataforma — separa
+  // "webview externa quebrada" de "Hotmart bloqueia webview".
+  { nome: "Teste do motor", url: "https://example.com" },
 ];
 
 const SISTEMAS_DRM = [

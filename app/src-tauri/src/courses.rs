@@ -128,6 +128,26 @@ const DIAG_SCRIPT: &str = r#"
 })();
 "#;
 
+/// Só esquema, host e caminho — nunca a query string.
+///
+/// Isto não é economia de log: numa URL de fluxo OAuth a query carrega o
+/// `code`, o `state` e o `session_state`, e é com esse `code` que se troca por
+/// um token de sessão. §8 do plano proíbe token em log justamente por isso.
+/// A primeira versão da instrumentação registrou a cadeia inteira de login da
+/// Hotmart em texto puro — o tipo de vazamento que nasce de código de
+/// diagnóstico, não de código de produção.
+fn url_curta(u: &str) -> String {
+    match tauri::Url::parse(u) {
+        Ok(p) => format!(
+            "{}://{}{}",
+            p.scheme(),
+            p.host_str().unwrap_or("?"),
+            p.path()
+        ),
+        Err(_) => "<url ilegível>".into(),
+    }
+}
+
 fn validar(url: &str) -> Result<tauri::Url, String> {
     let parsed = tauri::Url::parse(url).map_err(|e| format!("URL inválida: {e}"))?;
     // Só http(s). Bloqueia file:, javascript:, data: e esquemas customizados
@@ -138,8 +158,18 @@ fn validar(url: &str) -> Result<tauri::Url, String> {
     Ok(parsed)
 }
 
+/// `async` aqui não é enfeite. Tauri roda comando síncrono na thread principal,
+/// e `build()` bloqueia esperando essa mesma thread — deadlock: a janela nasce,
+/// nunca pinta e nunca processa o fechamento. Declarar o comando como async faz
+/// o Tauri executá-lo no runtime assíncrono, e aí `build()` consegue esperar a
+/// thread principal de fora dela. Vale para todo comando que cria ou destrói
+/// janela.
 #[tauri::command]
-pub fn abrir_curso(app: tauri::AppHandle, url: String, titulo: String) -> Result<String, String> {
+pub async fn abrir_curso(
+    app: tauri::AppHandle,
+    url: String,
+    titulo: String,
+) -> Result<String, String> {
     let parsed = validar(&url)?;
 
     // Rótulo estável por host: reabrir a mesma plataforma foca a janela
@@ -155,6 +185,8 @@ pub fn abrir_curso(app: tauri::AppHandle, url: String, titulo: String) -> Result
         return Ok(label);
     }
 
+    eprintln!("[curso] abrindo {label} -> {}", url_curta(parsed.as_str()));
+
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
         .title(titulo)
         .inner_size(1280.0, 820.0)
@@ -162,9 +194,20 @@ pub fn abrir_curso(app: tauri::AppHandle, url: String, titulo: String) -> Result
         .closable(true)
         .focused(true)
         .initialization_script(DIAG_SCRIPT)
+        // Instrumentação: sem isto, "abriu em branco" é indistinguível de
+        // "navegou e a página não renderizou". O log do dev mostra a diferença.
+        .on_page_load(|janela, payload| {
+            eprintln!(
+                "[curso] {} {:?} {}",
+                janela.label(),
+                payload.event(),
+                url_curta(&payload.url().to_string())
+            );
+        })
         .build()
         .map_err(|e| format!("falha ao abrir janela: {e}"))?;
 
+    eprintln!("[curso] janela {label} construída");
     Ok(label)
 }
 
@@ -182,7 +225,7 @@ pub fn janelas_curso(app: tauri::AppHandle) -> Vec<String> {
 }
 
 #[tauri::command]
-pub fn fechar_curso(app: tauri::AppHandle, label: String) -> Result<(), String> {
+pub async fn fechar_curso(app: tauri::AppHandle, label: String) -> Result<(), String> {
     // O rótulo vem da interface; conferir o prefixo impede que um bug de tela
     // feche a janela principal.
     if !label.starts_with(PREFIXO) {
@@ -201,7 +244,7 @@ pub fn fechar_curso(app: tauri::AppHandle, label: String) -> Result<(), String> 
 /// §3.9 do plano: recuperar os controles quando o site entra em tela cheia por
 /// conta própria e engole as decorações da janela.
 #[tauri::command]
-pub fn sair_tela_cheia(app: tauri::AppHandle, label: String) -> Result<(), String> {
+pub async fn sair_tela_cheia(app: tauri::AppHandle, label: String) -> Result<(), String> {
     if !label.starts_with(PREFIXO) {
         return Err(format!("rótulo fora do escopo de curso: {label}"));
     }
