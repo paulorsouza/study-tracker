@@ -1,23 +1,39 @@
 # Estudos
 
-Aplicativo desktop de gestão de estudos: cursos online, planejamento diário,
-Pomodoro, registro flexível de tempo, modo foco e notas. Windows e Linux.
+Aplicativo desktop de gestão de estudos: cursos, planejamento diário, registro
+flexível de tempo, Pomodoro e uma visão macro da rotina. Windows e Linux,
+funcionando offline.
 
-## Onde as coisas estão
+O estudo em si acontece no **Chrome** — uma extensão salva a aula em que você
+está e inicia o cronômetro sem sair da página. O app cuida da gestão.
+
+## Como está organizado
 
 | Caminho | O que é |
 |---|---|
-| `docs/00-plano.md` | plano completo do produto (fonte da verdade do escopo) |
-| `docs/01-decisoes.md` | decisões tomadas, com data e motivo, e perguntas abertas |
-| `docs/02-fase0-spike.md` | o que o spike precisa provar + matriz de compatibilidade |
-| `docs/03-modelo-de-tempo.md` | modelo de dados do registro de tempo |
 | `app/` | aplicativo Tauri 2 (React + TypeScript + Rust) |
+| `extensao/` | extensão do Chrome (MV3) |
+| `docs/00-plano.md` | plano completo do produto |
+| `docs/01-decisoes.md` | **decisões tomadas, com data e motivo** |
+| `docs/02-fase0-spike.md` | o spike técnico e o que ele revelou |
+| `docs/03-modelo-de-tempo.md` | modelo de dados do registro de tempo |
 
-## Estado
+Quem for mexer no código: comece por `01-decisoes.md`. Boa parte do que parece
+arbitrário está explicado lá, incluindo as escolhas que foram revertidas.
 
-**Fase 0 — spike técnico.** O código em `app/` é descartável e existe só para
-preencher a matriz de compatibilidade. A Fase 1 começa quando a matriz estiver
-preenchida nos dois sistemas operacionais.
+## O que já funciona
+
+- **Painel** — estudo por dia, sequência, onde foi o tempo, cursos parados.
+- **Hoje** — linha do tempo do dia, lançamento manual, edição com desfazer.
+- **Planejamento** — tarefas por dia e semana, atrasadas, planejado × realizado,
+  e o cronômetro começando pela tarefa.
+- **Foco** — Pomodoro com o ciclo correndo no processo do app e notificação do
+  sistema, para funcionar com a janela minimizada.
+- **Cursos** — cada curso guarda a rota da última aula.
+- **Extensão do Chrome** — salvar a rota e controlar o cronômetro de dentro da
+  página da aula.
+
+Sem conta, sem servidor, sem nuvem: tudo em SQLite local.
 
 ## Rodar
 
@@ -27,5 +43,14 @@ npm install
 npm run tauri dev
 ```
 
-Pré-requisitos: Node 20+, Rust estável, e — no Windows — WebView2 Runtime e o
-workload C++ do Visual Studio; no Linux, `webkit2gtk-4.1` e `libayatana-appindicator`.
+Pré-requisitos: Node 20+, Rust estável. No Windows, WebView2 Runtime e o
+workload C++ do Visual Studio; no Linux, `webkit2gtk-4.1` e
+`libayatana-appindicator`.
+
+A extensão é carregada sem compactação em `chrome://extensions`, apontando para
+`extensao/`. O token de pareamento fica em Configurações, dentro do app.
+
+## Histórico
+
+O branch [`legado-2025`](../../tree/legado-2025) guarda a primeira tentativa
+deste projeto, de julho de 2025 — outra arquitetura, com backend separado.
