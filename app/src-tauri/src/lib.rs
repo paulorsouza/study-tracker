@@ -2,6 +2,7 @@ mod bridge;
 mod db;
 mod entries;
 mod library;
+mod pomodoro;
 mod tasks;
 mod timer;
 
@@ -12,6 +13,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Banco e log do cronômetro ficam no diretório de dados do app,
             // fora do repositório e fora de qualquer pasta sincronizada.
@@ -29,6 +31,13 @@ pub fn run() {
             let state = timer::TimerState::new(dir.join("timer-eventos.jsonl"));
             app.manage(state);
             timer::spawn_heartbeat(app.handle().clone());
+
+            // A sessão de Pomodoro é restaurada do banco: fechar o app no meio
+            // de um ciclo não pode zerar a contagem de focos, senão a pausa
+            // longa nunca chega na hora certa.
+            let sessao = pomodoro::restaurar(app.state::<db::Db>().inner());
+            app.manage(pomodoro::PomodoroState(Mutex::new(sessao)));
+            pomodoro::spawn_relogio(app.handle().clone());
 
             app.manage(bridge::Ponte {
                 porta: bridge::PORTA_PADRAO,
@@ -63,6 +72,13 @@ pub fn run() {
             tasks::mudar_estado_tarefa,
             tasks::excluir_tarefa,
             tasks::replanejar_atrasadas,
+            pomodoro::pomodoro_config,
+            pomodoro::pomodoro_salvar_config,
+            pomodoro::pomodoro_iniciar,
+            pomodoro::pomodoro_avancar,
+            pomodoro::pomodoro_encerrar,
+            pomodoro::pomodoro_estado,
+            pomodoro::pomodoro_ciclos,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

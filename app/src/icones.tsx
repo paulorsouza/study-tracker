@@ -123,3 +123,11 @@ export const Painel = ({ size = 17 }: P) => (
     <path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />
   </svg>
 );
+
+export const Alvo = ({ size = 17 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+  </svg>
+);

@@ -239,3 +239,39 @@ editado no meio. Uma fonte, uma verdade.
 Regras de gráfico adotadas: série única é cor única (barra mais escura porque é
 maior codificaria o comprimento duas vezes); nada de eixo duplo; rótulo direto
 só no melhor dia, o resto no hover; grade em fio sólido, nunca tracejado.
+
+## D-014 — O ciclo do Pomodoro corre no Rust
+**2026-09-01**
+
+Não é preferência por backend: é o cenário real deste produto. Com D-007, o
+usuário estuda **no Chrome**, e a janela do Estudos fica minimizada. Navegador
+estrangula `setInterval` em janela sem foco, então um Pomodoro cronometrado no
+frontend atrasaria exatamente nas horas em que precisa funcionar.
+
+Pelo mesmo motivo a **notificação sai do Rust**, não da API de JavaScript: com a
+janela escondida, a interface pode nem estar renderizando. Notificar de dentro
+do processo é o que garante o aviso chegar — e sem aviso que chega, um Pomodoro
+para quem estuda fora do app é decorativo.
+
+Consequência prática: a interface só pergunta o estado e desenha. Se ela
+estiver fechada, o ciclo continua igual.
+
+## D-015 — Nenhuma tabela para o Pomodoro
+**2026-09-01**
+
+Cada foco e cada pausa é uma linha de `time_entries` (D-005). O identificador da
+sessão é o `id` da primeira entrada de foco, e todas as linhas da sessão —
+inclusive ela — apontam para esse valor em `parent_id`; a primeira aponta para
+si mesma.
+
+A auto-referência não é truque: `parent_id` tem chave estrangeira para
+`time_entries`, então um id de sessão inventado não existiria como linha e a
+inserção falharia. Assim, "todas as linhas da sessão X" é `WHERE parent_id = X`,
+sem exceção para a primeira e sem tabela de sessão.
+
+Coluna nova `planejado_ms` (migração 003): quanto a fase deveria durar. §3.4
+pede planejado versus efetivo, e o efetivo já saía dos timestamps.
+
+A sessão em andamento é gravada em `settings`, não só em memória: fechar o app
+no meio de um ciclo não pode zerar a contagem de focos, senão a pausa longa
+nunca chega na hora certa.

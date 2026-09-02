@@ -46,13 +46,44 @@ pub enum Event {
     },
 }
 
+/// Tudo que o relógio precisa saber para gravar a linha certa ao parar.
+///
+/// O `entry_id` nasce no início, não no fim. É o que permite ao Pomodoro usar
+/// o id da primeira fase de foco como identificador da sessão — inclusive na
+/// própria linha, que aponta para si mesma (ver `docs/03-modelo-de-tempo.md`).
+#[derive(Clone)]
+pub struct Inicio {
+    pub entry_id: String,
+    pub description: String,
+    pub curso_id: Option<String>,
+    pub tarefa_id: Option<String>,
+    pub activity_type_id: String,
+    pub context: Option<String>,
+    pub parent_id: Option<String>,
+    pub planejado_ms: Option<i64>,
+}
+
+impl Inicio {
+    /// Cronômetro livre: estudo, sem estrutura em volta.
+    pub fn livre(description: String, curso_id: Option<String>, tarefa_id: Option<String>) -> Self {
+        Self {
+            entry_id: uuid::Uuid::new_v4().to_string(),
+            description,
+            curso_id,
+            tarefa_id,
+            activity_type_id: "at-estudo".into(),
+            context: None,
+            parent_id: None,
+            planejado_ms: None,
+        }
+    }
+}
+
 pub struct Running {
     pub session: String,
     pub started_wall: i64,
     pub started_mono: Instant,
-    pub description: String,
-    pub curso_id: Option<String>,
-    pub tarefa_id: Option<String>,
+    pub inicio: Inicio,
 }
 
 pub struct TimerState {
@@ -113,6 +144,7 @@ pub struct Status {
 #[derive(Serialize)]
 pub struct StopResult {
     pub session: String,
+    pub entry_id: String,
     pub wall_ms: i64,
     pub mono_ms: i64,
     pub drift_ms: i64,
@@ -135,20 +167,17 @@ pub struct Recovery {
 /// Início do cronômetro, independente de quem pediu. A interface e a extensão
 /// do Chrome chamam daqui — se cada uma tivesse a própria lógica, elas
 /// divergiriam na primeira correção.
-pub fn iniciar(
-    state: &TimerState,
-    description: String,
-    curso_id: Option<String>,
-    tarefa_id: Option<String>,
-) -> Result<Status, String> {
+pub fn iniciar(state: &TimerState, inicio: Inicio) -> Result<Status, String> {
     let mut running = state.running.lock().unwrap();
     if running.is_some() {
         // §3.5 do plano: impedir dois cronômetros ativos no mesmo dispositivo.
+        // Vale entre Pomodoro e cronômetro livre também — são o mesmo relógio.
         return Err("já existe um cronômetro ativo neste dispositivo".into());
     }
 
     let session = format!("s{}", now_ms());
     let wall = now_ms();
+    let description = inicio.description.clone();
     state.append(&Event::Start {
         session: session.clone(),
         wall,
@@ -159,9 +188,7 @@ pub fn iniciar(
         session: session.clone(),
         started_wall: wall,
         started_mono: Instant::now(),
-        description: description.clone(),
-        curso_id,
-        tarefa_id,
+        inicio,
     });
 
     Ok(Status {
@@ -180,7 +207,7 @@ pub fn timer_start(
     curso_id: Option<String>,
     tarefa_id: Option<String>,
 ) -> Result<Status, String> {
-    iniciar(&state, description, curso_id, tarefa_id)
+    iniciar(&state, Inicio::livre(description, curso_id, tarefa_id))
 }
 
 #[tauri::command]
@@ -195,7 +222,7 @@ pub fn status_de(state: &TimerState) -> Option<Status> {
     let mono_ms = r.started_mono.elapsed().as_millis() as i64;
     Some(Status {
         session: r.session.clone(),
-        description: r.description.clone(),
+        description: r.inicio.description.clone(),
         wall_ms,
         mono_ms,
         drift_ms: wall_ms - mono_ms,
@@ -218,26 +245,33 @@ pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, Strin
         mono_ms,
     });
 
+    let i = &r.inicio;
     if let Ok(conn) = db.conn.lock() {
         let _ = conn.execute(
             "INSERT INTO time_entries
                (id, started_at, ended_at, activity_type_id, description, course_id,
-                task_id, source, device_id, version, created_at, updated_at)
-             VALUES (?1, ?2, ?3, 'at-estudo', ?4, ?5, ?6, 'timer', ?7, 1, ?3, ?3)",
+                task_id, context, parent_id, planejado_ms, source, device_id,
+                version, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'timer', ?11, 1, ?3, ?3)",
             rusqlite::params![
-                uuid::Uuid::new_v4().to_string(),
+                i.entry_id,
                 r.started_wall,
                 fim,
-                if r.description.is_empty() { None } else { Some(&r.description) },
-                r.curso_id,
-                r.tarefa_id,
+                i.activity_type_id,
+                if i.description.is_empty() { None } else { Some(&i.description) },
+                i.curso_id,
+                i.tarefa_id,
+                i.context,
+                i.parent_id,
+                i.planejado_ms,
                 db.device_id,
             ],
         );
     }
 
     Ok(StopResult {
-        session: r.session,
+        session: r.session.clone(),
+        entry_id: i.entry_id.clone(),
         wall_ms,
         mono_ms,
         drift_ms: wall_ms - mono_ms,

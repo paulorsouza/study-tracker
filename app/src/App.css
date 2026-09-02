@@ -655,3 +655,42 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .ranking-valor { min-width: 62px; text-align: right; font-weight: 600; flex: none; }
 
 .atalhos { display: flex; gap: 8px; margin-top: 4px; }
+
+/* --- pomodoro ------------------------------------------------------------- */
+
+.pomo { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+.pomo-anel { position: relative; flex: none; }
+
+.pomo-anel circle { transition: stroke-dashoffset .5s linear; }
+@media (prefers-reduced-motion: reduce) { .pomo-anel circle { transition: none; } }
+
+.pomo-centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.pomo-tempo {
+  font: 650 30px/1.1 "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.pomo-fase { font-size: 12px; color: var(--tx-2); }
+.pomo-lado { flex: 1; min-width: 250px; }
+.pomo-desc { font-size: 15px; font-weight: 550; margin-bottom: 12px; }
+
+.pomo-pontos { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+
+.ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+}
+
+.ponto.cheio { background: var(--serie-1); border-color: var(--serie-1); }

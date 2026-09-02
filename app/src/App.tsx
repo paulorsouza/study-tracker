@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Painel from "./Painel";
 import Hoje from "./Hoje";
 import Planejamento from "./Planejamento";
+import Foco from "./Foco";
 import Cursos from "./Cursos";
 import Config from "./Config";
 import * as I from "./icones";
@@ -33,7 +34,7 @@ type Recovery = {
   gap_ms: number;
 };
 
-type Aba = "painel" | "hoje" | "plano" | "cursos" | "config";
+type Aba = "painel" | "hoje" | "plano" | "foco" | "cursos" | "config";
 
 export function dur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -122,6 +123,7 @@ export default function App() {
     { id: "painel", nome: "Painel", Icone: I.Painel },
     { id: "hoje", nome: "Hoje", Icone: I.Calendario },
     { id: "plano", nome: "Planejamento", Icone: I.Lista },
+    { id: "foco", nome: "Foco", Icone: I.Alvo },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
     { id: "config", nome: "Configurações", Icone: I.Engrenagem },
   ];
@@ -245,6 +247,9 @@ export default function App() {
           )}
           {aba === "plano" && (
             <Planejamento cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />
+          )}
+          {aba === "foco" && (
+            <Foco cursos={cursos} tema={tema} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "cursos" && (
             <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />

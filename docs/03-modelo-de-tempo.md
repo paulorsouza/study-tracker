@@ -65,3 +65,39 @@ de §3.5.
 Lacuna de heartbeat (P4 do spike) **não** vira `time_entry`. Vira um registro
 separado de intervalo pendente, que o app mostra como pergunta: manter, remover
 ou dividir. Tempo que o app não observou nunca entra no total sozinho.
+
+## Como o Pomodoro se encaixa
+
+Nenhuma tabela nova (D-005). Cada período de foco e **cada pausa** é uma linha
+de `time_entries` — porque cada um é um período real de relógio, e o plano
+(§3.4) exige registrar a pausa com início, fim e duração, não só o foco.
+
+**O identificador da sessão é o `id` da primeira entrada de foco**, e todas as
+linhas da sessão — inclusive essa primeira — carregam esse valor em `parent_id`.
+A primeira aponta para si mesma.
+
+Parece estranho, mas resolve um problema real: `parent_id` tem chave estrangeira
+para `time_entries`, então um id de sessão inventado não existiria como linha e
+a inserção falharia. Com a auto-referência, "todas as linhas da sessão X" é
+`WHERE parent_id = X`, sem exceção para a primeira e sem tabela de sessão.
+Exclusão é lógica, então a linha-âncora nunca some.
+
+| Campo | Foco | Pausa |
+|---|---|---|
+| `activity_type_id` | `at-estudo` | `at-pausa` — ou o que o usuário trocar |
+| `context` | `pomodoro_focus` | `pomodoro_break` |
+| `parent_id` | id da sessão | id da sessão |
+| `planejado_ms` | duração configurada | duração configurada |
+
+"Tempo efetivo de estudo" continua saindo de `conta_como_estudo`, não de
+`context`: foco usa uma categoria que conta, pausa usa uma que não conta. A
+regra vale para o cronômetro livre do mesmo jeito — não existe caso especial
+para Pomodoro na contabilidade.
+
+E é isto que faz a regra difícil de §3.5 funcionar: trocar a pausa para
+"caminhada com os dogs" muda só `activity_type_id`. O `context` e o `parent_id`
+ficam, então a caminhada continua listada como pausa daquele ciclo, aparece no
+relatório de exercício, e conta **uma vez só** na linha do tempo do dia.
+
+`planejado_ms` é a coluna nova: guarda quanto a fase deveria ter durado. Sem
+ela não dá para responder "planejado versus efetivo" por ciclo, que §3.4 pede.

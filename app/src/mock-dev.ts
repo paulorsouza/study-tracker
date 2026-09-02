@@ -188,8 +188,85 @@ const TAREFAS = [
 
 let rodando: { inicio: number; descricao: string } | null = null;
 
+// Sessão de Pomodoro simulada: já com dois focos feitos e um em andamento, para
+// a tela poder ser avaliada cheia — anel a meio caminho, pontos parcialmente
+// preenchidos e ciclos anteriores na lista.
+let pomo = {
+  ativo: true,
+  fase: "foco" as string | null,
+  rotulo: "Foco" as string | null,
+  aguardando: null as string | null,
+  rotulo_aguardando: null as string | null,
+  focos: 2,
+  ciclos_ate_longa: 4,
+  inicio: Date.now() - 11 * 60000,
+  planejado_ms: 25 * 60000,
+  descricao: "Aula 13 — modificadores",
+};
+
+const cfgPomo = {
+  foco_min: 25, curta_min: 5, longa_min: 15, ciclos_ate_longa: 4,
+  auto_pausa: false, auto_foco: false, som: true, tipo_pausa: "at-pausa",
+};
+
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  "plugin:event|listen": () => 1,
+  "plugin:event|unlisten": () => null,
+  pomodoro_config: () => cfgPomo,
+  pomodoro_salvar_config: () => null,
+  pomodoro_estado: () => ({
+    ativo: pomo.ativo,
+    fase: pomo.fase,
+    rotulo: pomo.rotulo,
+    aguardando: pomo.aguardando,
+    rotulo_aguardando: pomo.rotulo_aguardando,
+    focos: pomo.focos,
+    ciclos_ate_longa: pomo.ciclos_ate_longa,
+    decorrido_ms: pomo.fase ? Date.now() - pomo.inicio : 0,
+    planejado_ms: pomo.fase ? pomo.planejado_ms : 0,
+    descricao: pomo.descricao,
+  }),
+  pomodoro_ciclos: () => {
+    if (!pomo.ativo) return [];
+    const t0 = pomo.inicio - 62 * 60000;
+    const c = (rot: string, ativ: string, cor: string, escura: string,
+               off: number, dur: number, plan: number | null, aberto = false) => ({
+      rotulo: rot, atividade: ativ, cor, cor_escura: escura,
+      inicio: t0 + off * 60000,
+      fim: aberto ? null : t0 + (off + dur) * 60000,
+      efetivo_ms: (aberto ? (Date.now() - (t0 + off * 60000)) / 60000 : dur) * 60000,
+      planejado_ms: plan === null ? null : plan * 60000,
+    });
+    return [
+      c("Foco", "Estudo", "#2a78d6", "#3987e5", 0, 25, 25),
+      c("Pausa", "Caminhada com os dogs", "#1baf7a", "#199e70", 25, 7, 5),
+      c("Foco", "Estudo", "#2a78d6", "#3987e5", 32, 28, 25),
+      c("Pausa", "Pausa", "#4a3aa7", "#9085e9", 60, 2, 5),
+      c("Foco", "Estudo", "#2a78d6", "#3987e5", 62, 0, 25, true),
+    ];
+  },
+  pomodoro_iniciar: ({ descricao }) => {
+    pomo = { ...pomo, ativo: true, fase: "foco", rotulo: "Foco", aguardando: null,
+             rotulo_aguardando: null, focos: 0, inicio: Date.now(),
+             descricao: descricao || "" };
+    return null;
+  },
+  pomodoro_avancar: () => {
+    if (pomo.aguardando) {
+      pomo = { ...pomo, fase: pomo.aguardando, rotulo: pomo.rotulo_aguardando,
+               aguardando: null, rotulo_aguardando: null, inicio: Date.now(),
+               planejado_ms: 5 * 60000 };
+    } else {
+      pomo = { ...pomo, fase: null, rotulo: null, focos: pomo.focos + 1,
+               aguardando: "pausa_curta", rotulo_aguardando: "Pausa curta" };
+    }
+    return null;
+  },
+  pomodoro_encerrar: () => {
+    pomo = { ...pomo, ativo: false, fase: null, aguardando: null };
+    return null;
+  },
   listar_tarefas: ({ dia, ate, modo }) => {
     const hoje = isoDia(0);
     if (modo === "atrasadas")
