@@ -211,6 +211,25 @@ const cfgPomo = {
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  obsidian_config: () => ({
+    pasta: "D:\\vault\\Estudos",
+    somente_criar: false,
+    exportar_diario: true,
+    exportar_cursos: true,
+    exportar_notas: false,
+    modelo_diario: "---\ntipo: diario-de-estudo\ndata: {{data}}\n---\n\n# {{data}}\n\nEstudo efetivo: **{{estudo}}**\n\n## Sessoes\n\n{{sessoes}}\n",
+  }),
+  obsidian_salvar_config: () => null,
+  obsidian_exportar: () => ({
+    criados: ["diario/2026-09-02.md"],
+    atualizados: ["cursos/Unidaystudio - Blender para jogos.md"],
+    preservados: ["cursos/T2 - Fundamentos de renda variavel.md"],
+    erros: [],
+  }),
+  obsidian_conflitos: () => [
+    { caminho: "cursos/T2 - Fundamentos de renda variavel.md", conflito_em: Date.now() - 90000 },
+  ],
+  obsidian_aceitar_externo: () => null,
   mcp_info: () => ({
     porta: 47823,
     token: "mcpmcpmcpmcpmcpmcpmcpmcpmcpmcpmc",

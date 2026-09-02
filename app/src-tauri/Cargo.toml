@@ -26,4 +26,6 @@ rusqlite = { version = "0.40.2", features = ["bundled"] }
 uuid = { version = "1.26.0", features = ["v4"] }
 tiny_http = "0.12.0"
 tauri-plugin-notification = "2.4.0"
+sha2 = "0.11.0"
+tauri-plugin-dialog = "2.7.3"
 

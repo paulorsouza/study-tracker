@@ -394,3 +394,53 @@ vira o vazamento.
 
 Revogar troca o token e vale no pedido seguinte: a ponte relê o token a cada
 requisição em vez de guardá-lo na subida.
+
+## D-021 — Obsidian é exportação, não sincronização
+**2026-09-02**
+
+Foi levantada a ideia de o app virar repositório de dados para manter o vault
+sincronizado entre as duas máquinas. **Recusada.**
+
+Sincronizar vault é problema resolvido — Git com obsidian-git, Syncthing, ou o
+Sync oficial. Para o app assumir esse papel seria preciso construir um motor de
+sincronização de arquivos arbitrários com resolução de conflito em Markdown, o
+que é **mais difícil** que sincronizar nossos dados estruturados, que ainda nem
+existe. Seria construir um Syncthing pior.
+
+**O que resolve a intenção sem construir nada:** o vault já sincronizado por
+uma dessas ferramentas, e o app escrevendo dentro dele. As notas exportadas
+viajam junto de graça. Não cobre tempo e tarefas — mas cobre a metade que é
+texto, hoje, sem código de sincronização nenhum.
+
+Isso também não elimina a Fase 3: sincronizar `time_entries` entre as máquinas
+continua sendo problema nosso, e continua sendo o bloco mais caro.
+
+## D-022 — Nunca sobrescrever edição no vault, e como isso é garantido
+**2026-09-02**
+
+§17 marca "Obsidian ter nota sobrescrita" como risco Alto. Um vault é trabalho
+de anos e a perda não tem desfazer.
+
+O mecanismo não depende de o usuário configurar nada: antes de reescrever, o app
+compara o conteúdo em disco com o **hash do que ele mesmo gravou** da última
+vez. Igual, atualiza. Diferente, recua e registra conflito. Arquivo sem registro
+nosso também não é tocado — sem registro, o arquivo é de outra pessoa.
+
+Guardar hash e não conteúdo é deliberado: o conteúdo já está no vault, e
+duplicá-lo no banco criaria uma segunda cópia para divergir.
+
+Segurança de caminho, que §13 cobra explicitamente:
+
+- todo destino é montado a partir da raiz canonizada, segmento por segmento;
+- `..`, `.`, segmento vazio e barra invertida dentro de segmento são recusados;
+- o diretório pai é canonizado e conferido contra a raiz — é este passo que pega
+  **link simbólico apontando para fora do vault**;
+- título de curso ou nota passa por saneamento antes de virar nome de arquivo.
+
+Cinco testes cobrem isso. Um deles pegou um erro **meu** durante a escrita: eu
+tinha previsto a saída errada do saneamento. O código estava certo, a
+expectativa não — e é exatamente para isso que o teste existe.
+
+O modo **somente criar** existe para quem não quer risco algum: o app cria
+arquivos novos e nunca mexe em existente. O custo é o diário não se atualizar
+durante o dia.

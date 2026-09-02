@@ -4,6 +4,7 @@ mod db;
 mod entries;
 mod library;
 mod notas;
+mod obsidian;
 mod permissoes;
 mod pomodoro;
 mod tasks;
@@ -17,6 +18,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Banco e log do cronômetro ficam no diretório de dados do app,
             // fora do repositório e fora de qualquer pasta sincronizada.
@@ -100,6 +102,11 @@ pub fn run() {
             permissoes::mcp_salvar_config,
             permissoes::mcp_revogar,
             permissoes::listar_auditoria,
+            obsidian::obsidian_config,
+            obsidian::obsidian_salvar_config,
+            obsidian::obsidian_exportar,
+            obsidian::obsidian_conflitos,
+            obsidian::obsidian_aceitar_externo,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())
