@@ -126,6 +126,7 @@ pub fn run() {
             janela::fechar_mini,
             janela::expandir,
             janela::mini_no_topo,
+            janela::mini_altura,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

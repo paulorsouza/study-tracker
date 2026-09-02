@@ -581,3 +581,49 @@ No sistema visual, o que mudou e por quê:
   praticamente some para quem enxerga pouco contraste;
 - as regras `[data-tema="claro"]` espalhadas para corrigir trilhos **sumiram**:
   com a escala de superfície, o mesmo token serve nos dois temas.
+
+## D-028 — Barra de título própria e ícone gerado por código
+**2026-09-02**
+
+A decoração do sistema foi desligada na janela principal para ela combinar com
+o resto da interface. Isso **transfere responsabilidade**: minimizar, maximizar,
+fechar e a área de arrasto passam a ser nossos, e sem os três controles a
+janela ficaria sem saída. O vermelho aparece só no hover do fechar — é o único
+controle cujo engano custa caro, e realce permanente viraria ruído.
+
+**Ponto a verificar em uso:** com a decoração desligada, o redimensionamento
+pelas bordas depende do comportamento do Tauri no Windows. Se não funcionar, é
+reverter uma linha de configuração.
+
+O ícone é **gerado por código** (`icons/gerar-icone.mjs`), sem editor gráfico e
+sem dependência: desenha um anel de progresso — a mesma forma que o Pomodoro
+mostra dentro do app — num ladrilho arredondado, com suavização por
+superamostragem 3×3. Repetir uma forma que o usuário já vê é reconhecido mais
+rápido que um símbolo novo.
+
+As pastas de Android e iOS que o `tauri icon` cria foram removidas: aplicativo
+móvel está fora do escopo em §16, e elas só engordariam o repositório.
+
+## D-029 — A janela compacta é troca de modo, não segunda janela
+**2026-09-02**
+
+Ajustes depois do primeiro uso:
+
+- **abre no canto inferior direito**, não no centro. Janela sempre-no-topo no
+  meio da tela atrapalha exatamente o que está atrás dela — o navegador onde o
+  estudo acontece;
+- **lembra onde foi deixada**. Sem isso o usuário a arrasta para o mesmo canto
+  toda vez, que é o atrito que faz um acessório deixar de ser usado;
+- **a janela principal some** enquanto a compacta está aberta, e volta ao
+  fechar ou expandir. Duas janelas do mesmo app disputando a barra de tarefas é
+  confusão, não recurso. Fechar a compacta traz a principal de volta: sem isso
+  o app sumiria da vista sem ter encerrado.
+
+O menu de cursos **cresce a janela** em vez de flutuar: janela sem decoração
+recorta o que passa da borda, então um painel sobreposto simplesmente não
+apareceria.
+
+Nele, clicar no nome abre o curso e o botão de play abre **e** começa a contar
+— duas ações explícitas em vez de uma. Ligar o cronômetro como efeito colateral
+de abrir uma página é o tipo de surpresa que faz o registro deixar de ser
+confiável.

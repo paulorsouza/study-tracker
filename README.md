@@ -31,6 +31,9 @@ arbitrário está explicado lá, incluindo as escolhas que foram revertidas.
 - **Foco** — Pomodoro com o ciclo correndo no processo do app e notificação do
   sistema, para funcionar com a janela minimizada.
 - **Cursos** — cada curso guarda a rota da última aula.
+- **Modo compacto** — janela pequena, sempre no topo, com relógio, Pomodoro e
+  um menu rápido de cursos. É a que faz sentido ficar visível enquanto o estudo
+  acontece no navegador.
 - **Notas** — busca, tags, modelos, revisão, e nota rápida amarrada à sessão.
 - **Extensão do Chrome** — salvar a rota e controlar o cronômetro de dentro da
   página da aula.
@@ -45,6 +48,12 @@ Sem conta, sem servidor, sem nuvem: tudo em SQLite local.
 cd app
 npm install
 npm run tauri dev
+```
+
+O ícone é gerado por código, sem editor gráfico:
+
+```bash
+cd app/src-tauri/icons && node gerar-icone.mjs && cd ../.. && npx tauri icon src-tauri/icons/origem.png
 ```
 
 Pré-requisitos: Node 20+, Rust estável. No Windows, WebView2 Runtime e o

@@ -99,11 +99,64 @@ body {
 
 /* --- estrutura ----------------------------------------------------------- */
 
+.app-raiz { display: flex; flex-direction: column; height: 100%; }
+
 .shell {
   display: grid;
   grid-template-columns: 224px 1fr;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
+
+/* --- barra de título própria ---------------------------------------------
+   A decoração do sistema foi desligada para a janela combinar com o resto.
+   Isso transfere a responsabilidade: a área de arrasto e os três controles
+   passam a ser nossos. */
+
+.janela-barra {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding-left: var(--e4);
+  background: var(--surf);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+  user-select: none;
+}
+
+.janela-marca {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tx-2);
+  flex: 1;
+}
+
+.janela-marca svg { color: var(--acc); }
+
+.janela-controles { display: flex; height: 100%; }
+
+.ctrl {
+  width: 44px;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--tx-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s var(--curva), color .12s var(--curva);
+}
+
+.ctrl:hover { background: var(--surf-3); color: var(--tx); }
+
+/* Vermelho só no fechar, e só no hover: é o único controle cujo engano custa
+   caro, e o realce permanente viraria ruído. */
+.ctrl-fechar:hover { background: #e04352; color: #fff; }
+.ctrl:focus-visible { outline: 2px solid var(--acc); outline-offset: -3px; }
 
 .lateral {
   background: var(--surf);
@@ -948,8 +1001,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   color: var(--tx-3);
 }
 
+/* Altura fixa: com o menu aberto, quem cresce é a lista. Corpo elástico
+   deixaria um vão entre o relógio e os cursos. */
 .mini-corpo {
-  flex: 1;
+  flex: none;
+  height: 77px;
   display: flex;
   align-items: center;
   gap: var(--e4);
@@ -976,3 +1032,34 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
 .mini-acoes { display: flex; gap: 6px; margin-left: auto; flex: none; }
 .mini-info { min-width: 0; flex: 1; }
+
+
+/* --- menu de cursos no compacto ------------------------------------------ */
+
+.mini-menu {
+  border-top: 1px solid var(--line);
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px;
+}
+
+.mini-curso {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mini-curso:hover { background: var(--surf-2); }
+.mini-curso span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-curso-play { flex: none; color: var(--tx-3); padding: 3px; border-radius: 5px; }
+.mini-curso-play:hover { color: var(--acc); background: var(--surf-3); }

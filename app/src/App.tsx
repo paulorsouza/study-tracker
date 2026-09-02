@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Painel from "./Painel";
+import BarraJanela from "./BarraJanela";
 import Hoje from "./Hoje";
 import Planejamento from "./Planejamento";
 import Foco from "./Foco";
@@ -133,8 +134,10 @@ export default function App() {
   ];
 
   return (
-    <div className="shell">
-      <nav className="lateral" aria-label="Seções">
+    <div className="app-raiz">
+      <BarraJanela />
+      <div className="shell">
+        <nav className="lateral" aria-label="Seções">
         <div className="marca">
           <I.Relogio size={19} />
           Estudos
@@ -204,9 +207,9 @@ export default function App() {
             </>
           )}
         </div>
-      </nav>
+        </nav>
 
-      <main className="principal">
+        <main className="principal">
         <div className="conteudo">
           {erro && (
             <div className="aviso aviso-erro" role="alert">
@@ -293,7 +296,8 @@ export default function App() {
             <Config tema={tema} setTema={setTema} onErro={setErro} onMudou={mudou} />
           )}
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

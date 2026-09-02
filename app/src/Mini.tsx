@@ -5,6 +5,15 @@ import * as I from "./icones";
 import "./App.css";
 
 type Status = { description: string; wall_ms: number };
+type Curso = {
+  id: string;
+  titulo: string;
+  url_principal: string | null;
+  ultima_url: string | null;
+};
+
+const ALTURA_BASE = 112;
+const ALTURA_LINHA = 34;
 type Pomo = {
   ativo: boolean;
   fase: string | null;
@@ -37,6 +46,8 @@ export default function Mini() {
   const [desc, setDesc] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [fixado, setFixado] = useState(true);
+  const [cursos, setCursos] = useState<Curso[]>([]);
+  const [menu, setMenu] = useState(false);
 
   useEffect(() => {
     const ler = () => {
@@ -51,6 +62,24 @@ export default function Mini() {
       p.then((un) => un());
     };
   }, []);
+
+  useEffect(() => {
+    invoke<Curso[]>("listar_cursos").then(setCursos).catch(() => {});
+  }, []);
+
+  /**
+   * A janela cresce para caber o menu e volta ao fechar. Não dá para usar um
+   * flutuante: janela sem decoração recorta tudo que passa da borda, então o
+   * que "abre por cima" simplesmente não apareceria.
+   */
+  const alternarMenu = () => {
+    const abrindo = !menu;
+    setMenu(abrindo);
+    const altura = abrindo
+      ? ALTURA_BASE + Math.min(cursos.length, 6) * ALTURA_LINHA + 14
+      : ALTURA_BASE;
+    invoke("mini_altura", { altura }).catch(() => {});
+  };
 
   const acao = (cmd: string, args?: Record<string, unknown>) =>
     invoke(cmd, args)
@@ -69,6 +98,14 @@ export default function Mini() {
         <span className="mini-titulo" data-tauri-drag-region>
           {erro ?? (emPomodoro ? "Foco" : "Estudos")}
         </span>
+        <button
+          className="btn btn-fantasma btn-icone"
+          onClick={alternarMenu}
+          title="Meus cursos"
+          aria-expanded={menu}
+        >
+          <I.Livro size={13} />
+        </button>
         <button
           className="btn btn-fantasma btn-icone"
           onClick={() => {
@@ -180,6 +217,54 @@ export default function Mini() {
           </>
         )}
       </div>
+
+      {menu && (
+        <div className="mini-menu">
+          {cursos.length === 0 ? (
+            <p className="nota" style={{ margin: 0, padding: "8px 9px" }}>
+              Nenhum curso salvo ainda.
+            </p>
+          ) : (
+            cursos.slice(0, 6).map((c) => {
+              const alvo = c.ultima_url ?? c.url_principal;
+              return (
+                <div key={c.id} className="mini-curso">
+                  <span
+                    onClick={() =>
+                      alvo
+                        ? acao("abrir_no_navegador", { url: alvo })
+                        : setErro("sem rota salva")
+                    }
+                    title={alvo ?? "sem rota salva"}
+                    style={{ cursor: alvo ? "pointer" : "default" }}
+                  >
+                    {c.titulo}
+                  </span>
+                  {/* Abrir e começar a contar são ações separadas de propósito:
+                      ligar o cronômetro como efeito colateral de abrir uma
+                      página é o tipo de surpresa que faz o registro deixar de
+                      ser confiável. */}
+                  <button
+                    className="btn btn-fantasma mini-curso-play"
+                    title="Abrir e começar a contar"
+                    onClick={() => {
+                      if (alvo) acao("abrir_no_navegador", { url: alvo });
+                      acao("timer_start", {
+                        description: c.titulo,
+                        cursoId: c.id,
+                        tarefaId: null,
+                      });
+                      alternarMenu();
+                    }}
+                  >
+                    <I.Play size={13} />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

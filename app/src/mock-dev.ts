@@ -215,6 +215,7 @@ const respostas: Record<string, (a: any) => unknown> = {
   fechar_mini: () => null,
   expandir: () => null,
   mini_no_topo: () => null,
+  mini_altura: () => null,
   supabase_estado: () => ({
     configurado: true,
     conectado: true,
@@ -360,6 +361,10 @@ const respostas: Record<string, (a: any) => unknown> = {
       min_minutos: null, max_minutos: 30 },
   ],
   "plugin:event|listen": () => 1,
+  "plugin:window|is_maximized": () => false,
+  "plugin:window|minimize": () => null,
+  "plugin:window|toggle_maximize": () => null,
+  "plugin:window|close": () => null,
   "plugin:event|unlisten": () => null,
   pomodoro_config: () => cfgPomo,
   pomodoro_salvar_config: () => null,
@@ -462,6 +467,12 @@ const respostas: Record<string, (a: any) => unknown> = {
 };
 
 (window as any).__TAURI_INTERNALS__ = {
+  // Sem `metadata`, `getCurrentWindow()` lanca e a barra de titulo propria
+  // some da previa — justamente a parte que precisa ser conferida.
+  metadata: {
+    currentWindow: { label: location.search.includes("mini") ? "mini" : "main" },
+    currentWebview: { windowLabel: "main", label: "main" },
+  },
   transformCallback: (cb: unknown) => cb,
   invoke: async (cmd: string, args: any) => {
     const f = respostas[cmd];
