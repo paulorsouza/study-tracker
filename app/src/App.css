@@ -24,6 +24,8 @@
   --ok: #56d364;
   --warn: #e3b341;
   --danger: #f47174;
+  /* Série única de gráfico: passo escuro da paleta categórica validada. */
+  --serie-1: #3987e5;
   --r: 10px;
   --r-sm: 7px;
 
@@ -44,6 +46,7 @@
   --ok: #2f9e44;
   --warn: #b8860b;
   --danger: #d64545;
+  --serie-1: #2a78d6;
 
   color-scheme: light;
 }
@@ -501,3 +504,154 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   margin: 6px -10px;
   background: var(--surf-2);
 }
+
+/* --- painel --------------------------------------------------------------
+   Marca fina, grade discreta, extremidade arredondada de 4px ancorada na
+   linha de base, 2px de respiro entre barras vizinhas. A série do gráfico é
+   uma só, então é uma cor só — barra mais escura porque é maior seria
+   codificar o comprimento duas vezes.
+--------------------------------------------------------------------------- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tile {
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 15px 17px;
+}
+
+.tile-valor {
+  font: 650 25px/1.15 "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--tx-2);
+}
+
+.tile-destaque { color: var(--serie-1); }
+.tile-rotulo { font-size: 11.5px; color: var(--tx-2); margin-top: 3px; }
+
+.grafico { padding-top: 4px; }
+
+.grafico-topo {
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -1px;
+}
+
+.grafico-marca {
+  font-size: 10.5px;
+  color: var(--tx-3);
+  background: var(--surf);
+  padding: 0 0 2px 6px;
+  transform: translateY(-8px);
+}
+
+.barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 132px;
+  border-bottom: 1px solid var(--line);
+}
+
+.barra-alvo {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  cursor: default;
+}
+
+.barra {
+  width: 100%;
+  min-height: 2px;
+  background: var(--serie-1);
+  border-radius: 4px 4px 0 0;
+  transition: opacity .12s;
+}
+
+.barra-alvo:hover .barra,
+.barra-alvo:focus-visible .barra { opacity: .75; }
+
+.dica {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--tx);
+  color: var(--bg);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  white-space: nowrap;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.eixo {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--tx-3);
+  text-transform: uppercase;
+}
+
+.eixo > span { flex: 1; text-align: center; white-space: nowrap; }
+
+.duas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.ranking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.ranking + .ranking { box-shadow: inset 0 1px 0 var(--line); }
+
+.ranking-nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-trilho {
+  width: 84px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surf-2);
+  overflow: hidden;
+  flex: none;
+}
+
+:root[data-tema="claro"] .ranking-trilho { background: var(--line); }
+
+.ranking-barra {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--serie-1);
+}
+
+.ranking-valor { min-width: 62px; text-align: right; font-weight: 600; flex: none; }
+
+.atalhos { display: flex; gap: 8px; margin-top: 4px; }

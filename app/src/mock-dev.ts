@@ -18,15 +18,17 @@ const emHoras = (h: number, m = 0) => {
   return d.getTime();
 };
 
+// Paleta categórica validada (ver migração 002): claro e escuro são passos
+// escolhidos para cada superfície, não um o clareado do outro.
 const TIPOS = [
-  { id: "at-estudo", nome: "Estudo", cor: "#6c8cff", conta_como_estudo: true },
-  { id: "at-pausa", nome: "Pausa", cor: "#7c8496", conta_como_estudo: false },
-  { id: "at-caminhada", nome: "Caminhada com os dogs", cor: "#56d364", conta_como_estudo: false },
-  { id: "at-academia", nome: "Academia", cor: "#f47174", conta_como_estudo: false },
-  { id: "at-exercicio", nome: "Exercício", cor: "#e3b341", conta_como_estudo: false },
-  { id: "at-deslocamento", nome: "Deslocamento", cor: "#5ec8e5", conta_como_estudo: false },
-  { id: "at-descanso", nome: "Descanso", cor: "#b48ce8", conta_como_estudo: false },
-  { id: "at-pessoal", nome: "Pessoal", cor: "#c0caf5", conta_como_estudo: false },
+  { id: "at-estudo", nome: "Estudo", cor: "#2a78d6", cor_escura: "#3987e5", conta_como_estudo: true },
+  { id: "at-academia", nome: "Academia", cor: "#eb6834", cor_escura: "#d95926", conta_como_estudo: false },
+  { id: "at-caminhada", nome: "Caminhada com os dogs", cor: "#1baf7a", cor_escura: "#199e70", conta_como_estudo: false },
+  { id: "at-exercicio", nome: "Exercício", cor: "#eda100", cor_escura: "#c98500", conta_como_estudo: false },
+  { id: "at-descanso", nome: "Descanso", cor: "#e87ba4", cor_escura: "#d55181", conta_como_estudo: false },
+  { id: "at-deslocamento", nome: "Deslocamento", cor: "#008300", cor_escura: "#008300", conta_como_estudo: false },
+  { id: "at-pausa", nome: "Pausa", cor: "#4a3aa7", cor_escura: "#9085e9", conta_como_estudo: false },
+  { id: "at-pessoal", nome: "Pessoal", cor: "#e34948", cor_escura: "#e66767", conta_como_estudo: false },
 ];
 
 const cor = (id: string) => TIPOS.find((t) => t.id === id)!;
@@ -72,19 +74,81 @@ const LANC = [
   ["e8", emHoras(15, 20), emHoras(16, 42), "at-estudo", "Exercícios da aula 12", "c2"],
 ] as const;
 
-const lancamentos = LANC.map(([id, ini, fim, tipo, desc, curso]) => ({
+const monta = (
+  id: string, ini: number, fim: number, tipo: string,
+  desc: string | null, curso: string | null
+) => ({
   id,
   started_at: ini,
   ended_at: fim,
   activity_type_id: tipo,
   atividade: cor(tipo).nome,
   cor: cor(tipo).cor,
+  cor_escura: cor(tipo).cor_escura,
   conta_como_estudo: cor(tipo).conta_como_estudo,
   description: desc,
   course_id: curso,
   curso: curso ? CURSOS.find((c) => c.id === curso)!.titulo : null,
   source: "timer",
-}));
+});
+
+const lancamentos = LANC.map(([id, ini, fim, tipo, desc, curso]) =>
+  monta(id, ini, fim, tipo, desc, curso)
+);
+
+// Histórico dos últimos 45 dias, gerado com irregularidade proposital: dias
+// zerados, finais de semana fracos e um pico. Série lisa esconde o que o
+// gráfico precisa mostrar.
+const semente = (n: number) => {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+for (let d = 1; d <= 45; d++) {
+  const base = new Date(hoje);
+  base.setDate(base.getDate() - d);
+  base.setHours(0, 0, 0, 0);
+  const fds = base.getDay() === 0 || base.getDay() === 6;
+  const r = semente(d);
+
+  if (r < (fds ? 0.55 : 0.16)) continue; // dia sem estudo
+
+  const blocos = r > 0.85 ? 3 : r > 0.5 ? 2 : 1;
+  for (let b = 0; b < blocos; b++) {
+    const hIni = 8 + b * 3 + Math.floor(semente(d * 10 + b) * 2);
+    const minutos = 30 + Math.floor(semente(d * 7 + b) * 75);
+    const ini = new Date(base);
+    ini.setHours(hIni, 0, 0, 0);
+    const cursoId = semente(d + b) > 0.5 ? "c1" : "c2";
+    lancamentos.push(
+      monta(
+        `h${d}-${b}`,
+        ini.getTime(),
+        ini.getTime() + minutos * 60000,
+        "at-estudo",
+        "Sessão de estudo",
+        cursoId
+      )
+    );
+  }
+
+  if (semente(d * 3) > 0.6) {
+    const ini = new Date(base);
+    ini.setHours(7, 10, 0, 0);
+    lancamentos.push(
+      monta(`hc${d}`, ini.getTime(), ini.getTime() + 40 * 60000,
+        "at-caminhada", "Caminhada com os dogs", null)
+    );
+  }
+  if (semente(d * 5) > 0.7) {
+    const ini = new Date(base);
+    ini.setHours(12, 0, 0, 0);
+    lancamentos.push(
+      monta(`ha${d}`, ini.getTime(), ini.getTime() + 55 * 60000,
+        "at-academia", "Treino", null)
+    );
+  }
+}
 
 const p2 = (n: number) => String(n).padStart(2, "0");
 const isoDia = (delta = 0) => {

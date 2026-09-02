@@ -10,6 +10,7 @@ type Lancamento = {
   activity_type_id: string;
   atividade: string;
   cor: string;
+  cor_escura: string | null;
   conta_como_estudo: boolean;
   description: string | null;
   course_id: string | null;
@@ -17,7 +18,17 @@ type Lancamento = {
   source: string;
 };
 
-type Tipo = { id: string; nome: string; cor: string; conta_como_estudo: boolean };
+type Tipo = {
+  id: string;
+  nome: string;
+  cor: string;
+  cor_escura: string | null;
+  conta_como_estudo: boolean;
+};
+
+/** O passo escuro é escolhido contra a superfície escura — não é o claro clareado. */
+const corDe = (l: { cor: string; cor_escura: string | null }, tema: string) =>
+  tema === "escuro" ? l.cor_escura ?? l.cor : l.cor;
 
 const hhmm = (ms: number) =>
   new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -45,11 +56,13 @@ const agoraHhmm = () => {
 export default function Hoje({
   cursos,
   versao,
+  tema,
   onErro,
   onMudou,
 }: {
   cursos: Curso[];
   versao: number;
+  tema: string;
   onErro: (e: string | null) => void;
   onMudou: () => void;
 }) {
@@ -93,7 +106,7 @@ export default function Hoje({
       const d = (i.ended_at ?? Date.now()) - i.started_at;
       total += d;
       if (i.conta_como_estudo) estudo += d;
-      const at = por.get(i.activity_type_id) ?? { nome: i.atividade, cor: i.cor, ms: 0 };
+      const at = por.get(i.activity_type_id) ?? { nome: i.atividade, cor: corDe(i, tema), ms: 0 };
       at.ms += d;
       por.set(i.activity_type_id, at);
     }
@@ -102,7 +115,7 @@ export default function Hoje({
       estudo,
       por: [...por.values()].sort((a, b) => b.ms - a.ms),
     };
-  }, [itens]);
+  }, [itens, tema]);
 
   const ehHoje = new Date().toDateString() === dia.toDateString();
   const DIA_MS = 86_400_000;
@@ -240,7 +253,7 @@ export default function Hoje({
                 style={{
                   left: `${((a - ini) / DIA_MS) * 100}%`,
                   width: `${Math.max(((b - a) / DIA_MS) * 100, 0.4)}%`,
-                  background: i.cor,
+                  background: corDe(i, tema),
                 }}
               />
             );
@@ -282,7 +295,7 @@ export default function Hoje({
               />
             ) : (
               <div key={i.id} className="lanc">
-                <span className="lanc-cor" style={{ background: i.cor }} />
+                <span className="lanc-cor" style={{ background: corDe(i, tema) }} />
                 <span className="lanc-hora num">
                   {hhmm(i.started_at)} – {i.ended_at ? hhmm(i.ended_at) : "agora"}
                 </span>

@@ -23,10 +23,13 @@ pub fn agora_ms() -> i64 {
 
 /// Migrações em ordem. Nunca editar uma já lançada — sempre acrescentar outra.
 /// O nome fica gravado no banco, então renomear equivale a reaplicar.
-const MIGRATIONS: &[(&str, &str)] = &[(
-    "001_inicial",
-    include_str!("../migrations/001_inicial.sql"),
-)];
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("001_inicial", include_str!("../migrations/001_inicial.sql")),
+    (
+        "002_paleta_validada",
+        include_str!("../migrations/002_paleta_validada.sql"),
+    ),
+];
 
 pub fn abrir(caminho: &Path) -> rusqlite::Result<Connection> {
     if let Some(dir) = caminho.parent() {
@@ -115,25 +118,30 @@ pub fn semear(conn: &Connection, device: &str) -> rusqlite::Result<()> {
         return Ok(());
     }
 
-    // (id, nome, cor, conta_como_estudo)
-    let tipos: &[(&str, &str, &str, i64)] = &[
-        ("at-estudo", "Estudo", "#7aa2f7", 1),
-        ("at-pausa", "Pausa", "#9a9aa4", 0),
-        ("at-caminhada", "Caminhada com os dogs", "#9ece6a", 0),
-        ("at-academia", "Academia", "#f7768e", 0),
-        ("at-exercicio", "Exercício", "#e0af68", 0),
-        ("at-deslocamento", "Deslocamento", "#7dcfff", 0),
-        ("at-descanso", "Descanso", "#bb9af7", 0),
-        ("at-pessoal", "Pessoal", "#c0caf5", 0),
+    // (id, nome, cor clara, cor escura, conta_como_estudo)
+    //
+    // Paleta categórica validada para daltonismo nos dois temas. A ORDEM é o
+    // mecanismo de segurança — são os pares vizinhos que precisam se separar,
+    // então reordenar sem revalidar quebra a acessibilidade em silêncio.
+    let tipos: &[(&str, &str, &str, &str, i64)] = &[
+        ("at-estudo", "Estudo", "#2a78d6", "#3987e5", 1),
+        ("at-academia", "Academia", "#eb6834", "#d95926", 0),
+        ("at-caminhada", "Caminhada com os dogs", "#1baf7a", "#199e70", 0),
+        ("at-exercicio", "Exercício", "#eda100", "#c98500", 0),
+        ("at-descanso", "Descanso", "#e87ba4", "#d55181", 0),
+        ("at-deslocamento", "Deslocamento", "#008300", "#008300", 0),
+        ("at-pausa", "Pausa", "#4a3aa7", "#9085e9", 0),
+        ("at-pessoal", "Pessoal", "#e34948", "#e66767", 0),
     ];
 
     let agora = agora_ms();
-    for (i, (id, nome, cor, estudo)) in tipos.iter().enumerate() {
+    for (i, (id, nome, cor, escura, estudo)) in tipos.iter().enumerate() {
         conn.execute(
             "INSERT INTO activity_types
-               (id, nome, cor, conta_como_estudo, ordem, device_id, version, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?7)",
-            params![id, nome, cor, estudo, i as i64, device, agora],
+               (id, nome, cor, cor_escura, conta_como_estudo, ordem, device_id,
+                version, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?8)",
+            params![id, nome, cor, escura, estudo, i as i64, device, agora],
         )?;
     }
 

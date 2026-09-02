@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import Painel from "./Painel";
 import Hoje from "./Hoje";
 import Planejamento from "./Planejamento";
 import Cursos from "./Cursos";
@@ -32,7 +33,7 @@ type Recovery = {
   gap_ms: number;
 };
 
-type Aba = "hoje" | "plano" | "cursos" | "config";
+type Aba = "painel" | "hoje" | "plano" | "cursos" | "config";
 
 export function dur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -52,7 +53,7 @@ export function durCurta(ms: number) {
 }
 
 export default function App() {
-  const [aba, setAba] = useState<Aba>("hoje");
+  const [aba, setAba] = useState<Aba>("painel");
   const [status, setStatus] = useState<Status | null>(null);
   const [recovery, setRecovery] = useState<Recovery | null>(null);
   const [descricao, setDescricao] = useState("");
@@ -118,6 +119,7 @@ export default function App() {
   const suspeita = status && Math.abs(status.drift_ms) > 2000;
 
   const itens: { id: Aba; nome: string; Icone: typeof I.Relogio }[] = [
+    { id: "painel", nome: "Painel", Icone: I.Painel },
     { id: "hoje", nome: "Hoje", Icone: I.Calendario },
     { id: "plano", nome: "Planejamento", Icone: I.Lista },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
@@ -235,8 +237,11 @@ export default function App() {
             </div>
           )}
 
+          {aba === "painel" && (
+            <Painel cursos={cursos} versao={versao} tema={tema} irPara={setAba} />
+          )}
           {aba === "hoje" && (
-            <Hoje cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />
+            <Hoje cursos={cursos} versao={versao} tema={tema} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "plano" && (
             <Planejamento cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />

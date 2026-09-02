@@ -196,3 +196,46 @@ modelos de rotina e blocos de horário. Recorrência exige decidir quando
 materializar as ocorrências e como não duplicá-las na sincronização (§12 do
 plano cobra isso explicitamente) — é uma decisão que merece estar sozinha, não
 carona numa entrega de tela.
+
+## D-012 — A paleta das categorias foi trocada porque reprovou no validador
+**2026-09-01**
+
+As cores semeadas originalmente foram escolhidas no olho, para tema escuro.
+Rodadas num validador de paleta categórica, reprovaram no tema claro em três
+checagens:
+
+- **faixa de luminosidade** — quatro cores claras demais para a superfície;
+- **piso de croma** — Pausa e Pessoal liam como cinza, e cinza significa
+  "sem dado";
+- **piso de visão normal** — o par Pausa/Estudo ficava com ΔE 12,2, abaixo do
+  mínimo de 15. Difícil de distinguir **mesmo com visão de cores completa**.
+
+Trocada por uma paleta validada nos dois temas (`migrations/002`). Três coisas
+que passam despercebidas e ficam registradas:
+
+1. **Um tom não serve para os dois temas.** O passo escuro é escolhido contra a
+   superfície escura; não é o claro clareado. Daí a coluna `cor_escura`.
+2. **A ordem das categorias é o mecanismo de segurança**, não estética: são os
+   pares *vizinhos* que precisam se separar. Reordenar sem revalidar quebra a
+   acessibilidade em silêncio.
+3. **Três cores do tema claro ficam abaixo de 3:1 de contraste.** Isso é
+   aceitável só porque toda categoria aparece com nome escrito ao lado — a
+   identidade nunca depende só da cor.
+
+A migração só troca a linha que ainda está com a cor original: personalização
+do usuário sobrevive.
+
+## D-013 — O painel faz uma consulta só
+**2026-09-01**
+
+Todos os blocos — hoje, semana, sequência, média, série diária, por curso, por
+atividade — saem do mesmo conjunto de lançamentos, buscado uma vez com a janela
+mais longa de que qualquer bloco precisa (90 dias).
+
+O motivo não é desempenho: é que números do mesmo painel vindos de consultas
+diferentes **discordam entre si** na virada do dia ou quando um lançamento é
+editado no meio. Uma fonte, uma verdade.
+
+Regras de gráfico adotadas: série única é cor única (barra mais escura porque é
+maior codificaria o comprimento duas vezes); nada de eixo duplo; rótulo direto
+só no melhor dia, o resto no hover; grade em fio sólido, nunca tracejado.

@@ -117,3 +117,9 @@ export const Lista = ({ size = 17 }: P) => (
     <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
   </svg>
 );
+
+export const Painel = ({ size = 17 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />
+  </svg>
+);

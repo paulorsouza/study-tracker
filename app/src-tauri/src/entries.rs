@@ -20,6 +20,7 @@ pub struct Lancamento {
     pub activity_type_id: String,
     pub atividade: String,
     pub cor: String,
+    pub cor_escura: Option<String>,
     pub conta_como_estudo: bool,
     pub description: Option<String>,
     pub course_id: Option<String>,
@@ -32,6 +33,7 @@ pub struct TipoAtividade {
     pub id: String,
     pub nome: String,
     pub cor: String,
+    pub cor_escura: Option<String>,
     pub conta_como_estudo: bool,
 }
 
@@ -82,7 +84,7 @@ pub fn listar_tipos(db: tauri::State<Db>) -> Result<Vec<TipoAtividade>, String> 
     let conn = db.conn.lock().unwrap();
     let mut stmt = conn
         .prepare(
-            "SELECT id, nome, cor, conta_como_estudo FROM activity_types
+            "SELECT id, nome, cor, cor_escura, conta_como_estudo FROM activity_types
               WHERE deleted_at IS NULL ORDER BY ordem",
         )
         .map_err(|e| e.to_string())?;
@@ -92,7 +94,8 @@ pub fn listar_tipos(db: tauri::State<Db>) -> Result<Vec<TipoAtividade>, String> 
                 id: r.get(0)?,
                 nome: r.get(1)?,
                 cor: r.get(2)?,
-                conta_como_estudo: r.get::<_, i64>(3)? != 0,
+                cor_escura: r.get(3)?,
+                conta_como_estudo: r.get::<_, i64>(4)? != 0,
             })
         })
         .map_err(|e| e.to_string())?
@@ -113,7 +116,8 @@ pub fn listar_periodo(
     let mut stmt = conn
         .prepare(
             "SELECT e.id, e.started_at, e.ended_at, e.activity_type_id, a.nome, a.cor,
-                    a.conta_como_estudo, e.description, e.course_id, c.titulo, e.source
+                    a.cor_escura, a.conta_como_estudo, e.description, e.course_id,
+                    c.titulo, e.source
                FROM time_entries e
                JOIN activity_types a ON a.id = e.activity_type_id
                LEFT JOIN courses c ON c.id = e.course_id
@@ -133,11 +137,12 @@ pub fn listar_periodo(
                 activity_type_id: r.get(3)?,
                 atividade: r.get(4)?,
                 cor: r.get(5)?,
-                conta_como_estudo: r.get::<_, i64>(6)? != 0,
-                description: r.get(7)?,
-                course_id: r.get(8)?,
-                curso: r.get(9)?,
-                source: r.get(10)?,
+                cor_escura: r.get(6)?,
+                conta_como_estudo: r.get::<_, i64>(7)? != 0,
+                description: r.get(8)?,
+                course_id: r.get(9)?,
+                curso: r.get(10)?,
+                source: r.get(11)?,
             })
         })
         .map_err(|e| e.to_string())?
