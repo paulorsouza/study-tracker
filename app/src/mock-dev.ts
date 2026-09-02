@@ -86,10 +86,66 @@ const lancamentos = LANC.map(([id, ini, fim, tipo, desc, curso]) => ({
   source: "timer",
 }));
 
+const p2 = (n: number) => String(n).padStart(2, "0");
+const isoDia = (delta = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+};
+
+// Mistura proposital: tarefa sem estimativa, uma estourada, uma atrasada de
+// dois dias, uma sem data. É onde o layout costuma quebrar.
+const TAREFAS = [
+  { id: "t1", titulo: "Assistir aula 13 — modificadores", course_id: "c1", curso: CURSOS[0].titulo,
+    duracao_estimada_min: 60, prioridade: 1, dia_planejado: isoDia(0), ordem: 0,
+    estado: "aberta", concluida_em: null, realizado_ms: 25 * 60000 },
+  { id: "t2", titulo: "Refazer o exercício de retopologia", course_id: "c1", curso: CURSOS[0].titulo,
+    duracao_estimada_min: 45, prioridade: 0, dia_planejado: isoDia(0), ordem: 1,
+    estado: "aberta", concluida_em: null, realizado_ms: 68 * 60000 },
+  { id: "t3", titulo: "Ler capítulo sobre ordens a mercado", course_id: "c2", curso: CURSOS[1].titulo,
+    duracao_estimada_min: null, prioridade: 2, dia_planejado: isoDia(0), ordem: 2,
+    estado: "aberta", concluida_em: null, realizado_ms: 0 },
+  { id: "t4", titulo: "Revisar anotações da semana", course_id: null, curso: null,
+    duracao_estimada_min: 30, prioridade: 0, dia_planejado: isoDia(0), ordem: 3,
+    estado: "concluida", concluida_em: Date.now() - 7200000, realizado_ms: 34 * 60000 },
+  { id: "t5", titulo: "Terminar a lista de exercícios da aula 11", course_id: "c2", curso: CURSOS[1].titulo,
+    duracao_estimada_min: 90, prioridade: 1, dia_planejado: isoDia(-2), ordem: 0,
+    estado: "aberta", concluida_em: null, realizado_ms: 0 },
+  { id: "t6", titulo: "Configurar ambiente de Rust", course_id: "c3", curso: CURSOS[2].titulo,
+    duracao_estimada_min: 40, prioridade: 0, dia_planejado: isoDia(-5), ordem: 0,
+    estado: "aberta", concluida_em: null, realizado_ms: 0 },
+  { id: "t7", titulo: "Escolher próximo curso de shaders", course_id: null, curso: null,
+    duracao_estimada_min: null, prioridade: 0, dia_planejado: null, ordem: 0,
+    estado: "aberta", concluida_em: null, realizado_ms: 0 },
+  { id: "t8", titulo: "Assistir aula 12 e anotar", course_id: "c1", curso: CURSOS[0].titulo,
+    duracao_estimada_min: 60, prioridade: 0, dia_planejado: isoDia(2), ordem: 0,
+    estado: "aberta", concluida_em: null, realizado_ms: 0 },
+];
+
 let rodando: { inicio: number; descricao: string } | null = null;
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  listar_tarefas: ({ dia, ate, modo }) => {
+    const hoje = isoDia(0);
+    if (modo === "atrasadas")
+      return TAREFAS.filter(
+        (t) => t.estado === "aberta" && t.dia_planejado && t.dia_planejado < (dia ?? hoje)
+      );
+    if (modo === "concluidas") return TAREFAS.filter((t) => t.estado === "concluida");
+    if (modo === "sem_dia")
+      return TAREFAS.filter((t) => t.estado === "aberta" && !t.dia_planejado);
+    return TAREFAS.filter(
+      (t) => t.dia_planejado && t.dia_planejado >= dia && t.dia_planejado <= ate
+    );
+  },
+  criar_tarefa: () => "novo",
+  editar_tarefa: () => null,
+  mover_tarefa: () => null,
+  reordenar_tarefas: () => null,
+  mudar_estado_tarefa: () => null,
+  excluir_tarefa: () => null,
+  replanejar_atrasadas: () => 2,
   listar_tipos: () => TIPOS,
   listar_periodo: ({ inicio, fim }) =>
     lancamentos.filter((l) => l.started_at < fim && l.ended_at > inicio),

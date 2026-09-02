@@ -111,3 +111,9 @@ export const Mais = ({ size = 15 }: P) => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+
+export const Lista = ({ size = 17 }: P) => (
+  <svg {...base(size)}>
+    <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+  </svg>
+);

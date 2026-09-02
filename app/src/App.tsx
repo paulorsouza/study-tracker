@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Hoje from "./Hoje";
+import Planejamento from "./Planejamento";
 import Cursos from "./Cursos";
 import Config from "./Config";
 import * as I from "./icones";
@@ -31,7 +32,7 @@ type Recovery = {
   gap_ms: number;
 };
 
-type Aba = "hoje" | "cursos" | "config";
+type Aba = "hoje" | "plano" | "cursos" | "config";
 
 export function dur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -96,7 +97,7 @@ export default function App() {
   }, [recarregarCursos]);
 
   const iniciar = () => {
-    invoke("timer_start", { description: descricao, cursoId: null })
+    invoke("timer_start", { description: descricao, cursoId: null, tarefaId: null })
       .then(() => {
         setDescricao("");
         setErro(null);
@@ -118,6 +119,7 @@ export default function App() {
 
   const itens: { id: Aba; nome: string; Icone: typeof I.Relogio }[] = [
     { id: "hoje", nome: "Hoje", Icone: I.Calendario },
+    { id: "plano", nome: "Planejamento", Icone: I.Lista },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
     { id: "config", nome: "Configurações", Icone: I.Engrenagem },
   ];
@@ -235,6 +237,9 @@ export default function App() {
 
           {aba === "hoje" && (
             <Hoje cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />
+          )}
+          {aba === "plano" && (
+            <Planejamento cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "cursos" && (
             <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />

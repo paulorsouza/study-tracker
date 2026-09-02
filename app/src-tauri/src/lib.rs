@@ -2,6 +2,7 @@ mod bridge;
 mod db;
 mod entries;
 mod library;
+mod tasks;
 mod timer;
 
 use std::sync::Mutex;
@@ -54,6 +55,14 @@ pub fn run() {
             entries::editar_lancamento,
             entries::excluir_lancamento,
             entries::restaurar_lancamento,
+            tasks::listar_tarefas,
+            tasks::criar_tarefa,
+            tasks::editar_tarefa,
+            tasks::mover_tarefa,
+            tasks::reordenar_tarefas,
+            tasks::mudar_estado_tarefa,
+            tasks::excluir_tarefa,
+            tasks::replanejar_atrasadas,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

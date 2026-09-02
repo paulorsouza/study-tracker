@@ -401,3 +401,103 @@ code {
 }
 
 hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+
+/* --- abas ---------------------------------------------------------------- */
+
+.abas {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--surf-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  margin-bottom: 16px;
+  width: fit-content;
+}
+
+.aba {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--tx-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.aba:hover { color: var(--tx); }
+
+.aba[aria-current="page"] {
+  background: var(--surf);
+  color: var(--tx);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+}
+
+.selo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--warn);
+  color: #16181d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.selo-hoje { background: var(--acc); color: var(--acc-tx); margin-left: 8px; }
+
+.linha-nav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.grupo-dia {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--tx-2);
+  text-transform: capitalize;
+  padding-bottom: 7px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* --- tarefas ------------------------------------------------------------- */
+
+.tarefa[draggable="true"] { cursor: grab; }
+.tarefa[draggable="true"]:active { cursor: grabbing; }
+
+.tarefa.feita .lanc-texto { color: var(--tx-3); text-decoration: line-through; }
+
+.pri { width: 3px; height: 15px; border-radius: 2px; flex: none; }
+
+.progresso {
+  width: 74px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surf-2);
+  overflow: hidden;
+  flex: none;
+}
+
+:root[data-tema="claro"] .progresso { background: var(--line); }
+
+.progresso-barra { display: block; height: 100%; border-radius: 3px; }
+
+.editor {
+  border: 1px solid var(--acc);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  margin: 6px -10px;
+  background: var(--surf-2);
+}

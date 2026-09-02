@@ -52,6 +52,7 @@ pub struct Running {
     pub started_mono: Instant,
     pub description: String,
     pub curso_id: Option<String>,
+    pub tarefa_id: Option<String>,
 }
 
 pub struct TimerState {
@@ -138,6 +139,7 @@ pub fn iniciar(
     state: &TimerState,
     description: String,
     curso_id: Option<String>,
+    tarefa_id: Option<String>,
 ) -> Result<Status, String> {
     let mut running = state.running.lock().unwrap();
     if running.is_some() {
@@ -159,6 +161,7 @@ pub fn iniciar(
         started_mono: Instant::now(),
         description: description.clone(),
         curso_id,
+        tarefa_id,
     });
 
     Ok(Status {
@@ -175,8 +178,9 @@ pub fn timer_start(
     state: tauri::State<TimerState>,
     description: String,
     curso_id: Option<String>,
+    tarefa_id: Option<String>,
 ) -> Result<Status, String> {
-    iniciar(&state, description, curso_id)
+    iniciar(&state, description, curso_id, tarefa_id)
 }
 
 #[tauri::command]
@@ -218,14 +222,15 @@ pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, Strin
         let _ = conn.execute(
             "INSERT INTO time_entries
                (id, started_at, ended_at, activity_type_id, description, course_id,
-                source, device_id, version, created_at, updated_at)
-             VALUES (?1, ?2, ?3, 'at-estudo', ?4, ?5, 'timer', ?6, 1, ?3, ?3)",
+                task_id, source, device_id, version, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 'at-estudo', ?4, ?5, ?6, 'timer', ?7, 1, ?3, ?3)",
             rusqlite::params![
                 uuid::Uuid::new_v4().to_string(),
                 r.started_wall,
                 fim,
                 if r.description.is_empty() { None } else { Some(&r.description) },
                 r.curso_id,
+                r.tarefa_id,
                 db.device_id,
             ],
         );

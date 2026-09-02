@@ -178,3 +178,21 @@ app não está dentro do Tauri. Confirmado ausente do bundle de produção.
 Os dados de exemplo são propositalmente irregulares — sessões curtas, buracos
 no meio do dia, um curso parado há meses. Dado bonitinho esconde justamente os
 casos que quebram layout.
+
+## D-011 — A tarefa é o começo da sessão, não um item de lista
+**2026-09-01**
+
+O indicador nº 1 de §2 do plano é "percentual de sessões iniciadas a partir do
+planejamento diário". Esse número só sobe se começar pela tarefa for **mais
+fácil** que apertar o cronômetro solto — então cada tarefa tem um botão de play
+que já vincula curso e tarefa ao lançamento.
+
+Consequência no modelo: `time_entries.task_id` passa a ser preenchido pelo
+cronômetro, e "planejado versus realizado" vira uma soma na consulta, não um
+total guardado. Total guardado desatualiza na primeira edição de lançamento.
+
+**Fora desta primeira versão, de propósito:** recorrência diária/semanal,
+modelos de rotina e blocos de horário. Recorrência exige decidir quando
+materializar as ocorrências e como não duplicá-las na sincronização (§12 do
+plano cobra isso explicitamente) — é uma decisão que merece estar sozinha, não
+carona numa entrega de tela.

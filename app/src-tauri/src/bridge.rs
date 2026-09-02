@@ -178,7 +178,7 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token: String) {
                     let desc = corpo["descricao"].as_str().unwrap_or("").to_string();
                     let curso = corpo["curso_id"].as_str().map(str::to_string);
                     let r = match app.try_state::<TimerState>() {
-                        Some(s) => timer::iniciar(&s, desc, curso).map(|_| ()),
+                        Some(s) => timer::iniciar(&s, desc, curso, None).map(|_| ()),
                         None => Err("cronômetro indisponível".into()),
                     };
                     match r {
