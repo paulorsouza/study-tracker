@@ -147,3 +147,34 @@ requisição a `localhost`:
 - CORS liberado só para a origem `chrome-extension://`;
 - nenhuma rota aceita caminho de arquivo, comando ou URL para abrir — a
   extensão manda dado, não ação sobre o sistema.
+
+## D-009 — Sistema visual: cor saturada é reservada para dado
+**2026-09-01**
+
+A interface tinha cara de ferramenta de diagnóstico. A passada de redesenho
+fixou duas regras que valem para tudo que vier depois:
+
+1. **Cor saturada só para dado.** As categorias de atividade são a única coisa
+   vivamente colorida na tela. Se botões e cabeçalhos também fossem, a cor
+   deixaria de significar "isto é uma categoria" e viraria decoração.
+2. **Número que se compara é tabular.** Durações alinhadas em coluna são a
+   diferença entre ler e conferir.
+
+Estrutura: navegação lateral fixa com o cronômetro ancorado no rodapé dela —
+começar a contar fica a um clique de qualquer tela, que é o "dois cliques" de
+§9 do plano. Tema claro e escuro por tokens; alto contraste fica para depois.
+
+A janela abria em 760px de largura, estreita demais para lateral + conteúdo.
+Passou para 1120 com mínimo de 880, largura em que a interface foi conferida.
+
+## D-010 — Mock de desenvolvimento para a interface
+**2026-09-01**
+
+`npm run dev` abre a interface no navegador, onde `invoke` não existe — toda
+tela aparece vazia e não dá para avaliar layout nem densidade. `src/mock-dev.ts`
+instala um backend falso, só quando `import.meta.env.DEV` é verdadeiro **e** o
+app não está dentro do Tauri. Confirmado ausente do bundle de produção.
+
+Os dados de exemplo são propositalmente irregulares — sessões curtas, buracos
+no meio do dia, um curso parado há meses. Dado bonitinho esconde justamente os
+casos que quebram layout.

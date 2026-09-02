@@ -14,8 +14,10 @@
       {
         "label": "main",
         "title": "Estudos",
-        "width": 760,
-        "height": 900
+        "width": 1120,
+        "height": 780,
+        "minWidth": 880,
+        "minHeight": 560
       }
     ],
     "security": {

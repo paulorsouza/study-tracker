@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Curso, durCurta } from "./App";
+import * as I from "./icones";
 
 type Lancamento = {
   id: string;
@@ -15,29 +17,11 @@ type Lancamento = {
   source: string;
 };
 
-type Tipo = {
-  id: string;
-  nome: string;
-  cor: string;
-  conta_como_estudo: boolean;
-};
-
-type Curso = { id: string; titulo: string };
-
-function dur(ms: number) {
-  const min = Math.max(0, Math.round(ms / 60000));
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
-}
+type Tipo = { id: string; nome: string; cor: string; conta_como_estudo: boolean };
 
 const hhmm = (ms: number) =>
-  new Date(ms).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-/** Combina o dia mostrado com um "HH:MM" do input, em hora local. */
 function comHora(dia: Date, hm: string) {
   const [h, m] = hm.split(":").map(Number);
   const d = new Date(dia);
@@ -53,21 +37,30 @@ function limitesDoDia(dia: Date) {
   return [ini.getTime(), fim.getTime()] as const;
 }
 
+const agoraHhmm = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
 export default function Hoje({
   cursos,
+  versao,
   onErro,
+  onMudou,
 }: {
   cursos: Curso[];
+  versao: number;
   onErro: (e: string | null) => void;
+  onMudou: () => void;
 }) {
   const [dia, setDia] = useState(() => new Date());
   const [itens, setItens] = useState<Lancamento[]>([]);
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [editando, setEditando] = useState<string | null>(null);
   const [desfazer, setDesfazer] = useState<string | null>(null);
+  const [formAberto, setFormAberto] = useState(false);
 
-  // formulário de lançamento manual
-  const [fInicio, setFInicio] = useState("");
+  const [fInicio, setFInicio] = useState(agoraHhmm);
   const [fFim, setFFim] = useState("");
   const [fDuracao, setFDuracao] = useState("");
   const [fTipo, setFTipo] = useState("at-estudo");
@@ -79,8 +72,8 @@ export default function Hoje({
   const recarregar = useCallback(() => {
     invoke<Lancamento[]>("listar_periodo", { inicio: ini, fim })
       .then(setItens)
-      .catch((e) => onErro(String(e)));
-  }, [ini, fim, onErro]);
+      .catch(() => {});
+  }, [ini, fim]);
 
   useEffect(() => {
     invoke<Tipo[]>("listar_tipos").then(setTipos).catch(() => {});
@@ -88,32 +81,31 @@ export default function Hoje({
 
   useEffect(() => {
     recarregar();
-    // O cronômetro pode estar rodando e a extensão pode gravar de fora; sem
-    // recarga periódica a lista fica velha sem o usuário saber.
     const t = setInterval(recarregar, 5000);
     return () => clearInterval(t);
-  }, [recarregar]);
+  }, [recarregar, versao]);
 
   const totais = useMemo(() => {
     let total = 0;
     let estudo = 0;
-    const porAtividade = new Map<string, { nome: string; cor: string; ms: number }>();
+    const por = new Map<string, { nome: string; cor: string; ms: number }>();
     for (const i of itens) {
       const d = (i.ended_at ?? Date.now()) - i.started_at;
       total += d;
       if (i.conta_como_estudo) estudo += d;
-      const at = porAtividade.get(i.activity_type_id) ?? {
-        nome: i.atividade,
-        cor: i.cor,
-        ms: 0,
-      };
+      const at = por.get(i.activity_type_id) ?? { nome: i.atividade, cor: i.cor, ms: 0 };
       at.ms += d;
-      porAtividade.set(i.activity_type_id, at);
+      por.set(i.activity_type_id, at);
     }
-    return { total, estudo, porAtividade: [...porAtividade.values()] };
+    return {
+      total,
+      estudo,
+      por: [...por.values()].sort((a, b) => b.ms - a.ms),
+    };
   }, [itens]);
 
   const ehHoje = new Date().toDateString() === dia.toDateString();
+  const DIA_MS = 86_400_000;
 
   const mudarDia = (delta: number) => {
     const d = new Date(dia);
@@ -122,9 +114,17 @@ export default function Hoje({
     setEditando(null);
   };
 
+  const limpar = () => {
+    setFDesc("");
+    setFDuracao("");
+    setFFim("");
+    setFInicio(agoraHhmm());
+  };
+
   const adicionar = () => {
     if (!fInicio) return onErro("informe a hora de início");
-    invoke<string>("criar_lancamento", {
+    if (!fFim && !fDuracao.trim()) return onErro("informe o fim ou a duração");
+    invoke("criar_lancamento", {
       inicio: comHora(dia, fInicio),
       fim: fFim ? comHora(dia, fFim) : null,
       duracao: fDuracao.trim() || null,
@@ -133,10 +133,9 @@ export default function Hoje({
       cursoId: fCurso || null,
     })
       .then(() => {
-        setFDesc("");
-        setFDuracao("");
-        setFFim("");
+        limpar();
         onErro(null);
+        onMudou();
         recarregar();
       })
       .catch((e) => onErro(String(e)));
@@ -151,195 +150,265 @@ export default function Hoje({
       })
       .catch((e) => onErro(String(e)));
 
-  const restaurar = () => {
-    if (!desfazer) return;
-    invoke("restaurar_lancamento", { id: desfazer })
-      .then(() => {
-        setDesfazer(null);
-        recarregar();
-      })
-      .catch((e) => onErro(String(e)));
-  };
-
   return (
-    <section className="cartao">
-      <div className="linha" style={{ marginBottom: 14 }}>
-        <h2 style={{ margin: 0, flex: 1 }}>
-          {ehHoje
-            ? "Hoje"
-            : dia.toLocaleDateString("pt-BR", {
-                weekday: "long",
-                day: "2-digit",
-                month: "2-digit",
-              })}
-        </h2>
-        <button onClick={() => mudarDia(-1)}>←</button>
-        <button onClick={() => setDia(new Date())} disabled={ehHoje}>
-          Hoje
-        </button>
-        <button onClick={() => mudarDia(1)}>→</button>
+    <>
+      <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 22 }}>
+        <div style={{ flex: 1 }}>
+          <h1 className="titulo-pagina">
+            {ehHoje
+              ? "Hoje"
+              : dia.toLocaleDateString("pt-BR", {
+                  weekday: "long",
+                  day: "2-digit",
+                  month: "long",
+                })}
+          </h1>
+          <p className="legenda" style={{ margin: 0 }}>
+            {dia.toLocaleDateString("pt-BR", { dateStyle: "full" })}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="btn btn-icone" onClick={() => mudarDia(-1)} aria-label="Dia anterior">
+            <I.Seta />
+          </button>
+          <button className="btn" onClick={() => setDia(new Date())} disabled={ehHoje}>
+            Hoje
+          </button>
+          <button className="btn btn-icone" onClick={() => mudarDia(1)} aria-label="Próximo dia">
+            <I.Seta dir="dir" />
+          </button>
+        </div>
       </div>
 
       {desfazer && (
-        <div className="alerta">
-          Lançamento excluído.{" "}
-          <button onClick={restaurar}>Desfazer</button>{" "}
-          <button onClick={() => setDesfazer(null)}>Dispensar</button>
+        <div className="aviso">
+          <div style={{ flex: 1 }}>
+            <strong>Lançamento excluído</strong>
+            <p>Ele continua no banco — nada foi perdido de verdade.</p>
+          </div>
+          <button
+            className="btn"
+            onClick={() =>
+              invoke("restaurar_lancamento", { id: desfazer })
+                .then(() => {
+                  setDesfazer(null);
+                  recarregar();
+                })
+                .catch((e) => onErro(String(e)))
+            }
+          >
+            Desfazer
+          </button>
+          <button className="btn btn-fantasma" onClick={() => setDesfazer(null)}>
+            Dispensar
+          </button>
         </div>
       )}
 
-      <table className="medidas" style={{ marginBottom: 14 }}>
-        <tbody>
-          <tr>
-            <td>tempo total registrado</td>
-            <td>{dur(totais.total)}</td>
-          </tr>
-          <tr>
-            <td>
-              <b>tempo efetivo de estudo</b>
-            </td>
-            <td>
-              <b>{dur(totais.estudo)}</b>
-            </td>
-          </tr>
-          {totais.porAtividade
-            .filter((a) => a.ms > 0)
-            .map((a) => (
-              <tr key={a.nome}>
-                <td style={{ paddingLeft: 14, color: a.cor }}>{a.nome}</td>
-                <td>{dur(a.ms)}</td>
-              </tr>
+      <section className="card">
+        <div className="totais">
+          <div>
+            <div className="total-valor">{durCurta(totais.estudo)}</div>
+            <div className="total-rotulo">estudo efetivo</div>
+          </div>
+          <div>
+            <div className="total-valor" style={{ color: "var(--tx-2)" }}>
+              {durCurta(totais.total)}
+            </div>
+            <div className="total-rotulo">tempo registrado no dia</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
+            {totais.por.map((a) => (
+              <span key={a.nome} className="chip">
+                <span className="chip-cor" style={{ background: a.cor }} />
+                {a.nome} · <span className="num">{durCurta(a.ms)}</span>
+              </span>
             ))}
-        </tbody>
-      </table>
+          </div>
+        </div>
 
-      {itens.length === 0 ? (
-        <p className="nota">
-          Nada registrado neste dia. Use o cronômetro, a extensão do Chrome, ou
-          lance manualmente abaixo.
-        </p>
-      ) : (
-        itens.map((i) =>
-          editando === i.id ? (
-            <Editor
-              key={i.id}
-              item={i}
-              dia={dia}
-              tipos={tipos}
-              cursos={cursos}
-              onCancelar={() => setEditando(null)}
-              onSalvo={() => {
-                setEditando(null);
-                recarregar();
-              }}
-              onErro={onErro}
-            />
-          ) : (
-            <div key={i.id} className="linha">
-              <span
+        {/* Linha do tempo: mostra os buracos do dia, que a lista não mostra. */}
+        <div className="faixa">
+          {itens.map((i) => {
+            const a = Math.max(i.started_at, ini);
+            const b = Math.min(i.ended_at ?? Date.now(), fim);
+            return (
+              <div
+                key={i.id}
+                className="faixa-bloco"
+                title={`${hhmm(i.started_at)} · ${i.description || i.atividade}`}
                 style={{
-                  width: 4,
-                  alignSelf: "stretch",
+                  left: `${((a - ini) / DIA_MS) * 100}%`,
+                  width: `${Math.max(((b - a) / DIA_MS) * 100, 0.4)}%`,
                   background: i.cor,
-                  borderRadius: 2,
                 }}
               />
-              <span
-                className="nota"
-                style={{ margin: 0, minWidth: 104, fontVariantNumeric: "tabular-nums" }}
+            );
+          })}
+          {ehHoje && (
+            <div
+              className="faixa-agora"
+              style={{ left: `${((Date.now() - ini) / DIA_MS) * 100}%` }}
+              title="agora"
+            />
+          )}
+        </div>
+        <div className="faixa-horas" aria-hidden>
+          <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span>
+        </div>
+
+        {itens.length === 0 ? (
+          <div className="vazio">
+            Nada registrado neste dia.
+            <br />
+            Use o cronômetro na lateral, a extensão do Chrome, ou lance à mão.
+          </div>
+        ) : (
+          itens.map((i) =>
+            editando === i.id ? (
+              <Editor
+                key={i.id}
+                item={i}
+                dia={dia}
+                tipos={tipos}
+                cursos={cursos}
+                onFechar={() => setEditando(null)}
+                onSalvo={() => {
+                  setEditando(null);
+                  recarregar();
+                  onMudou();
+                }}
+                onErro={onErro}
+              />
+            ) : (
+              <div key={i.id} className="lanc">
+                <span className="lanc-cor" style={{ background: i.cor }} />
+                <span className="lanc-hora num">
+                  {hhmm(i.started_at)} – {i.ended_at ? hhmm(i.ended_at) : "agora"}
+                </span>
+                <span className="lanc-texto">
+                  {i.description || <span style={{ color: "var(--tx-2)" }}>{i.atividade}</span>}
+                  {i.curso && <span className="lanc-curso"> · {i.curso}</span>}
+                </span>
+                <span className="lanc-dur num">
+                  {durCurta((i.ended_at ?? Date.now()) - i.started_at)}
+                </span>
+                <span className="lanc-acoes">
+                  <button
+                    className="btn btn-fantasma btn-icone"
+                    onClick={() => setEditando(i.id)}
+                    disabled={!i.ended_at}
+                    aria-label="Editar lançamento"
+                  >
+                    <I.Lapis />
+                  </button>
+                  <button
+                    className="btn btn-fantasma btn-icone btn-perigo"
+                    onClick={() => excluir(i.id)}
+                    disabled={!i.ended_at}
+                    aria-label="Excluir lançamento"
+                  >
+                    <I.Lixeira />
+                  </button>
+                </span>
+              </div>
+            )
+          )
+        )}
+      </section>
+
+      <section className="card">
+        <div className="card-cab">
+          <h2>Lançar à mão</h2>
+          {!formAberto && (
+            <button className="btn" onClick={() => setFormAberto(true)}>
+              <I.Mais /> Novo lançamento
+            </button>
+          )}
+        </div>
+
+        {formAberto ? (
+          <>
+            <div className="grade">
+              <div className="campo" style={{ width: 108 }}>
+                <label htmlFor="ini">Início</label>
+                <input id="ini" type="time" value={fInicio} onChange={(e) => setFInicio(e.target.value)} />
+              </div>
+              <div className="campo" style={{ width: 108 }}>
+                <label htmlFor="fim">Fim</label>
+                <input id="fim" type="time" value={fFim} onChange={(e) => setFFim(e.target.value)} />
+              </div>
+              <div className="campo" style={{ width: 132 }}>
+                <label htmlFor="durac">ou duração</label>
+                <input
+                  id="durac"
+                  placeholder="45m · 1h30 · 1:30"
+                  value={fDuracao}
+                  onChange={(e) => setFDuracao(e.target.value)}
+                />
+              </div>
+              <div className="campo" style={{ width: 150 }}>
+                <label htmlFor="tipo">Atividade</label>
+                <select id="tipo" value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+                  {tipos.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nome}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grade" style={{ marginTop: 12 }}>
+              <div className="campo cresce">
+                <label htmlFor="desc">O que foi feito</label>
+                <input
+                  id="desc"
+                  value={fDesc}
+                  onChange={(e) => setFDesc(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && adicionar()}
+                />
+              </div>
+              <div className="campo" style={{ width: 180 }}>
+                <label htmlFor="curso">Curso</label>
+                <select id="curso" value={fCurso} onChange={(e) => setFCurso(e.target.value)}>
+                  <option value="">— nenhum —</option>
+                  {cursos.map((c) => (
+                    <option key={c.id} value={c.id}>{c.titulo}</option>
+                  ))}
+                </select>
+              </div>
+              <button className="btn btn-primario" onClick={adicionar}>Lançar</button>
+              <button
+                className="btn btn-fantasma"
+                onClick={() => { setFormAberto(false); limpar(); }}
               >
-                {hhmm(i.started_at)}–{i.ended_at ? hhmm(i.ended_at) : "agora"}
-              </span>
-              <span style={{ flex: 1 }}>
-                {i.description || <em style={{ opacity: 0.6 }}>{i.atividade}</em>}
-                {i.curso && <span className="nota"> · {i.curso}</span>}
-              </span>
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                {dur((i.ended_at ?? Date.now()) - i.started_at)}
-              </span>
-              <button onClick={() => setEditando(i.id)} disabled={!i.ended_at}>
-                Editar
-              </button>
-              <button onClick={() => excluir(i.id)} disabled={!i.ended_at}>
-                Excluir
+                Cancelar
               </button>
             </div>
-          )
-        )
-      )}
 
-      <hr style={{ border: 0, borderTop: "1px solid var(--line)", margin: "16px 0" }} />
-
-      <h2>Lançar manualmente</h2>
-      <div className="linha">
-        <input
-          type="time"
-          value={fInicio}
-          onChange={(e) => setFInicio(e.target.value)}
-          style={{ maxWidth: 110 }}
-          aria-label="início"
-        />
-        <input
-          type="time"
-          value={fFim}
-          onChange={(e) => setFFim(e.target.value)}
-          style={{ maxWidth: 110 }}
-          aria-label="fim"
-        />
-        <input
-          placeholder="ou 45m, 1h30, 1:30"
-          value={fDuracao}
-          onChange={(e) => setFDuracao(e.target.value)}
-          style={{ maxWidth: 150 }}
-        />
-        <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
-          {tipos.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nome}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="linha">
-        <input
-          placeholder="O que foi feito?"
-          value={fDesc}
-          onChange={(e) => setFDesc(e.target.value)}
-        />
-        <select value={fCurso} onChange={(e) => setFCurso(e.target.value)}>
-          <option value="">— sem curso —</option>
-          {cursos.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.titulo}
-            </option>
-          ))}
-        </select>
-        <button className="primario" onClick={adicionar}>
-          Lançar
-        </button>
-      </div>
-      <p className="nota">
-        Informe fim ou duração — o fim ganha se vierem os dois. Nenhum campo
-        além do tempo é obrigatório.
-      </p>
-    </section>
+            <p className="nota">
+              Informe o fim ou a duração — se vierem os dois, o fim ganha. Fora o
+              tempo, nenhum campo é obrigatório.
+            </p>
+          </>
+        ) : (
+          <p className="nota" style={{ margin: 0 }}>
+            Esqueceu de ligar o cronômetro? Dá para registrar depois, em qualquer
+            data.
+          </p>
+        )}
+      </section>
+    </>
   );
 }
 
 function Editor({
-  item,
-  dia,
-  tipos,
-  cursos,
-  onCancelar,
-  onSalvo,
-  onErro,
+  item, dia, tipos, cursos, onFechar, onSalvo, onErro,
 }: {
   item: Lancamento;
   dia: Date;
   tipos: Tipo[];
   cursos: Curso[];
-  onCancelar: () => void;
+  onFechar: () => void;
   onSalvo: () => void;
   onErro: (e: string | null) => void;
 }) {
@@ -358,59 +427,57 @@ function Editor({
       descricao: desc.trim() || null,
       cursoId: curso || null,
     })
-      .then(() => {
-        onErro(null);
-        onSalvo();
-      })
+      .then(() => { onErro(null); onSalvo(); })
       .catch((e) => onErro(String(e)));
 
   return (
     <div
-      className="linha"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onFechar();
+        if (e.key === "Enter") salvar();
+      }}
       style={{
-        flexWrap: "wrap",
         border: "1px solid var(--acc)",
-        borderRadius: 8,
-        padding: 10,
+        borderRadius: "var(--r-sm)",
+        padding: 12,
+        margin: "6px -10px",
+        background: "var(--surf-2)",
       }}
     >
-      <input
-        type="time"
-        value={inicio}
-        onChange={(e) => setInicio(e.target.value)}
-        style={{ maxWidth: 110 }}
-      />
-      <input
-        type="time"
-        value={fim}
-        onChange={(e) => setFim(e.target.value)}
-        style={{ maxWidth: 110 }}
-      />
-      <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-        {tipos.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.nome}
-          </option>
-        ))}
-      </select>
-      <select value={curso} onChange={(e) => setCurso(e.target.value)}>
-        <option value="">— sem curso —</option>
-        {cursos.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.titulo}
-          </option>
-        ))}
-      </select>
-      <input
-        placeholder="descrição"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-        style={{ flex: 1, minWidth: 160 }}
-      />
-      <button className="primario" onClick={salvar}>
-        Salvar
-      </button>
-      <button onClick={onCancelar}>Cancelar</button>
+      <div className="grade">
+        <div className="campo" style={{ width: 104 }}>
+          <label>Início</label>
+          <input type="time" value={inicio} onChange={(e) => setInicio(e.target.value)} autoFocus />
+        </div>
+        <div className="campo" style={{ width: 104 }}>
+          <label>Fim</label>
+          <input type="time" value={fim} onChange={(e) => setFim(e.target.value)} />
+        </div>
+        <div className="campo" style={{ width: 140 }}>
+          <label>Atividade</label>
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            {tipos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+          </select>
+        </div>
+        <div className="campo" style={{ width: 160 }}>
+          <label>Curso</label>
+          <select value={curso} onChange={(e) => setCurso(e.target.value)}>
+            <option value="">— nenhum —</option>
+            {cursos.map((c) => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grade" style={{ marginTop: 10 }}>
+        <div className="campo cresce">
+          <label>Descrição</label>
+          <input value={desc} onChange={(e) => setDesc(e.target.value)} />
+        </div>
+        <button className="btn btn-primario" onClick={salvar}>Salvar</button>
+        <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>
+      </div>
+      <p className="nota" style={{ marginTop: 8 }}>
+        Enter salva, Esc cancela. A versão anterior fica guardada no histórico.
+      </p>
     </div>
   );
 }

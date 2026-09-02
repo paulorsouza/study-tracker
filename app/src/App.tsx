@@ -1,7 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Hoje from "./Hoje";
+import Cursos from "./Cursos";
+import Config from "./Config";
+import * as I from "./icones";
 import "./App.css";
+
+export type Curso = {
+  id: string;
+  titulo: string;
+  url_principal: string | null;
+  ultima_url: string | null;
+  ultima_url_em: number | null;
+  estado: string;
+  favorito: boolean;
+};
 
 type Status = {
   session: string;
@@ -18,268 +31,219 @@ type Recovery = {
   gap_ms: number;
 };
 
-type Curso = {
-  id: string;
-  titulo: string;
-  url_principal: string | null;
-  ultima_url: string | null;
-  ultima_url_em: number | null;
-  estado: string;
-  favorito: boolean;
-};
+type Aba = "hoje" | "cursos" | "config";
 
-type Ponte = { porta: number; token: string };
-
-function dur(ms: number) {
+export function dur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  const r = s % 60;
   const d2 = (n: number) => String(n).padStart(2, "0");
-  return h > 0 ? `${h}h ${d2(m)}m ${d2(r)}s` : `${m}m ${d2(r)}s`;
+  return h > 0 ? `${h}:${d2(m)}:${d2(s % 60)}` : `${m}:${d2(s % 60)}`;
 }
 
-function quando(ms: number | null) {
-  if (!ms) return "—";
-  const dias = Math.floor((Date.now() - ms) / 86_400_000);
-  if (dias === 0) return "hoje";
-  if (dias === 1) return "ontem";
-  return `há ${dias} dias`;
+/** Duração para leitura, não para cronometragem: `1h 20m`. */
+export function durCurta(ms: number) {
+  const min = Math.max(0, Math.round(ms / 60000));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
 export default function App() {
+  const [aba, setAba] = useState<Aba>("hoje");
   const [status, setStatus] = useState<Status | null>(null);
   const [recovery, setRecovery] = useState<Recovery | null>(null);
   const [descricao, setDescricao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [cursos, setCursos] = useState<Curso[]>([]);
-  const [novoTitulo, setNovoTitulo] = useState("");
-  const [novaUrl, setNovaUrl] = useState("");
-  const [ponte, setPonte] = useState<Ponte | null>(null);
-  const [mostrarToken, setMostrarToken] = useState(false);
+  const [versao, setVersao] = useState(0);
+  const [tema, setTema] = useState<"escuro" | "claro">(
+    () => (localStorage.getItem("tema") as "escuro" | "claro") ?? "escuro"
+  );
 
-  const recarregar = useCallback(() => {
+  useEffect(() => {
+    document.documentElement.dataset.tema = tema;
+    localStorage.setItem("tema", tema);
+  }, [tema]);
+
+  const recarregarCursos = useCallback(() => {
     invoke<Curso[]>("listar_cursos").then(setCursos).catch(() => {});
   }, []);
 
+  // Uma mudança em qualquer lugar (aqui, na extensão) precisa refletir em
+  // todas as telas — daí um contador único que as filhas observam.
+  const mudou = useCallback(() => {
+    recarregarCursos();
+    setVersao((v) => v + 1);
+  }, [recarregarCursos]);
+
   useEffect(() => {
-    recarregar();
+    recarregarCursos();
     invoke<Recovery | null>("timer_recover").then(setRecovery).catch(() => {});
-    invoke<Ponte>("ponte_info").then(setPonte).catch(() => {});
-  }, [recarregar]);
+  }, [recarregarCursos]);
 
   useEffect(() => {
     const id = setInterval(() => {
       invoke<Status | null>("timer_status").then(setStatus).catch(() => {});
-    }, 800);
+    }, 500);
     return () => clearInterval(id);
   }, []);
 
-  // A extensão também mexe no estado, então a lista precisa se atualizar
-  // sozinha — senão o curso salvo do Chrome só aparece se o usuário reabrir.
   useEffect(() => {
-    const id = setInterval(recarregar, 4000);
+    const id = setInterval(recarregarCursos, 5000);
     return () => clearInterval(id);
-  }, [recarregar]);
+  }, [recarregarCursos]);
 
-  const acao = (cmd: string, args?: Record<string, unknown>) =>
-    invoke(cmd, args)
-      .then(() => setErro(null))
-      .catch((e) => setErro(String(e)));
-
-  const continuar = (c: Curso) => {
-    const alvo = c.ultima_url ?? c.url_principal;
-    if (!alvo) {
-      setErro(`"${c.titulo}" não tem rota salva. Salve uma pela extensão.`);
-      return;
-    }
-    acao("abrir_no_navegador", { url: alvo });
-  };
-
-  const adicionar = () =>
-    invoke("criar_curso", { titulo: novoTitulo, url: novaUrl.trim() || null })
+  const iniciar = () => {
+    invoke("timer_start", { description: descricao, cursoId: null })
       .then(() => {
-        setNovoTitulo("");
-        setNovaUrl("");
+        setDescricao("");
         setErro(null);
-        recarregar();
       })
       .catch((e) => setErro(String(e)));
+  };
 
+  const parar = () => {
+    invoke("timer_stop")
+      .then(() => {
+        setErro(null);
+        mudou();
+      })
+      .catch((e) => setErro(String(e)));
+  };
+
+  const rodando = !!status;
   const suspeita = status && Math.abs(status.drift_ms) > 2000;
 
+  const itens: { id: Aba; nome: string; Icone: typeof I.Relogio }[] = [
+    { id: "hoje", nome: "Hoje", Icone: I.Calendario },
+    { id: "cursos", nome: "Cursos", Icone: I.Livro },
+    { id: "config", nome: "Configurações", Icone: I.Engrenagem },
+  ];
+
   return (
-    <main className="app">
-      <header>
-        <h1>Estudos</h1>
-        <p className="sub">
-          Gestão dos estudos. O estudo em si acontece no Chrome — ver{" "}
-          <code>D-007</code> em <code>docs/01-decisoes.md</code>.
-        </p>
-      </header>
-
-      {erro && <div className="alerta erro">{erro}</div>}
-
-      {recovery && (
-        <div className="alerta">
-          <strong>Sessão recuperada</strong>
-          <p>
-            “{recovery.description || "sem descrição"}” ficou aberta.{" "}
-            <b>{dur(recovery.observed_ms)}</b> foram observados pelo app; depois
-            disso há uma lacuna de <b>{dur(recovery.gap_ms)}</b> que ninguém
-            testemunhou.
-          </p>
-          <div className="linha">
-            <button
-              onClick={() =>
-                acao("timer_discard_recovery", { session: recovery.session }).then(
-                  () => setRecovery(null)
-                )
-              }
-            >
-              Contar só o tempo observado
-            </button>
-          </div>
+    <div className="shell">
+      <nav className="lateral" aria-label="Seções">
+        <div className="marca">
+          <I.Relogio size={19} />
+          Estudos
         </div>
-      )}
 
-      <section className="cartao">
-        <h2>Cronômetro</h2>
-        {status ? (
-          <>
-            <div className="relogio">{dur(status.wall_ms)}</div>
-            <p className="desc">{status.description || "sem descrição"}</p>
-            {suspeita && (
-              <p className="nota destaque">
-                Divergência de {(status.drift_ms / 1000).toFixed(0)}s entre
-                relógio de parede e monotônico: a máquina suspendeu ou o relógio
-                do sistema mudou. Vai virar pergunta ao parar, não desconto
-                automático.
-              </p>
-            )}
-            <button className="primario" onClick={() => acao("timer_stop")}>
-              Parar
-            </button>
-          </>
-        ) : (
-          <>
-            <input
-              placeholder="O que você vai estudar?"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" &&
-                acao("timer_start", { description: descricao, cursoId: null })
-              }
-            />
-            <button
-              className="primario"
-              onClick={() =>
-                acao("timer_start", { description: descricao, cursoId: null })
-              }
-            >
-              Iniciar
-            </button>
-          </>
-        )}
-      </section>
+        {itens.map(({ id, nome, Icone }) => (
+          <button
+            key={id}
+            className="nav-item"
+            aria-current={aba === id ? "page" : undefined}
+            onClick={() => setAba(id)}
+          >
+            <Icone />
+            {nome}
+          </button>
+        ))}
 
-      <Hoje cursos={cursos} onErro={setErro} />
-
-      <section className="cartao">
-        <h2>Meus cursos</h2>
-
-        {cursos.length === 0 ? (
-          <p className="nota">
-            Nenhum curso ainda. Estando na aula no Chrome, use a extensão para
-            salvar a rota — ela aparece aqui.
-          </p>
-        ) : (
-          cursos.map((c) => (
-            <div key={c.id} className="linha">
-              <button className="primario" onClick={() => continuar(c)}>
-                Abrir
+        <div className="dock">
+          {rodando ? (
+            <>
+              <div className="dock-rotulo" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span className="pulso" />
+                contando
+              </div>
+              <div className="dock-tempo">{dur(status!.wall_ms)}</div>
+              <p className="dock-desc">{status!.description || "sem descrição"}</p>
+              <button className="btn btn-primario" onClick={parar}>
+                <I.Parar /> Parar
               </button>
-              <span className="rotulo" style={{ minWidth: 180, flex: 1 }}>
-                {c.favorito ? "★ " : ""}
-                {c.titulo}
-              </span>
-              <span className="nota" style={{ margin: 0 }}>
-                {quando(c.ultima_url_em)}
-              </span>
-              <button
-                onClick={() =>
-                  acao("favoritar_curso", {
-                    id: c.id,
-                    favorito: !c.favorito,
-                  }).then(recarregar)
-                }
-              >
-                {c.favorito ? "☆" : "★"}
-              </button>
-              <button
-                onClick={() => acao("excluir_curso", { id: c.id }).then(recarregar)}
-              >
-                Remover
-              </button>
-            </div>
-          ))
-        )}
-
-        <div className="linha" style={{ marginTop: 14 }}>
-          <input
-            placeholder="Nome do curso"
-            value={novoTitulo}
-            onChange={(e) => setNovoTitulo(e.target.value)}
-            style={{ maxWidth: 200 }}
-          />
-          <input
-            placeholder="URL (opcional)"
-            value={novaUrl}
-            onChange={(e) => setNovaUrl(e.target.value)}
-          />
-          <button onClick={adicionar}>Adicionar</button>
-        </div>
-      </section>
-
-      <section className="cartao">
-        <h2>Extensão do Chrome</h2>
-        {!ponte ? (
-          <p className="nota">carregando…</p>
-        ) : (
-          <>
-            <p className="nota">
-              A ponte escuta em <code>127.0.0.1:{ponte.porta}</code> — só nesta
-              máquina, nunca na rede. Cole o token nas opções da extensão.
-            </p>
-            <div className="linha">
+            </>
+          ) : (
+            <>
+              <div className="dock-rotulo">cronômetro</div>
               <input
-                readOnly
-                value={mostrarToken ? ponte.token : "•".repeat(32)}
-                onFocus={(e) => e.currentTarget.select()}
+                placeholder="O que vai estudar?"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && iniciar()}
+                style={{ marginBottom: 8 }}
               />
-              <button onClick={() => setMostrarToken((v) => !v)}>
-                {mostrarToken ? "Ocultar" : "Mostrar"}
+              <button className="btn btn-primario" onClick={iniciar}>
+                <I.Play /> Iniciar
               </button>
-              <button
-                onClick={() =>
-                  navigator.clipboard
-                    .writeText(ponte.token)
-                    .then(() => setErro(null))
-                    .catch(() => setErro("não consegui copiar"))
-                }
-              >
-                Copiar
+            </>
+          )}
+        </div>
+      </nav>
+
+      <main className="principal">
+        <div className="conteudo">
+          {erro && (
+            <div className="aviso aviso-erro" role="alert">
+              <I.Alerta />
+              <div style={{ flex: 1 }}>
+                <strong>Não deu certo</strong>
+                <p>{erro}</p>
+              </div>
+              <button className="btn btn-fantasma" onClick={() => setErro(null)}>
+                Fechar
               </button>
             </div>
-            <p className="nota">
-              Instalar: Chrome → <code>chrome://extensions</code> → modo do
-              desenvolvedor → <b>Carregar sem compactação</b> → escolher a pasta{" "}
-              <code>extensao/</code> do repositório.
-            </p>
-          </>
-        )}
-      </section>
-    </main>
+          )}
+
+          {recovery && (
+            <div className="aviso aviso-atencao">
+              <I.Alerta />
+              <div style={{ flex: 1 }}>
+                <strong>Sessão recuperada</strong>
+                <p>
+                  “{recovery.description || "sem descrição"}” ficou aberta.{" "}
+                  <b>{durCurta(recovery.observed_ms)}</b> foram observados pelo
+                  app; depois disso há <b>{durCurta(recovery.gap_ms)}</b> que
+                  ninguém testemunhou.
+                </p>
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      invoke("timer_discard_recovery", { session: recovery.session })
+                        .then(() => {
+                          setRecovery(null);
+                          mudou();
+                        })
+                        .catch((e) => setErro(String(e)))
+                    }
+                  >
+                    Contar só o tempo observado
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {suspeita && (
+            <div className="aviso aviso-atencao">
+              <I.Alerta />
+              <div>
+                <strong>O relógio divergiu</strong>
+                <p>
+                  {Math.round(status!.drift_ms / 1000)}s de diferença entre o
+                  relógio de parede e o monotônico: a máquina suspendeu ou a hora
+                  do sistema mudou. Vai virar pergunta ao parar, nunca desconto
+                  automático.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {aba === "hoje" && (
+            <Hoje cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />
+          )}
+          {aba === "cursos" && (
+            <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />
+          )}
+          {aba === "config" && (
+            <Config tema={tema} setTema={setTema} onErro={setErro} />
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
