@@ -1063,3 +1063,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .mini-curso span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-curso-play { flex: none; color: var(--tx-3); padding: 3px; border-radius: 5px; }
 .mini-curso-play:hover { color: var(--acc); background: var(--surf-3); }
+
+/* Ficha de dados do curso: rótulo à esquerda, valor à direita. Tabela e não
+   lista porque é literalmente pares de campo e valor — o leitor de tela
+   anuncia a relação sem precisar de aria. */
+.medidas { width: 100%; border-collapse: collapse; font-size: 13px; }
+.medidas td { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.medidas tr:last-child td { border-bottom: 0; }
+.medidas td:first-child { color: var(--tx-2); width: 130px; }

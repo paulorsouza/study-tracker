@@ -25,19 +25,20 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. O detalhe do curso é o próximo.
+Em ordem acordada. O cronômetro é o próximo.
 
-### 1. Detalhe do curso — §3.6
+### 1. Detalhe do curso — §3.6 ✅
 
-- [ ] Página do curso, aberta a partir da lista
-- [ ] Professor, categoria, tags, plataforma, capa
-- [ ] Estados: não iniciado, ativo, pausado, concluído, arquivado
-- [ ] Meta, prazo, prioridade, tempo estimado
-- [ ] Progresso manual
-- [ ] Tempo total, tempo recente e distribuição semanal
-- [ ] Tarefas, sessões e notas ligadas ao curso
-- [ ] Busca e filtro por estado na lista
-- [ ] Cadastro de plataforma personalizada
+- [x] Página do curso, aberta a partir da lista
+- [x] Professor, categoria, tags, plataforma, capa
+- [x] Estados: não iniciado, ativo, pausado, concluído, arquivado
+- [x] Meta, prazo, prioridade, tempo estimado
+- [x] Progresso manual
+- [x] Tempo total, tempo recente e distribuição semanal
+- [x] Tarefas, sessões e notas ligadas ao curso
+- [x] Busca e filtro por estado na lista
+- [x] Cadastro de plataforma personalizada — falta um formulário na tela;
+      hoje só pelo comando `criar_plataforma`
 
 ### 2. Cronômetro e lançamentos — §3.5
 

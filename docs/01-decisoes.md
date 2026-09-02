@@ -645,3 +645,29 @@ interrompidos. Se algum desses virar pergunta real durante o uso, o item volta �
 mas volta por necessidade demonstrada, não por estar no plano original.
 
 A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-031 — a capa do curso fica na máquina, o endereço é que viaja
+
+A capa entra no banco como `data:` URL, e não como arquivo nem como URL remota:
+`img-src` já aceita `data:`, enquanto liberar `https:` faria a janela do app
+buscar imagem em host arbitrário toda vez que a tela abrisse.
+
+São duas colunas de propósito. `capa_url` é o endereço e entra no payload de
+sincronização; `capa` é a imagem e **não** entra. Capa é decoração, e centenas
+de kilobytes por operação não valem o custo na fila — a outra máquina baixa
+sozinha a partir do endereço, quando o usuário quiser.
+
+Isso expôs dois defeitos reais no motor de sincronização, os dois corrigidos:
+
+- `INSERT OR REPLACE` apagava a linha e reinseria, zerando qualquer coluna
+  ausente do payload. A capa local sumiria ao aplicar uma alteração vinda da
+  outra máquina. Virou `ON CONFLICT(id) DO UPDATE SET`, que só toca as colunas
+  que chegaram.
+- As tags viajavam no payload mas só eram gravadas de volta para `notes`. Um
+  curso etiquetado numa máquina chegava sem etiqueta na outra. A tabela filha
+  agora sai de `tabela_de_tags()`, e a próxima entidade com tags acrescenta uma
+  linha em vez de descobrir o silêncio semanas depois.
+
+A ordem do que resta está em `04-pendencias.md`.

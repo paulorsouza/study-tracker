@@ -211,6 +211,49 @@ const cfgPomo = {
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  listar_plataformas: () => [
+    { id: "p1", nome: "Hotmart", url_base: "https://hotmart.com" },
+    { id: "p2", nome: "YouTube", url_base: "https://youtube.com" },
+  ],
+  criar_plataforma: () => "p3",
+  listar_tags_curso: () => ["blender", "3d", "rust"],
+  salvar_curso: () => null,
+  baixar_capa: () => null,
+  curso_detalhe: (a: any) => {
+    const c = CURSOS.find((x) => x.id === a.id)!;
+    return {
+      ...c,
+      platform_id: "p1",
+      plataforma: "Hotmart",
+      professor: "Rafael Rodrigues",
+      categoria: "3D",
+      prioridade: 1,
+      progresso: 42,
+      meta_minutos: 3000,
+      estimado_min: 4800,
+      prazo: Date.now() + 40 * 86400000,
+      capa_url: null,
+      capa: null,
+      tags: ["blender", "3d"],
+      total_ms: 41 * 3600_000,
+      recente_ms: 6 * 3600_000,
+      semanas: [120, 210, 90, 0, 0, 45, 180, 240, 160, 60, 200, 130],
+      tarefas_abertas: 3,
+      tarefas_concluidas: 11,
+      notas: 5,
+      sessoes: [
+        { id: "s1", texto: "Aula 13 — modificadores", em: Date.now() - 3 * 3600_000, extra: String(52 * 60000), concluido: false },
+        { id: "s2", texto: "Retopologia", em: Date.now() - 86400000, extra: String(95 * 60000), concluido: false },
+      ],
+      lista_tarefas: [
+        { id: "t1", texto: "Assistir aula 13 — modificadores", em: Date.now() + 2 * 86400000, extra: "aberta", concluido: false },
+        { id: "t8", texto: "Assistir aula 12 e anotar", em: null, extra: "concluida", concluido: true },
+      ],
+      lista_notas: [
+        { id: "n1", texto: "Atalhos do Blender", em: Date.now() - 5 * 86400000, extra: null, concluido: false },
+      ],
+    };
+  },
   abrir_mini: () => null,
   fechar_mini: () => null,
   expandir: () => null,

@@ -270,6 +270,15 @@ fn aplicar(db: &Db, op: &Operacao, origem: &str) -> Result<Aplicacao, String> {
     }
 }
 
+/// Onde ficam as tags de cada entidade que as tem.
+fn tabela_de_tags(entidade: &str) -> Option<(&'static str, &'static str)> {
+    match entidade {
+        "notes" => Some(("note_tags", "note_id")),
+        "courses" => Some(("course_tags", "course_id")),
+        _ => None,
+    }
+}
+
 /// Compara o registro local com o payload remoto campo a campo.
 fn registro_igual(conn: &rusqlite::Connection, op: &Operacao) -> Result<bool, String> {
     let Some(obj) = op.payload.as_object() else {
@@ -343,26 +352,44 @@ fn escrever_registro(conn: &rusqlite::Connection, op: &Operacao) -> Result<(), S
             })
             .collect();
 
+        // `ON CONFLICT DO UPDATE` e não `INSERT OR REPLACE`.
+        //
+        // REPLACE apaga a linha e insere outra, o que zera qualquer coluna que
+        // não esteja no payload — e existem colunas locais de propósito, como
+        // a capa do curso, que não viaja para não arrastar centenas de
+        // kilobytes por operação. Com DO UPDATE, só as colunas que vieram são
+        // tocadas.
+        let atribuicoes = campos
+            .iter()
+            .filter(|c| **c != "id")
+            .map(|c| format!("\"{c}\" = excluded.\"{c}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+
         conn.execute(
             &format!(
-                "INSERT OR REPLACE INTO {} ({colunas}) VALUES ({marcas})",
+                "INSERT INTO {} ({colunas}) VALUES ({marcas})
+                 ON CONFLICT(id) DO UPDATE SET {atribuicoes}",
                 op.entidade
             ),
             rusqlite::params_from_iter(valores.iter()),
         )
         .map_err(|e| e.to_string())?;
 
-        // Tags de nota moram em tabela filha e viajam dentro do payload.
-        if op.entidade == "notes" {
+        // Tags moram em tabela filha e viajam dentro do payload. A lista fica
+        // aqui e não espalhada em ifs: quem criar a próxima entidade com tags
+        // acrescenta uma linha, em vez de descobrir semanas depois que elas
+        // saíam desta máquina e não entravam na outra.
+        if let Some((filha, chave)) = tabela_de_tags(&op.entidade) {
             if let Some(tags) = op.payload.get("tags").and_then(|t| t.as_array()) {
                 conn.execute(
-                    "DELETE FROM note_tags WHERE note_id = ?1",
+                    &format!("DELETE FROM {filha} WHERE {chave} = ?1"),
                     params![op.registro_id],
                 )
                 .map_err(|e| e.to_string())?;
                 for t in tags.iter().filter_map(|t| t.as_str()) {
                     conn.execute(
-                        "INSERT OR IGNORE INTO note_tags (note_id, tag) VALUES (?1, ?2)",
+                        &format!("INSERT OR IGNORE INTO {filha} ({chave}, tag) VALUES (?1, ?2)"),
                         params![op.registro_id, t],
                     )
                     .map_err(|e| e.to_string())?;
