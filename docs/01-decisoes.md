@@ -481,3 +481,58 @@ durante a escrita.
 
 **O que isto ainda não resolve:** `time_entries` e tarefas continuam sem
 sincronizar. Isto cobre o vault, que é texto. A Fase 3 segue de pé.
+
+## D-024 — Sincronização: a arquitetura da §7, com Supabase por pessoa
+**2026-09-02**
+
+Adotada a arquitetura planejada em §7, sem desvio: fila de operações na mesma
+transação da escrita, operações idempotentes, cursor, e área de recuperação
+para o que não pode ser aplicado.
+
+**Transporte: Supabase, um projeto por pessoa.** Não existe backend
+compartilhado — some o problema mais caro de um serviço multi-inquilino, e não
+há banco meu com dado de estudo de ninguém.
+
+Duas decisões de implementação que valem mais que o resto:
+
+**A fila é preenchida por gatilho, não por chamada de função.** Isso torna a
+garantia estrutural. Com chamadas espalhadas pelos módulos, basta alguém
+acrescentar um `UPDATE` novo e esquecer a linha da fila para aquela mudança
+sumir da sincronização — e o sintoma aparece semanas depois, na outra máquina,
+como dado que nunca chegou. Com gatilho, é impossível escrever sem enfileirar.
+Verificado escrevendo direto no banco, por fora do app: a fila encheu.
+
+**Um interruptor (`sync_estado.aplicando`) desliga os gatilhos ao aplicar o que
+veio de fora.** Sem ele a escrita viraria operação nova, voltaria para a outra
+máquina, e as duas ficariam trocando a mesma mudança para sempre. Verificado:
+escrita com o interruptor ligado não gerou operação; a escrita local seguinte
+voltou a gerar.
+
+**Idempotência sai de graça.** Reaplicar uma operação não faz nada na segunda
+vez: a versão local já é igual e o conteúdo idêntico, então a função sai antes
+de escrever. Não é preciso guardar quais operações já foram vistas — o que
+também torna inofensivo o reenvio depois de uma queda no meio.
+
+Regras de conflito, todas de §7:
+
+| Situação | O que acontece |
+|---|---|
+| versão remota menor | ignora — estamos à frente |
+| versões iguais, conteúdo diferente | **edição concorrente real**: vira conflito, o app não escolhe |
+| exclusão remota × edição local mais recente | conflito; a edição local fica de pé |
+| nota editada dos dois lados | as duas versões preservadas |
+| lançamentos de tempo distintos | ambos ficam; sobreposição é sinalizada, nunca descartada |
+
+## D-025 — Onde cada segredo mora
+**2026-09-02**
+
+- **Chave `anon`**: no banco local, em texto. É pública por desenho no
+  Supabase — quem protege as linhas é a política de acesso por usuário, não o
+  sigilo da chave. Escondê-la daria falsa sensação de segurança.
+- **Token de renovação**: no **cofre de credenciais do sistema** (Gerenciador
+  de Credenciais no Windows, keyring no Linux), como §3.1 exige. É o que impede
+  que uma cópia do arquivo do banco entregue a sessão junto.
+- **Senha**: nunca guardada. Vai uma vez para o Supabase e o app esquece.
+
+O Supabase rotaciona o token de renovação a cada uso, então guardar o novo é
+obrigatório — sem isso a sincronização seguinte encontraria um token queimado.

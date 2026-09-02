@@ -211,6 +211,38 @@ const cfgPomo = {
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  supabase_estado: () => ({
+    configurado: true,
+    conectado: true,
+    email: "eu@exemplo.com",
+  }),
+  supabase_salvar_config: () => null,
+  supabase_entrar: () => null,
+  supabase_sair: () => null,
+  supabase_sql: () =>
+    "create table if not exists public.sync_operations (...);\n-- ver supabase.rs",
+  sync_pendencias: () => ({
+    na_fila: 4,
+    conflitos: 1,
+    ultima_leitura: Date.now() - 8 * 60000,
+  }),
+  sync_agora: () => ({
+    enviadas: 4,
+    recebimento: { aplicadas: 7, ignoradas: 2, conflitos: 1 },
+    erro: null,
+  }),
+  sync_conflitos: () => [
+    {
+      id: "cf1",
+      entidade: "notes",
+      registro_id: "n1",
+      motivo: "nota editada nos dois lados",
+      origem: "outra-maquina",
+      criado_em: Date.now() - 300000,
+      payload_remoto: "{}",
+    },
+  ],
+  sync_resolver: () => null,
   obsidian_config: () => ({
     pasta: "D:\\vault\\Estudos",
     somente_criar: false,

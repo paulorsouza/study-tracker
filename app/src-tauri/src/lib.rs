@@ -6,6 +6,8 @@ mod git;
 mod library;
 mod notas;
 mod obsidian;
+mod supabase;
+mod sync;
 mod permissoes;
 mod pomodoro;
 mod tasks;
@@ -110,6 +112,15 @@ pub fn run() {
             obsidian::obsidian_aceitar_externo,
             git::git_estado,
             git::git_sincronizar,
+            supabase::supabase_salvar_config,
+            supabase::supabase_entrar,
+            supabase::supabase_sair,
+            supabase::supabase_estado,
+            supabase::supabase_sql,
+            sync::sync_agora,
+            sync::sync_pendencias,
+            sync::sync_conflitos,
+            sync::sync_resolver,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())
