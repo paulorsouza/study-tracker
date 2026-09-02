@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
+import Metas from "./Metas";
 import * as I from "./icones";
 
 type Lancamento = {
@@ -173,6 +174,8 @@ export default function Painel({
           rotulo="média por dia"
         />
       </div>
+
+      <Metas itens={itens} tema={tema} versao={versao} />
 
       <section className="card">
         <div className="card-cab">

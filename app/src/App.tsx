@@ -255,7 +255,7 @@ export default function App() {
             <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "config" && (
-            <Config tema={tema} setTema={setTema} onErro={setErro} />
+            <Config tema={tema} setTema={setTema} onErro={setErro} onMudou={mudou} />
           )}
         </div>
       </main>

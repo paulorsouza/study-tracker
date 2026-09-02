@@ -76,23 +76,6 @@ Cadastro por link e cadastro manual são o caminho principal e precisam ser bons
 o bastante para a importação assistida ser só conveniência. A importação lê o
 DOM da página em que o usuário já está logado, sempre disparada por clique dele.
 
----
-
-# Perguntas abertas
-
-## ~~Q-001 — Ambiente Linux de teste~~ · respondida em 2026-09-01
-Outro computador. Testes em lote, depois da versão Windows. Ver D-003.
-
-
-## Q-002 — Corte de MVP
-O plano tem 6 fases e nenhuma linha dizendo qual é a menor versão utilizável.
-Proposta: Fase 1 completa (cursos + planejamento + timer + relatório local,
-offline, sem conta) é a v0.1 e já deve ser usada de verdade antes da Fase 2.
-
-## Q-003 — Métricas pessoais
-Com D-002, §2 do plano precisa de objetivos pessoais em vez de métricas de
-produto. O que você quer conseguir responder olhando os relatórios?
-
 ## D-007 — Sem webview embarcada; navegador dedicado + extensão do Chrome
 **2026-09-01 · decidido**
 
@@ -275,3 +258,92 @@ pede planejado versus efetivo, e o efetivo já saía dos timestamps.
 A sessão em andamento é gravada em `settings`, não só em memória: fechar o app
 no meio de um ciclo não pode zerar a contagem de focos, senão a pausa longa
 nunca chega na hora certa.
+
+## D-016 — O MVP é o produto completo, de uso pessoal
+**2026-09-02**
+
+Q-002 ficou aberta desde o primeiro dia. A resposta: **não há corte**. O alvo é
+o §3 inteiro do plano, para uma pessoa.
+
+Isso não reabre o que já foi descartado — D-007 continua valendo, e a Fase 2
+(navegador embarcado, modo foco dentro do app) segue fora, não por corte de
+escopo mas porque perdeu no uso real. "Completo" é o conjunto de funcionalidades
+que sobrou depois das decisões, não o plano original intacto.
+
+O que falta, em ordem de dependência:
+
+| Bloco | §  | Observação |
+|---|---|---|
+| Notas e revisão | 3.10 | nenhuma linha escrita ainda; é o maior buraco |
+| Relatórios e exportação | 3.11 | painel existe, exportação CSV/JSON/Markdown não |
+| Recorrência e modelos de rotina | 3.3 | adiado em D-011, com motivo registrado |
+| Sincronização entre as duas máquinas | Fase 3 | volta ao caminho crítico: Windows **e** Linux são usados |
+| Obsidian | Fase 4 | depende de notas existirem |
+| MCP para o Claude Desktop | Fase 5 | depende de notas e relatórios |
+| Empacotamento e atualização | Fase 6 | reduzido: sem loja, sem telemetria |
+
+**O que muda de verdade:** a sincronização sai da geladeira. Com uso pessoal
+num computador só ela era dispensável; com duas máquinas reais e o produto
+completo, ela vira requisito — e é o bloco mais caro de todos. O modelo de
+dados já nasceu preparado (D-002), o que era exatamente a aposta.
+
+## D-017 — Metas têm piso e teto, e nenhum dos dois é obrigatório
+**2026-09-02**
+
+Meta de um número só responde uma pergunta. A rotina tem duas: *"estudei o
+bastante?"* e *"descansei demais?"*. Então cada categoria pode ter piso, teto,
+ou os dois — e ao menos um, senão a meta não diz nada (o banco recusa).
+
+Estudo costuma querer piso. Lazer, teto. Academia os dois, porque treinar de
+menos e treinar de mais são problemas distintos.
+
+Três decisões de apresentação que valem registro:
+
+1. **Situação vira texto, nunca só cor.** "faltam 2h para o piso" e "40m acima
+   do teto" são coisas diferentes, e nenhuma é erro. Cor sozinha excluiria quem
+   não distingue as duas — e o plano pede que relatório não classifique o
+   usuário como produtivo ou não.
+2. **A faixa aceitável fica atrás da barra, em tom neutro.** Ela é referência,
+   não um segundo dado disputando atenção.
+3. **Período padrão é semana**, não dia. Dia é rígido demais para rotina real, e
+   o plano é explícito em não punir pausa.
+
+## D-018 — Categoria nova escolhe cor de uma paleta fechada
+**2026-09-02**
+
+O usuário passou a criar, renomear, reordenar e apagar categorias. A cor **não**
+vem de um seletor livre: sai das oito da paleta validada.
+
+Não é limitação por preguiça. Cor de categoria é identidade em gráfico, e um tom
+escolhido no olho pode ficar indistinguível de outro — foi exatamente o que
+aconteceu com a paleta original deste projeto (D-012), que reprovou em três
+checagens. Oito é o teto real: além disso não há como manter a separação entre
+pares, e uma nona cor gerada colidiria com alguma existente.
+
+Duas proteções que vêm junto:
+
+- **`ordem` é acessibilidade, não estética.** A separação exigida é entre pares
+  *vizinhos*, então a sequência faz parte da validação. Reordenar é operação
+  explícita, e a interface diz por quê.
+- **`at-estudo` e `at-pausa` não podem ser apagadas** — o cronômetro e o
+  Pomodoro as referenciam por id. O app recusa com explicação em vez de deixar
+  quebrar depois. Renomear continua liberado: o nome é do usuário, o id é do
+  sistema.
+
+---
+
+# Perguntas
+
+Todas respondidas. Ficam registradas porque a resposta explica decisões.
+
+## ~~Q-001 — Ambiente Linux de teste~~ · respondida em 2026-09-01
+Outro computador. Testes em lote, depois da versão Windows. Ver D-003.
+
+
+## ~~Q-002 — Corte de MVP~~ · respondida em 2026-09-02
+**Não há corte: o MVP é o produto completo, para uso pessoal.** Ver D-016.
+
+## ~~Q-003 — Métricas pessoais~~ · respondida em 2026-09-02
+Respondida na prática, em duas partes: "um dash com visão macro, bem simples"
+(painel entregue em 2026-09-01) e metas de piso e teto por categoria (D-017).
+As métricas não são de desempenho — são de **equilíbrio da rotina**.

@@ -1,4 +1,5 @@
 mod bridge;
+mod categorias;
 mod db;
 mod entries;
 mod library;
@@ -79,6 +80,14 @@ pub fn run() {
             pomodoro::pomodoro_encerrar,
             pomodoro::pomodoro_estado,
             pomodoro::pomodoro_ciclos,
+            categorias::paleta,
+            categorias::criar_tipo,
+            categorias::editar_tipo,
+            categorias::excluir_tipo,
+            categorias::reordenar_tipos,
+            categorias::listar_metas,
+            categorias::salvar_meta,
+            categorias::excluir_meta,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

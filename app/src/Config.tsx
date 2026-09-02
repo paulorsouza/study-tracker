@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import Categorias from "./Categorias";
 import * as I from "./icones";
 
 type Ponte = { porta: number; token: string };
@@ -8,10 +9,12 @@ export default function Config({
   tema,
   setTema,
   onErro,
+  onMudou,
 }: {
   tema: "escuro" | "claro";
   setTema: (t: "escuro" | "claro") => void;
   onErro: (e: string | null) => void;
+  onMudou: () => void;
 }) {
   const [ponte, setPonte] = useState<Ponte | null>(null);
   const [mostrar, setMostrar] = useState(false);
@@ -43,6 +46,8 @@ export default function Config({
           </button>
         </div>
       </section>
+
+      <Categorias tema={tema} onErro={onErro} onMudou={onMudou} />
 
       <section className="card">
         <h2>Extensão do Chrome</h2>
