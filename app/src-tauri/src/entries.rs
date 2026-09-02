@@ -26,6 +26,12 @@ pub struct Lancamento {
     pub course_id: Option<String>,
     pub curso: Option<String>,
     pub source: String,
+    pub observacao: Option<String>,
+    pub distancia_m: Option<i64>,
+    pub treino: Option<String>,
+    /// Ícone da categoria, resolvido aqui para a lista não precisar de um
+    /// segundo carregamento só para desenhar a linha.
+    pub icone: Option<String>,
     /// Este lançamento cobre um pedaço de tempo que outro também cobre.
     ///
     /// Sobreposição continua **permitida** — caminhar com os dogs durante a
@@ -42,6 +48,11 @@ pub struct TipoAtividade {
     pub cor: String,
     pub cor_escura: Option<String>,
     pub conta_como_estudo: bool,
+    pub icone: Option<String>,
+    /// Campo extra que esta categoria pede: "distancia", "treino" ou nada.
+    /// Mora na categoria e não numa regra no código porque quem decide que
+    /// academia registra treino é o usuário — ele pode criar "Natação" amanhã.
+    pub campos_extra: Option<String>,
 }
 
 /// Aceita `45m`, `1h30`, `1:30`, `2h` e número puro em minutos.
@@ -91,7 +102,8 @@ pub fn listar_tipos(db: tauri::State<Db>) -> Result<Vec<TipoAtividade>, String> 
     let conn = db.conn.lock().unwrap();
     let mut stmt = conn
         .prepare(
-            "SELECT id, nome, cor, cor_escura, conta_como_estudo FROM activity_types
+            "SELECT id, nome, cor, cor_escura, conta_como_estudo, icone, campos_extra
+               FROM activity_types
               WHERE deleted_at IS NULL ORDER BY ordem",
         )
         .map_err(|e| e.to_string())?;
@@ -103,6 +115,8 @@ pub fn listar_tipos(db: tauri::State<Db>) -> Result<Vec<TipoAtividade>, String> 
                 cor: r.get(2)?,
                 cor_escura: r.get(3)?,
                 conta_como_estudo: r.get::<_, i64>(4)? != 0,
+                icone: r.get(5)?,
+                campos_extra: r.get(6)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -124,7 +138,7 @@ pub fn listar_periodo(
         .prepare(
             "SELECT e.id, e.started_at, e.ended_at, e.activity_type_id, a.nome, a.cor,
                     a.cor_escura, a.conta_como_estudo, e.description, e.course_id,
-                    c.titulo, e.source
+                    c.titulo, e.source, e.observacao, e.distancia_m, e.treino, a.icone
                FROM time_entries e
                JOIN activity_types a ON a.id = e.activity_type_id
                LEFT JOIN courses c ON c.id = e.course_id
@@ -150,6 +164,10 @@ pub fn listar_periodo(
                 course_id: r.get(9)?,
                 curso: r.get(10)?,
                 source: r.get(11)?,
+                observacao: r.get(12)?,
+                distancia_m: r.get(13)?,
+                treino: r.get(14)?,
+                icone: r.get(15)?,
                 sobrepoe: false,
             })
         })
@@ -766,6 +784,10 @@ mod testes_sobreposicao {
             course_id: None,
             curso: None,
             source: "manual".into(),
+            observacao: None,
+            distancia_m: None,
+            treino: None,
+            icone: None,
             sobrepoe: false,
         }
     }
@@ -928,7 +950,7 @@ pub fn buscar_lancamentos(
         .prepare(&format!(
             "SELECT e.id, e.started_at, e.ended_at, e.activity_type_id, a.nome, a.cor,
                     a.cor_escura, a.conta_como_estudo, e.description, e.course_id,
-                    c.titulo, e.source
+                    c.titulo, e.source, e.observacao, e.distancia_m, e.treino, a.icone
                {de} WHERE {onde}
               ORDER BY e.started_at DESC
               LIMIT {m_lim} OFFSET {m_off}"
@@ -950,6 +972,10 @@ pub fn buscar_lancamentos(
                 course_id: r.get(9)?,
                 curso: r.get(10)?,
                 source: r.get(11)?,
+                observacao: r.get(12)?,
+                distancia_m: r.get(13)?,
+                treino: r.get(14)?,
+                icone: r.get(15)?,
                 sobrepoe: false,
             })
         })
@@ -969,4 +995,102 @@ pub fn buscar_lancamentos(
         total_ms,
         estudo_ms,
     })
+}
+
+// --- observação, distância e treino (§3.5) -----------------------------------
+
+/// Grava os campos opcionais do lançamento.
+///
+/// Comando separado de `editar_lancamento` de propósito. O calendário chama
+/// `editar_lancamento` a cada arrasto, com só os campos que ele conhece —
+/// se os extras entrassem lá, mover um bloco apagaria a distância da caminhada
+/// sem que ninguém pedisse.
+///
+/// Nada aqui é obrigatório: §3.5 diz que nenhum campo além do tempo precisa
+/// ser preenchido, e uma observação vazia é uma resposta legítima.
+#[tauri::command]
+pub fn salvar_detalhes(
+    db: tauri::State<Db>,
+    id: String,
+    observacao: Option<String>,
+    distancia_m: Option<i64>,
+    treino: Option<String>,
+) -> Result<(), String> {
+    if let Some(d) = distancia_m {
+        if d < 0 {
+            return Err("a distância não pode ser negativa".into());
+        }
+    }
+    let limpo = |s: Option<String>| s.map(|x| x.trim().to_string()).filter(|x| !x.is_empty());
+
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    registrar_revisao(&conn, &db.device_id, &id, "editar")?;
+    conn.execute(
+        "UPDATE time_entries
+            SET observacao = ?2, distancia_m = ?3, treino = ?4,
+                updated_at = ?5, version = version + 1
+          WHERE id = ?1 AND deleted_at IS NULL",
+        params![
+            id,
+            limpo(observacao),
+            distancia_m,
+            limpo(treino),
+            agora_ms()
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Últimas atividades distintas, para a bandeja do sistema e para o início
+/// rápido (§3.5).
+///
+/// Distintas por categoria + descrição: repetir "Academia" cinco vezes na
+/// bandeja não daria cinco atalhos, daria um atalho e quatro linhas de ruído.
+#[derive(Serialize, Clone)]
+pub struct Recente {
+    pub activity_type_id: String,
+    pub atividade: String,
+    pub descricao: Option<String>,
+    pub course_id: Option<String>,
+    pub cor: String,
+    pub icone: Option<String>,
+    pub quando: i64,
+}
+
+pub fn recentes_de(db: &Db, limite: i64) -> Vec<Recente> {
+    let Ok(conn) = db.conn.lock() else {
+        return Vec::new();
+    };
+    let Ok(mut stmt) = conn.prepare(
+        "SELECT e.activity_type_id, a.nome, e.description, e.course_id, a.cor, a.icone,
+                MAX(e.started_at)
+           FROM time_entries e
+           JOIN activity_types a ON a.id = e.activity_type_id
+          WHERE e.deleted_at IS NULL AND e.ended_at IS NOT NULL
+            AND COALESCE(e.context, '') <> 'pomodoro_break'
+          GROUP BY e.activity_type_id, COALESCE(e.description, '')
+          ORDER BY MAX(e.started_at) DESC
+          LIMIT ?1",
+    ) else {
+        return Vec::new();
+    };
+    stmt.query_map(params![limite], |r| {
+        Ok(Recente {
+            activity_type_id: r.get(0)?,
+            atividade: r.get(1)?,
+            descricao: r.get(2)?,
+            course_id: r.get(3)?,
+            cor: r.get(4)?,
+            icone: r.get(5)?,
+            quando: r.get(6)?,
+        })
+    })
+    .and_then(|it| it.collect::<Result<Vec<_>, _>>())
+    .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn listar_recentes(db: tauri::State<Db>, limite: i64) -> Result<Vec<Recente>, String> {
+    Ok(recentes_de(&db, limite.clamp(1, 20)))
 }

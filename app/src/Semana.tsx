@@ -46,7 +46,14 @@ export default function Semana({
     // Hoje, que é onde o usuário confere.
     const linhas = new Map<
       string,
-      { nome: string; cor: string; cor_escura: string | null; estudo: boolean; dias: number[] }
+      {
+        nome: string;
+        cor: string;
+        cor_escura: string | null;
+        icone: string | null;
+        estudo: boolean;
+        dias: number[];
+      }
     >();
     for (const l of itens) {
       const i = Math.floor((l.started_at - seg.getTime()) / DIA);
@@ -57,6 +64,7 @@ export default function Semana({
           nome: l.atividade,
           cor: l.cor,
           cor_escura: l.cor_escura,
+          icone: l.icone ?? null,
           estudo: l.conta_como_estudo,
           dias: Array(7).fill(0),
         };
@@ -165,10 +173,9 @@ export default function Semana({
                 grade.linhas.map((r) => (
                   <tr key={r.nome}>
                     <th scope="row">
-                      <span
-                        className="ponto"
-                        style={{ background: corDe(r, tema), border: 0 }}
-                      />
+                      <span style={{ color: corDe(r, tema), display: "flex" }}>
+                        <I.IconeCategoria nome={r.icone} size={15} />
+                      </span>
                       {r.nome}
                     </th>
                     {r.dias.map((ms, i) => (

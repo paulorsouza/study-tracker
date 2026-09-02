@@ -210,6 +210,12 @@ export default function Historico({
                 )}
                 <div className={`lanc${l.sobrepoe ? " lanc-sobreposto" : ""}`}>
                   <span className="lanc-cor" style={{ background: corDe(l, tema) }} />
+                  <span
+                    style={{ color: corDe(l, tema), display: "flex", flex: "none" }}
+                    title={l.atividade}
+                  >
+                    <I.IconeCategoria nome={l.icone} size={14} />
+                  </span>
                   <span className="lanc-hora num">
                     {hhmm(l.started_at)} – {l.ended_at ? hhmm(l.ended_at) : "agora"}
                   </span>
@@ -219,6 +225,10 @@ export default function Historico({
                     )}
                     {l.curso && <span className="lanc-curso"> · {l.curso}</span>}
                     {l.sobrepoe && <span className="marca-aviso">sobreposto</span>}
+                    {l.distancia_m != null && (
+                      <span className="marca-extra">{(l.distancia_m / 1000).toFixed(1)} km</span>
+                    )}
+                    {l.treino && <span className="marca-extra">{l.treino}</span>}
                   </span>
                   <span className="lanc-dur num">
                     {durCurta((l.ended_at ?? Date.now()) - l.started_at)}

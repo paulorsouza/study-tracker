@@ -16,6 +16,11 @@ export type Lancamento = {
   curso: string | null;
   source: string;
   sobrepoe: boolean;
+  observacao: string | null;
+  distancia_m: number | null;
+  treino: string | null;
+  /** Ícone da categoria, resolvido na consulta. */
+  icone?: string | null;
 };
 
 export type Tipo = {
@@ -24,6 +29,9 @@ export type Tipo = {
   cor: string;
   cor_escura: string | null;
   conta_como_estudo: boolean;
+  icone: string | null;
+  /** "distancia", "treino" ou nada. Decide qual campo extra a tela mostra. */
+  campos_extra: string | null;
 };
 
 /** O passo escuro é escolhido contra a superfície escura — não é o claro clareado. */

@@ -1371,3 +1371,37 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   color: var(--tx-2);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- atividades pessoais -------------------------------------------------- */
+
+.swatch-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--surf-2);
+  color: var(--tx-2);
+  cursor: pointer;
+}
+
+.swatch-icone:hover { color: var(--tx); border-color: var(--tx-3); }
+.swatch-icone.ativo { border-color: var(--acc); color: var(--acc); background: var(--surf-3); }
+
+/* Marca discreta ao lado do lançamento: distância percorrida, treino feito,
+   observação escrita. Fato registrado, não enfeite — por isso é texto e não
+   ícone solto. */
+.marca-extra {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  border: 1px solid var(--line-2);
+  color: var(--tx-2);
+  font-size: 10.5px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.dock-recentes { margin-top: 10px; display: grid; gap: 3px; }

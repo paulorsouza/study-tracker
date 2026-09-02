@@ -69,6 +69,16 @@ pub struct Meta {
 
 // --- tipos de atividade ------------------------------------------------------
 
+/// O banco tem um CHECK para isto, mas o erro dele chega como texto de SQLite.
+/// Barrar aqui devolve uma frase que a interface pode mostrar.
+fn validar_extra(v: Option<String>) -> Result<Option<String>, String> {
+    match v.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(None),
+        Some(s) if s == "distancia" || s == "treino" => Ok(Some(s.to_string())),
+        Some(s) => Err(format!("campo extra desconhecido: {s}")),
+    }
+}
+
 #[tauri::command]
 pub fn criar_tipo(
     db: tauri::State<Db>,
@@ -76,6 +86,8 @@ pub fn criar_tipo(
     cor: String,
     cor_escura: String,
     conta_como_estudo: bool,
+    icone: Option<String>,
+    campos_extra: Option<String>,
 ) -> Result<String, String> {
     let nome = nome.trim().to_string();
     if nome.is_empty() {
@@ -84,6 +96,7 @@ pub fn criar_tipo(
     if !PALETA.iter().any(|(_, c, _)| *c == cor) {
         return Err("cor fora da paleta validada".into());
     }
+    let campos_extra = validar_extra(campos_extra)?;
 
     let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
     let ordem: i64 = conn
@@ -98,10 +111,13 @@ pub fn criar_tipo(
     let agora = agora_ms();
     conn.execute(
         "INSERT INTO activity_types
-           (id, nome, cor, cor_escura, conta_como_estudo, ordem, device_id,
-            version, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?8)",
-        params![id, nome, cor, cor_escura, conta_como_estudo as i64, ordem, db.device_id, agora],
+           (id, nome, cor, cor_escura, conta_como_estudo, icone, campos_extra,
+            ordem, device_id, version, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1, ?10, ?10)",
+        params![
+            id, nome, cor, cor_escura, conta_como_estudo as i64, icone,
+            campos_extra, ordem, db.device_id, agora
+        ],
     )
     .map_err(|e| e.to_string())?;
     Ok(id)
@@ -115,17 +131,23 @@ pub fn editar_tipo(
     cor: String,
     cor_escura: String,
     conta_como_estudo: bool,
+    icone: Option<String>,
+    campos_extra: Option<String>,
 ) -> Result<(), String> {
     if !PALETA.iter().any(|(_, c, _)| *c == cor) {
         return Err("cor fora da paleta validada".into());
     }
+    let campos_extra = validar_extra(campos_extra)?;
     let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
     conn.execute(
         "UPDATE activity_types
             SET nome = ?2, cor = ?3, cor_escura = ?4, conta_como_estudo = ?5,
-                updated_at = ?6, version = version + 1
+                icone = ?6, campos_extra = ?7, updated_at = ?8, version = version + 1
           WHERE id = ?1 AND deleted_at IS NULL",
-        params![id, nome.trim(), cor, cor_escura, conta_como_estudo as i64, agora_ms()],
+        params![
+            id, nome.trim(), cor, cor_escura, conta_como_estudo as i64, icone,
+            campos_extra, agora_ms()
+        ],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

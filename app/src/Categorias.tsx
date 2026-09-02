@@ -8,6 +8,8 @@ export type Tipo = {
   cor: string;
   cor_escura: string | null;
   conta_como_estudo: boolean;
+  icone: string | null;
+  campos_extra: string | null;
 };
 
 export type Meta = {
@@ -136,6 +138,9 @@ export default function Categorias({
               onDrop={() => soltar(t)}
             >
               <span className="chip-cor" style={{ background: corDe(t, tema) }} />
+              <span style={{ color: corDe(t, tema), display: "flex" }}>
+                <I.IconeCategoria nome={t.icone} size={16} />
+              </span>
               <span className="lanc-texto">
                 {t.nome}
                 {t.conta_como_estudo && (
@@ -230,11 +235,15 @@ function Editor({
     cor: string;
     corEscura: string;
     contaComoEstudo: boolean;
+    icone: string | null;
+    camposExtra: string | null;
   }) => void;
 }) {
   const [nome, setNome] = useState(inicial?.nome ?? "");
   const [cor, setCor] = useState(inicial?.cor ?? paleta[0]?.clara ?? "");
   const [estudo, setEstudo] = useState(inicial?.conta_como_estudo ?? false);
+  const [icone, setIcone] = useState(inicial?.icone ?? "circulo");
+  const [extra, setExtra] = useState(inicial?.campos_extra ?? "");
 
   const escolhida = paleta.find((p) => p.clara === cor) ?? paleta[0];
 
@@ -269,6 +278,35 @@ function Editor({
         </div>
       </div>
 
+      <div className="grade" style={{ marginTop: 12 }}>
+        <div className="campo cresce">
+          <label>Ícone</label>
+          <div className="paleta">
+            {Object.keys(I.CATEGORIA).map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`swatch-icone${n === icone ? " ativo" : ""}`}
+                onClick={() => setIcone(n)}
+                aria-label={n}
+                aria-pressed={n === icone}
+                title={n}
+              >
+                <I.IconeCategoria nome={n} size={16} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="campo" style={{ width: 190 }}>
+          <label>Campo extra no lançamento</label>
+          <select value={extra} onChange={(e) => setExtra(e.target.value)}>
+            <option value="">nenhum</option>
+            <option value="distancia">distância</option>
+            <option value="treino">treino</option>
+          </select>
+        </div>
+      </div>
+
       <label style={{ display: "flex", gap: 9, alignItems: "center", marginTop: 12 }}>
         <input
           type="checkbox"
@@ -278,6 +316,11 @@ function Editor({
         />
         Conta como tempo de estudo nos totais
       </label>
+
+      <p className="nota">
+        O campo extra aparece só nos lançamentos desta categoria, e continua
+        opcional — nada além do tempo é obrigatório.
+      </p>
 
       <div className="linha" style={{ marginTop: 14 }}>
         <button
@@ -289,6 +332,8 @@ function Editor({
               cor: escolhida.clara,
               corEscura: escolhida.escura,
               contaComoEstudo: estudo,
+              icone,
+              camposExtra: extra || null,
             })
           }
         >

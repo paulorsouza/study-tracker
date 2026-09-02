@@ -64,14 +64,25 @@ pub struct Inicio {
 }
 
 impl Inicio {
-    /// Cronômetro livre: estudo, sem estrutura em volta.
-    pub fn livre(description: String, curso_id: Option<String>, tarefa_id: Option<String>) -> Self {
+    /// Cronômetro livre: sem estrutura em volta, e estudo só por padrão.
+    ///
+    /// A categoria é parâmetro porque §3.5 põe caminhada e academia no mesmo
+    /// cronômetro do estudo — se ela fosse fixa aqui, começar uma atividade
+    /// pessoal exigiria corrigir o lançamento depois, toda vez.
+    pub fn livre(
+        description: String,
+        curso_id: Option<String>,
+        tarefa_id: Option<String>,
+        activity_type_id: Option<String>,
+    ) -> Self {
         Self {
             entry_id: uuid::Uuid::new_v4().to_string(),
             description,
             curso_id,
             tarefa_id,
-            activity_type_id: "at-estudo".into(),
+            activity_type_id: activity_type_id
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "at-estudo".into()),
             context: None,
             parent_id: None,
             planejado_ms: None,
@@ -254,8 +265,12 @@ pub fn timer_start(
     description: String,
     curso_id: Option<String>,
     tarefa_id: Option<String>,
+    activity_type_id: Option<String>,
 ) -> Result<Status, String> {
-    iniciar(&state, Inicio::livre(description, curso_id, tarefa_id))
+    iniciar(
+        &state,
+        Inicio::livre(description, curso_id, tarefa_id, activity_type_id),
+    )
 }
 
 #[tauri::command]

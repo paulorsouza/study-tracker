@@ -37,6 +37,16 @@ export type Status = {
   inicio_wall: number;
 };
 
+export type Recente = {
+  activity_type_id: string;
+  atividade: string;
+  descricao: string | null;
+  course_id: string | null;
+  cor: string;
+  icone: string | null;
+  quando: number;
+};
+
 export type Favorito = {
   id: string;
   rotulo: string;
@@ -102,6 +112,7 @@ export default function App() {
   const [versao, setVersao] = useState(0);
   const [rapida, setRapida] = useState<NotaRapida>(null);
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
+  const [recentes, setRecentes] = useState<Recente[]>([]);
   const [editandoDock, setEditandoDock] = useState(false);
   const [dockDesc, setDockDesc] = useState("");
   const [dockCurso, setDockCurso] = useState("");
@@ -125,10 +136,15 @@ export default function App() {
   const mudou = useCallback(() => {
     recarregarCursos();
     setVersao((v) => v + 1);
+    // A bandeja mostra as atividades recentes, então ela envelhece junto com o
+    // histórico. Remontar aqui e não num relógio evita um menu que se
+    // reconstrói na mão de quem está clicando nele.
+    invoke("atualizar_bandeja").catch(() => {});
   }, [recarregarCursos]);
 
   const recarregarFavoritos = useCallback(() => {
     invoke<Favorito[]>("listar_favoritos").then(setFavoritos).catch(() => {});
+    invoke<Recente[]>("listar_recentes", { limite: 4 }).then(setRecentes).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -158,7 +174,12 @@ export default function App() {
   }, [recarregarCursos]);
 
   const iniciar = () => {
-    invoke("timer_start", { description: descricao, cursoId: null, tarefaId: null })
+    invoke("timer_start", {
+      description: descricao,
+      cursoId: null,
+      tarefaId: null,
+      activityTypeId: null,
+    })
       .then(() => {
         setDescricao("");
         setErro(null);
@@ -411,6 +432,32 @@ export default function App() {
                 <I.Play /> Iniciar
               </button>
 
+              {recentes.length > 0 && (
+                <div className="dock-recentes">
+                  <div className="dock-rotulo">recentes</div>
+                  {recentes.map((r, i) => (
+                    <button
+                      key={`${r.activity_type_id}-${i}`}
+                      className="dock-favorito"
+                      onClick={() =>
+                        cmd("timer_start", {
+                          description: r.descricao ?? "",
+                          cursoId: r.course_id,
+                          tarefaId: null,
+                          activityTypeId: r.activity_type_id,
+                        })
+                      }
+                      title={`Começar ${r.atividade.toLowerCase()} agora`}
+                    >
+                      <span style={{ color: r.cor, display: "flex", flex: "none" }}>
+                        <I.IconeCategoria nome={r.icone} size={13} />
+                      </span>
+                      <span>{r.descricao || r.atividade}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {favoritos.length > 0 && (
                 <div className="dock-favoritos">
                   <div className="dock-rotulo">atalhos</div>
@@ -499,7 +546,13 @@ export default function App() {
             <Tempo cursos={cursos} versao={versao} tema={tema} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "plano" && (
-            <Planejamento cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />
+            <Planejamento
+              cursos={cursos}
+              versao={versao}
+              tema={tema}
+              onErro={setErro}
+              onMudou={mudou}
+            />
           )}
           {aba === "foco" && (
             <Foco cursos={cursos} tema={tema} onErro={setErro} onMudou={mudou} />

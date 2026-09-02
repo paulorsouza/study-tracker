@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
+import { Tipo, corDe } from "./tempo-comum";
 import * as I from "./icones";
 
 type Tarefa = {
@@ -15,6 +16,11 @@ type Tarefa = {
   estado: string;
   concluida_em: number | null;
   realizado_ms: number;
+  activity_type_id: string | null;
+  atividade: string | null;
+  cor: string | null;
+  cor_escura: string | null;
+  icone: string | null;
 };
 
 type Modo = "dia" | "semana" | "atrasadas" | "sem_dia" | "concluidas";
@@ -49,11 +55,13 @@ const PRIORIDADES = [
 export default function Planejamento({
   cursos,
   versao,
+  tema,
   onErro,
   onMudou,
 }: {
   cursos: Curso[];
   versao: number;
+  tema: string;
   onErro: (e: string | null) => void;
   onMudou: () => void;
 }) {
@@ -68,6 +76,8 @@ export default function Planejamento({
   const [novoCurso, setNovoCurso] = useState("");
   const [novaDur, setNovaDur] = useState("");
   const [novaPri, setNovaPri] = useState(0);
+  const [novoTipo, setNovoTipo] = useState("");
+  const [tipos, setTipos] = useState<Tipo[]>([]);
 
   const hojeIso = iso(new Date());
   const diaIso = iso(dia);
@@ -92,6 +102,7 @@ export default function Planejamento({
     invoke<Tarefa[]>("listar_tarefas", args)
       .then(setTarefas)
       .catch((e) => onErro(String(e)));
+    invoke<Tipo[]>("listar_tipos").then(setTipos).catch(() => {});
 
     // O contador de atrasadas aparece na aba mesmo quando não estou nela —
     // tarefa vencida que fica invisível vira tarefa esquecida.
@@ -120,6 +131,7 @@ export default function Planejamento({
       duracaoMin: novaDur.trim() ? Number(novaDur) : null,
       prioridade: novaPri,
       dia: modo === "sem_dia" ? null : diaIso,
+      activityTypeId: novoTipo || null,
     })
       .then(() => {
         setNovoTitulo("");
@@ -144,6 +156,9 @@ export default function Planejamento({
       description: t.titulo,
       cursoId: t.course_id,
       tarefaId: t.id,
+      // A tarefa carrega a categoria do bloco planejado: começar uma
+      // caminhada pela lista do dia não deve virar tempo de estudo.
+      activityTypeId: t.activity_type_id,
     })
       .then(() => {
         onErro(null);
@@ -318,6 +333,8 @@ export default function Planejamento({
                   key={t.id}
                   t={t}
                   cursos={cursos}
+                  tipos={tipos}
+                  tema={tema}
                   editando={editando === t.id}
                   setEditando={setEditando}
                   acao={acao}
@@ -334,6 +351,8 @@ export default function Planejamento({
               key={t.id}
               t={t}
               cursos={cursos}
+              tipos={tipos}
+              tema={tema}
               editando={editando === t.id}
               setEditando={setEditando}
               acao={acao}
@@ -382,6 +401,15 @@ export default function Planejamento({
                 placeholder="60"
               />
             </div>
+            <div className="campo" style={{ width: 140 }}>
+              <label htmlFor="ncat">Categoria</label>
+              <select id="ncat" value={novoTipo} onChange={(e) => setNovoTipo(e.target.value)}>
+                <option value="">estudo</option>
+                {tipos.map((x) => (
+                  <option key={x.id} value={x.id}>{x.nome}</option>
+                ))}
+              </select>
+            </div>
             <div className="campo" style={{ width: 110 }}>
               <label htmlFor="np">Prioridade</label>
               <select id="np" value={novaPri} onChange={(e) => setNovaPri(Number(e.target.value))}>
@@ -396,7 +424,8 @@ export default function Planejamento({
           </div>
           <p className="nota">
             Só o título é obrigatório. Estimativa serve para comparar com o
-            realizado, não para cobrar você.
+            realizado, não para cobrar você. A categoria deixa o dia misturar
+            estudo, exercício e descanso na mesma lista.
           </p>
         </section>
       )}
@@ -405,11 +434,13 @@ export default function Planejamento({
 }
 
 function Linha({
-  t, cursos, editando, setEditando, acao, iniciar, onErro, hojeIso,
+  t, cursos, tipos, tema, editando, setEditando, acao, iniciar, onErro, hojeIso,
   arrastavel, onArrastar, onSoltar,
 }: {
   t: Tarefa;
   cursos: Curso[];
+  tipos: Tipo[];
+  tema: string;
   editando: boolean;
   setEditando: (id: string | null) => void;
   acao: (cmd: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -424,6 +455,7 @@ function Linha({
   const [curso, setCurso] = useState(t.course_id ?? "");
   const [dur, setDur] = useState(String(t.duracao_estimada_min ?? ""));
   const [pri, setPri] = useState(t.prioridade);
+  const [tipo, setTipo] = useState(t.activity_type_id ?? "");
 
   const concluida = t.estado === "concluida";
   const estimado = (t.duracao_estimada_min ?? 0) * 60000;
@@ -463,6 +495,15 @@ function Linha({
               ))}
             </select>
           </div>
+          <div className="campo" style={{ width: 140 }}>
+            <label>Categoria</label>
+            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              <option value="">estudo</option>
+              {tipos.map((x) => (
+                <option key={x.id} value={x.id}>{x.nome}</option>
+              ))}
+            </select>
+          </div>
           <button
             className="btn btn-primario"
             onClick={() =>
@@ -472,6 +513,7 @@ function Linha({
                 cursoId: curso || null,
                 duracaoMin: dur.trim() ? Number(dur) : null,
                 prioridade: pri,
+                activityTypeId: tipo || null,
               }).then(() => setEditando(null))
             }
           >
@@ -512,6 +554,21 @@ function Linha({
           title={t.prioridade === 2 ? "urgente" : "alta"}
           style={{ background: t.prioridade === 2 ? "var(--danger)" : "var(--warn)" }}
         />
+      )}
+
+      {/* Só as tarefas com categoria própria ganham marca. Estudo é o padrão,
+          e marcar o padrão em toda linha viraria ruído. */}
+      {t.activity_type_id && (
+        <span
+          style={{
+            color: corDe({ cor: t.cor ?? "", cor_escura: t.cor_escura }, tema),
+            display: "flex",
+            flex: "none",
+          }}
+          title={t.atividade ?? ""}
+        >
+          <I.IconeCategoria nome={t.icone} size={14} />
+        </span>
       )}
 
       <span className="lanc-texto">

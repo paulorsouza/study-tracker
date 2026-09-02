@@ -25,6 +25,14 @@ pub struct Tarefa {
     pub ordem: i64,
     pub estado: String,
     pub concluida_em: Option<i64>,
+    /// Categoria do bloco planejado. §3.5: o dia pode misturar estudo,
+    /// exercício, caminhada e descanso — sem isto o planejamento só sabe
+    /// falar de estudo.
+    pub activity_type_id: Option<String>,
+    pub atividade: Option<String>,
+    pub cor: Option<String>,
+    pub cor_escura: Option<String>,
+    pub icone: Option<String>,
     /// Tempo já lançado contra esta tarefa. É o "planejado versus realizado"
     /// de §3.11, calculado na consulta em vez de guardado — total guardado
     /// desatualiza na primeira edição de lançamento.
@@ -37,9 +45,11 @@ const SELECT: &str = "
          COALESCE((SELECT SUM(COALESCE(e.ended_at, 0) - e.started_at)
                      FROM time_entries e
                     WHERE e.task_id = t.id AND e.deleted_at IS NULL
-                      AND e.ended_at IS NOT NULL), 0)
+                      AND e.ended_at IS NOT NULL), 0),
+         t.activity_type_id, a.nome, a.cor, a.cor_escura, a.icone
     FROM tasks t
     LEFT JOIN courses c ON c.id = t.course_id
+    LEFT JOIN activity_types a ON a.id = t.activity_type_id
    WHERE t.deleted_at IS NULL";
 
 fn ler(r: &rusqlite::Row) -> rusqlite::Result<Tarefa> {
@@ -55,6 +65,11 @@ fn ler(r: &rusqlite::Row) -> rusqlite::Result<Tarefa> {
         estado: r.get(8)?,
         concluida_em: r.get(9)?,
         realizado_ms: r.get(10)?,
+        activity_type_id: r.get(11)?,
+        atividade: r.get(12)?,
+        cor: r.get(13)?,
+        cor_escura: r.get(14)?,
+        icone: r.get(15)?,
     })
 }
 
@@ -123,6 +138,7 @@ pub fn criar_tarefa(
     duracao_min: Option<i64>,
     prioridade: Option<i64>,
     dia: Option<String>,
+    activity_type_id: Option<String>,
 ) -> Result<String, String> {
     let titulo = titulo.trim().to_string();
     if titulo.is_empty() {
@@ -145,13 +161,15 @@ pub fn criar_tarefa(
     let agora = agora_ms();
     conn.execute(
         "INSERT INTO tasks
-           (id, titulo, course_id, duracao_estimada_min, prioridade, dia_planejado,
-            ordem, estado, device_id, version, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'aberta', ?8, 1, ?9, ?9)",
+           (id, titulo, course_id, activity_type_id, duracao_estimada_min,
+            prioridade, dia_planejado, ordem, estado, device_id, version,
+            created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'aberta', ?9, 1, ?10, ?10)",
         params![
             id,
             titulo,
             curso_id,
+            activity_type_id.filter(|s| !s.is_empty()),
             duracao_min,
             prioridade.unwrap_or(0),
             dia,
@@ -172,13 +190,18 @@ pub fn editar_tarefa(
     curso_id: Option<String>,
     duracao_min: Option<i64>,
     prioridade: i64,
+    activity_type_id: Option<String>,
 ) -> Result<(), String> {
     let conn = db.conn.lock().unwrap();
     conn.execute(
         "UPDATE tasks SET titulo = ?2, course_id = ?3, duracao_estimada_min = ?4,
-                          prioridade = ?5, updated_at = ?6, version = version + 1
+                          prioridade = ?5, activity_type_id = ?6,
+                          updated_at = ?7, version = version + 1
           WHERE id = ?1 AND deleted_at IS NULL",
-        params![id, titulo.trim(), curso_id, duracao_min, prioridade, agora_ms()],
+        params![
+            id, titulo.trim(), curso_id, duracao_min, prioridade,
+            activity_type_id.filter(|s| !s.is_empty()), agora_ms()
+        ],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

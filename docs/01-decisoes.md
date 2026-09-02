@@ -700,8 +700,6 @@ os dogs durante a pausa é legítimo — mas agora aparece marcada, porque dois
 lançamentos sobrepostos por engano fazem o dia passar de 24 horas sem ninguém
 notar.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-033 — as quatro visões do tempo moram juntas, e o calendário é uma régua
@@ -736,5 +734,44 @@ Decisões dentro de cada uma:
 
 `subjects` continua sem tela e por isso ficou fora dos filtros — oferecer um
 seletor sempre vazio seria pior que não oferecer.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-034 — o campo extra é da categoria, e a bandeja é uma lista curta
+
+§3.5 pede "observação, distância ou treino realizado, sempre opcional". As três
+colunas entraram em `time_entries`, mas **qual delas aparece** é decisão da
+categoria, guardada em `activity_types.campos_extra`. A alternativa — uma regra
+no código dizendo que academia pede treino — quebraria no dia em que o usuário
+criasse "Natação", e ele pode: as categorias são dele.
+
+O campo segue a categoria escolhida **naquele instante**, não a que estava
+gravada. Reclassificar uma pausa como caminhada revela a distância na mesma
+hora, que é o que a §3.5 chama de reclassificar sem perder o vínculo.
+
+`salvar_detalhes` é comando separado de `editar_lancamento` de propósito. O
+calendário chama `editar_lancamento` a cada arrasto, com só os campos que ele
+conhece; se os extras estivessem lá, mover um bloco apagaria a distância da
+caminhada sem que ninguém pedisse.
+
+A bandeja lista **atividades recentes distintas** por categoria + descrição.
+Repetir "Academia" cinco vezes não daria cinco atalhos, daria um atalho e
+quatro linhas de ruído. O menu é remontado quando algo muda — pelo cronômetro,
+pela extensão, pela janela — e não num relógio: um menu que se reconstrói
+sozinho pisca e fecha na mão de quem está clicando nele.
+
+O ícone é gravado por **nome** (`livro`, `halter`, `cachorro`), não como SVG. Um
+SVG vindo do banco teria de ser injetado como HTML, e isso abriria exatamente a
+porta que a CSP fecha de propósito.
+
+`tasks` ganhou `activity_type_id` para o dia poder misturar estudo, exercício e
+descanso na mesma lista, e começar a tarefa pelo cronômetro já sai na categoria
+certa em vez de virar tempo de estudo.
+
+Descoberta ao refazer os gatilhos: `icone` **nunca esteve** em nenhum payload de
+sincronização. O ícone escolhido numa máquina nunca chegava na outra. Corrigido
+junto.
 
 A ordem do que resta está em `04-pendencias.md`.

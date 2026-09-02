@@ -1,3 +1,4 @@
+mod bandeja;
 mod bridge;
 mod categorias;
 mod db;
@@ -54,6 +55,10 @@ pub fn run() {
             });
             bridge::iniciar(app.handle().clone(), bridge::PORTA_PADRAO, token);
 
+            // A bandeja depende do banco e do cronômetro já registrados: ela
+            // monta o menu a partir dos dois.
+            bandeja::montar(app.handle())?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -66,6 +71,9 @@ pub fn run() {
             timer::timer_continuar,
             timer::timer_favorito,
             entries::buscar_lancamentos,
+            entries::salvar_detalhes,
+            entries::listar_recentes,
+            bandeja::atualizar_bandeja,
             entries::duplicar_lancamento,
             entries::dividir_lancamento,
             entries::unir_lancamentos,

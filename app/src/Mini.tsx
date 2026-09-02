@@ -192,7 +192,7 @@ export default function Mini() {
               onChange={(e) => setDesc(e.target.value)}
               onKeyDown={(e) =>
                 e.key === "Enter" &&
-                acao("timer_start", { description: desc, cursoId: null, tarefaId: null }).then(
+                acao("timer_start", { description: desc, cursoId: null, tarefaId: null, activityTypeId: null }).then(
                   () => setDesc("")
                 )
               }
@@ -204,7 +204,7 @@ export default function Mini() {
                   acao("pomodoro_iniciar", {
                     descricao: desc,
                     cursoId: null,
-                    tarefaId: null,
+                    tarefaId: null, activityTypeId: null,
                   }).then(() => setDesc(""))
                 }
                 title="Iniciar um Pomodoro"
@@ -217,7 +217,7 @@ export default function Mini() {
                   acao("timer_start", {
                     description: desc,
                     cursoId: null,
-                    tarefaId: null,
+                    tarefaId: null, activityTypeId: null,
                   }).then(() => setDesc(""))
                 }
                 title="Iniciar o cronômetro livre"
@@ -263,7 +263,7 @@ export default function Mini() {
                       acao("timer_start", {
                         description: c.titulo,
                         cursoId: c.id,
-                        tarefaId: null,
+                        tarefaId: null, activityTypeId: null,
                       });
                       alternarMenu();
                     }}

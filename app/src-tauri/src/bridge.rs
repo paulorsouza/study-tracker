@@ -330,10 +330,14 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                     let desc = corpo["descricao"].as_str().unwrap_or("").to_string();
                     let curso = corpo["curso_id"].as_str().map(str::to_string);
                     let r = match app.try_state::<TimerState>() {
-                        Some(s) => timer::iniciar(&s, timer::Inicio::livre(desc, curso, None))
+                        Some(s) => timer::iniciar(&s, timer::Inicio::livre(desc, curso, None, None))
                             .map(|_| ()),
                         None => Err("cronômetro indisponível".into()),
                     };
+                    // A bandeja mostra o que está correndo. Sem isto, começar
+                    // pela extensão deixaria o menu mentindo até a próxima vez
+                    // que a janela mexesse em alguma coisa.
+                    crate::bandeja::atualizar(&app);
                     match r {
                         Ok(()) => responder(req, 200, json!({ "ok": true })),
                         Err(e) => responder(req, 409, json!({ "erro": e })),
@@ -351,6 +355,7 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                         Some(s) => timer::parar(&s, &db).map(|res| res.wall_ms),
                         None => Err("cronômetro indisponível".into()),
                     };
+                    crate::bandeja::atualizar(&app);
                     match r {
                         Ok(ms) => responder(req, 200, json!({ "ok": true, "wall_ms": ms })),
                         Err(e) => responder(req, 409, json!({ "erro": e })),

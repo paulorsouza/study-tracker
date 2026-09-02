@@ -321,6 +321,12 @@ export default function Hoje({
                   aria-label={`Selecionar ${i.description || i.atividade}`}
                 />
                 <span className="lanc-cor" style={{ background: corDe(i, tema) }} />
+                <span
+                  style={{ color: corDe(i, tema), display: "flex", flex: "none" }}
+                  title={i.atividade}
+                >
+                  <I.IconeCategoria nome={i.icone} size={14} />
+                </span>
                 <span className="lanc-hora num">
                   {hhmm(i.started_at)} – {i.ended_at ? hhmm(i.ended_at) : "agora"}
                 </span>
@@ -330,6 +336,15 @@ export default function Hoje({
                   {i.sobrepoe && (
                     <span className="marca-aviso" title="Divide relógio com outro lançamento">
                       sobreposto
+                    </span>
+                  )}
+                  {i.distancia_m != null && (
+                    <span className="marca-extra">{(i.distancia_m / 1000).toFixed(1)} km</span>
+                  )}
+                  {i.treino && <span className="marca-extra">{i.treino}</span>}
+                  {i.observacao && (
+                    <span className="marca-extra" title={i.observacao}>
+                      <I.Nota size={10} />
                     </span>
                   )}
                 </span>
@@ -524,18 +539,41 @@ function Editor({
   const [tipo, setTipo] = useState(item.activity_type_id);
   const [desc, setDesc] = useState(item.description ?? "");
   const [curso, setCurso] = useState(item.course_id ?? "");
+  const [obs, setObs] = useState(item.observacao ?? "");
+  const [km, setKm] = useState(
+    item.distancia_m ? String(item.distancia_m / 1000) : ""
+  );
+  const [treino, setTreino] = useState(item.treino ?? "");
 
-  const salvar = () =>
-    invoke("editar_lancamento", {
-      id: item.id,
-      inicio: comHora(dia, inicio),
-      fim: comHora(dia, fim),
-      activityTypeId: tipo,
-      descricao: desc.trim() || null,
-      cursoId: curso || null,
-    })
-      .then(() => { onErro(null); onSalvo(); })
-      .catch((e) => onErro(String(e)));
+  // O campo extra segue a categoria escolhida **agora**, não a que estava
+  // gravada: reclassificar uma pausa como caminhada deve revelar a distância
+  // na mesma hora.
+  const extra = tipos.find((t) => t.id === tipo)?.campos_extra ?? null;
+
+  const salvar = async () => {
+    try {
+      await invoke("editar_lancamento", {
+        id: item.id,
+        inicio: comHora(dia, inicio),
+        fim: comHora(dia, fim),
+        activityTypeId: tipo,
+        descricao: desc.trim() || null,
+        cursoId: curso || null,
+      });
+      // Chamada separada de propósito: o calendário edita horários sem saber
+      // destes campos, e juntá-los faria mover um bloco apagar a distância.
+      await invoke("salvar_detalhes", {
+        id: item.id,
+        observacao: obs.trim() || null,
+        distanciaM: extra === "distancia" && km.trim() ? Math.round(Number(km) * 1000) : null,
+        treino: extra === "treino" ? treino.trim() || null : null,
+      });
+      onErro(null);
+      onSalvo();
+    } catch (e) {
+      onErro(String(e));
+    }
+  };
 
   return (
     <div
@@ -578,6 +616,38 @@ function Editor({
         <div className="campo cresce">
           <label>Descrição</label>
           <input value={desc} onChange={(e) => setDesc(e.target.value)} />
+        </div>
+        {extra === "distancia" && (
+          <div className="campo" style={{ width: 110 }}>
+            <label>Distância (km)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.1"
+              value={km}
+              onChange={(e) => setKm(e.target.value)}
+            />
+          </div>
+        )}
+        {extra === "treino" && (
+          <div className="campo" style={{ width: 170 }}>
+            <label>Treino</label>
+            <input
+              value={treino}
+              onChange={(e) => setTreino(e.target.value)}
+              placeholder="Treino B, peito e tríceps"
+            />
+          </div>
+        )}
+      </div>
+      <div className="grade" style={{ marginTop: 10 }}>
+        <div className="campo cresce">
+          <label>Observação</label>
+          <input
+            value={obs}
+            onChange={(e) => setObs(e.target.value)}
+            placeholder="opcional"
+          />
         </div>
         <button className="btn btn-primario" onClick={salvar}>Salvar</button>
         <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>

@@ -193,3 +193,93 @@ export const Janelinha = ({ size = 17 }: P) => (
     <rect x="6" y="12" width="7" height="4" rx="1" />
   </svg>
 );
+
+/* --- ícones de categoria --------------------------------------------------
+   Guardados por nome no banco (`activity_types.icone`), desenhados aqui. Nome
+   e não SVG na coluna: um SVG vindo do banco teria de ser injetado como HTML,
+   e isso abriria uma porta que a CSP fecha de propósito. */
+
+export const Halter = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
+  </svg>
+);
+
+export const Cachorro = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M10 5.5 7.5 3v4.2C6 8.4 5 10.3 5 12.4V19h14v-6.6c0-2.1-1-4-2.5-5.2V3l-2.5 2.5z" />
+    <path d="M9.5 12h.01M14.5 12h.01M12 15.2c-.9 0-1.6-.5-1.6-.5" />
+  </svg>
+);
+
+export const Corrida = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="15" cy="4.6" r="1.8" />
+    <path d="m5 20 3-4.6 3.4-1.6 1.2-4.4 3.4 2 1.2 3.2 3.3.8M8.4 9.2l4-1.8 2.4 1.4" />
+  </svg>
+);
+
+export const Cama = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M3 18v-8M3 14h18v4M21 18v-4a3 3 0 0 0-3-3h-7v3" />
+    <circle cx="7" cy="10.5" r="1.8" />
+  </svg>
+);
+
+export const Carro = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 16v2M20 16v2M3 15v-3l2-4.5A2 2 0 0 1 6.8 6h10.4a2 2 0 0 1 1.8 1.5L21 12v3z" />
+    <path d="M5 11h14M6.5 15h.01M17.5 15h.01" />
+  </svg>
+);
+
+export const Cafe = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z" />
+    <path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3v2.5M12 3v2.5" />
+  </svg>
+);
+
+export const Pessoa = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="8" r="3.4" />
+    <path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1" />
+  </svg>
+);
+
+export const Circulo = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="7" />
+  </svg>
+);
+
+/** Nomes gravados no banco. Acrescentar aqui é acrescentar na tela de escolha. */
+export const CATEGORIA = {
+  livro: Livro,
+  halter: Halter,
+  cachorro: Cachorro,
+  corrida: Corrida,
+  cama: Cama,
+  carro: Carro,
+  cafe: Cafe,
+  pessoa: Pessoa,
+  relogio: Relogio,
+  alvo: Alvo,
+  nota: Nota,
+  circulo: Circulo,
+} as const;
+
+export type NomeIcone = keyof typeof CATEGORIA;
+
+/** O círculo é o padrão: categoria sem ícone continua tendo um lugar na linha,
+ *  e sem ele as listas ficariam desalinhadas entre categorias. */
+export function IconeCategoria({
+  nome,
+  size = 15,
+}: {
+  nome?: string | null;
+  size?: number;
+}) {
+  const C = (nome && CATEGORIA[nome as NomeIcone]) || Circulo;
+  return <C size={size} />;
+}

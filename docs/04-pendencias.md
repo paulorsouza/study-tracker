@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. As atividades pessoais são as próximas.
+Em ordem acordada. O Pomodoro é o próximo.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -71,13 +71,18 @@ Em ordem acordada. As atividades pessoais são as próximas.
 > Filtrar por **tag** filtra pela etiqueta do *curso* — lançamento não tem
 > etiqueta própria no modelo.
 
-### 4. Atividades pessoais — §3.5
+### 4. Atividades pessoais — §3.5 ✅
 
-- [ ] Ícone por categoria
-- [ ] Atalhos de início rápido ("Caminhar com os dogs", "Academia")
-- [ ] Bandeja do sistema com atividades recentes
-- [ ] Observação, distância ou treino no lançamento
-- [ ] Planejamento misturando blocos de estudo, exercício e descanso
+- [x] Ícone por categoria
+- [x] Atalhos de início rápido ("Caminhar com os dogs", "Academia") — os
+      recentes aparecem no cronômetro da lateral e na bandeja
+- [x] Bandeja do sistema com atividades recentes
+- [x] Observação, distância ou treino no lançamento
+- [x] Planejamento misturando blocos de estudo, exercício e descanso
+
+> A bandeja **não foi verificada em execução** — ela existe só no app montado,
+> não na prévia do navegador. Compila e linka; o menu, o clique e o ícone na
+> área de notificação ficam para o primeiro uso real.
 
 ### 5. Pomodoro — §3.4
 
@@ -124,6 +129,7 @@ Em ordem acordada. As atividades pessoais são as próximas.
 
 Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
 
+- [ ] Bandeja do sistema: ícone, menu, clique e início rápido (D-034)
 - [ ] Notificação do Pomodoro com a janela minimizada
 - [ ] Proteção do vault: exportar, editar no Obsidian, exportar de novo
 - [ ] Sincronização contra um Supabase real — autenticação, envio, recepção
