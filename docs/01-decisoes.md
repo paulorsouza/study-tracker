@@ -444,3 +444,40 @@ expectativa não — e é exatamente para isso que o teste existe.
 O modo **somente criar** existe para quem não quer risco algum: o app cria
 arquivos novos e nunca mexe em existente. O custo é o diário não se atualizar
 durante o dia.
+
+## D-023 — O app orquestra o git; não sincroniza
+**2026-09-02**
+
+Complemento de D-021, e uma distinção que não é retórica: **construir
+sincronização** (diferença, mesclagem, resolução de conflito em Markdown) fica
+recusado; **chamar o git** para fazer isso é aceito e implementado.
+
+Regras que definem o comportamento:
+
+1. **`git add` só na pasta de exportação, nunca `-A`.** O vault quase sempre é
+   um repositório com outras coisas dentro. Commitar tudo empacotaria o
+   rascunho que o usuário estava escrevendo naquele instante. A tela mostra
+   quantas alterações ficam de fora, para isso ser visível e não silencioso.
+2. **Nenhuma credencial passa pelo app.** O `push` usa o que o git já tem
+   configurado na máquina. O app roda com `GIT_TERMINAL_PROMPT=0` para não
+   travar esperando um prompt que ninguém vai ver.
+3. **Conflito não vira meia-mesclagem.** Rebase que falha é abortado, o
+   repositório volta ao estado anterior, e o app diz quais arquivos
+   conflitaram. Vault parado no meio de um rebase é o estado que ninguém sabe
+   desfazer.
+4. **Nunca `push --force`.** Reescrever histórico do vault da outra máquina é
+   perda de trabalho, não sincronização.
+
+**O risco que fica com o usuário, e por isso está escrito na tela:** o plugin
+obsidian-git também faz commit automático. Dois processos commitando o mesmo
+repositório sem se coordenar é como se cria commit no meio de uma edição. O app
+tem o cuidado de tocar só no que é dele; o commit automático do plugin não tem.
+Escolher um dos dois é decisão do usuário, e ela precisa ser consciente.
+
+Quatro testes rodam contra um git de verdade — remoto nu e dois clones — e
+cobrem o caminho feliz entre duas máquinas, o escopo do `add`, o aborto em
+conflito e o caso sem remoto. Dois deles pegaram expectativas erradas minhas
+durante a escrita.
+
+**O que isto ainda não resolve:** `time_entries` e tarefas continuam sem
+sincronizar. Isto cobre o vault, que é texto. A Fase 3 segue de pé.

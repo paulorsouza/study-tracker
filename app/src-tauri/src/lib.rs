@@ -2,6 +2,7 @@ mod bridge;
 mod categorias;
 mod db;
 mod entries;
+mod git;
 mod library;
 mod notas;
 mod obsidian;
@@ -107,6 +108,8 @@ pub fn run() {
             obsidian::obsidian_exportar,
             obsidian::obsidian_conflitos,
             obsidian::obsidian_aceitar_externo,
+            git::git_estado,
+            git::git_sincronizar,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

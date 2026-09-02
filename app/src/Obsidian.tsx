@@ -21,6 +21,25 @@ type Resultado = {
 
 type Conflito = { caminho: string; conflito_em: number };
 
+type EstadoGit = {
+  repositorio: string | null;
+  ramo: string | null;
+  remoto: string | null;
+  pendentes: string[];
+  fora_do_escopo: number;
+  atras: number;
+  adiante: number;
+  erro: string | null;
+};
+
+type Sincronizacao = {
+  passos: string[];
+  commitou: boolean;
+  enviou: boolean;
+  conflitos: string[];
+  erro: string | null;
+};
+
 const p2 = (n: number) => String(n).padStart(2, "0");
 
 /** Fronteiras do dia em hora local — a interface é quem sabe o fuso. */
@@ -249,19 +268,129 @@ export default function Obsidian({
         </>
       )}
 
-      <div className="aviso" style={{ marginTop: 16, marginBottom: 0 }}>
+      {cfg.pasta && <Git onErro={onErro} />}
+    </section>
+  );
+}
+
+/// O app não sincroniza: ele chama o git. A distinção não é retórica — quem
+/// faz diferença, mesclagem e detecção de conflito é o git.
+function Git({ onErro }: { onErro: (e: string | null) => void }) {
+  const [est, setEst] = useState<EstadoGit | null>(null);
+  const [res, setRes] = useState<Sincronizacao | null>(null);
+  const [rodando, setRodando] = useState(false);
+
+  const carregar = useCallback(() => {
+    invoke<EstadoGit>("git_estado").then(setEst).catch(() => {});
+  }, []);
+
+  useEffect(carregar, [carregar]);
+
+  const sincronizar = () => {
+    setRodando(true);
+    invoke<Sincronizacao>("git_sincronizar", { mensagem: null })
+      .then((r) => {
+        setRes(r);
+        if (r.erro) onErro(r.erro);
+        else onErro(null);
+        carregar();
+      })
+      .catch((e) => onErro(String(e)))
+      .finally(() => setRodando(false));
+  };
+
+  if (!est) return null;
+
+  if (est.erro || !est.repositorio) {
+    return (
+      <>
+        <hr />
+        <h2 style={{ fontSize: 13.5 }}>Sincronizar entre máquinas</h2>
+        <p className="nota" style={{ marginTop: 0 }}>
+          {est.erro ?? "sem repositório"}. Para o app cuidar disso, a pasta
+          precisa estar dentro de um repositório git com um remoto configurado —
+          o mesmo repositório nas duas máquinas.
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <hr />
+      <h2 style={{ fontSize: 13.5 }}>Sincronizar entre máquinas</h2>
+
+      <table className="medidas" style={{ marginBottom: 12 }}>
+        <tbody>
+          <tr>
+            <td>repositório</td>
+            <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 11.5 }}>
+              {est.repositorio}
+            </td>
+          </tr>
+          <tr>
+            <td>ramo e remoto</td>
+            <td>{est.ramo ?? "?"} · {est.remoto ?? "sem remoto"}</td>
+          </tr>
+          <tr>
+            <td>a enviar / a receber</td>
+            <td className="num">{est.adiante} / {est.atras}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {est.pendentes.length > 0 && (
+        <p className="nota" style={{ marginTop: 0 }}>
+          {est.pendentes.length} arquivo(s) da exportação com mudanças por
+          enviar.
+        </p>
+      )}
+
+      <div className="linha">
+        <button className="btn btn-primario" onClick={sincronizar} disabled={rodando}>
+          {rodando ? "Sincronizando…" : "Sincronizar agora"}
+        </button>
+        <span className="nota" style={{ margin: 0 }}>
+          commit · rebase sobre o remoto · push
+        </span>
+      </div>
+
+      {res && (
+        <div className={`aviso${res.erro ? " aviso-erro" : ""}`} style={{ marginTop: 12 }}>
+          <div style={{ flex: 1 }}>
+            <strong>
+              {res.erro ? "Não completou" : res.enviou ? "Sincronizado" : "Feito localmente"}
+            </strong>
+            <p>{res.passos.join(" · ") || "sem mudanças"}</p>
+            {res.conflitos.length > 0 && (
+              <p>
+                Conflito em: {res.conflitos.join(", ")}. Nada foi alterado —
+                resolva no Obsidian ou no git e sincronize de novo.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="aviso" style={{ marginTop: 14, marginBottom: 0 }}>
         <I.Alerta />
         <div>
-          <strong>Sobre sincronizar o vault entre máquinas</strong>
+          <strong>Se você usa o plugin obsidian-git, escolha um dos dois</strong>
           <p>
-            Isto <b>não</b> é sincronização — é exportação. Se o seu vault já é
-            sincronizado por Git, Syncthing ou pelo Sync do Obsidian, as notas
-            exportadas viajam junto de graça. O app não tenta assumir esse
-            papel: seria construir uma ferramenta de sincronização pior do que
-            as que já existem.
+            Dois processos commitando o mesmo repositório sem se coordenar é
+            como se cria commit no meio de uma edição sua. Este app só adiciona
+            a pasta de exportação — nunca <code>git add -A</code> —{" "}
+            {est.fora_do_escopo > 0 && (
+              <>
+                e neste momento há <b>{est.fora_do_escopo}</b> alteração(ões)
+                fora dela que ele vai ignorar —{" "}
+              </>
+            )}
+            mas o commit automático do plugin não tem esse cuidado com o que é
+            nosso.
           </p>
         </div>
       </div>
-    </section>
+    </>
   );
 }

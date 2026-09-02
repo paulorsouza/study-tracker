@@ -230,6 +230,15 @@ const respostas: Record<string, (a: any) => unknown> = {
     { caminho: "cursos/T2 - Fundamentos de renda variavel.md", conflito_em: Date.now() - 90000 },
   ],
   obsidian_aceitar_externo: () => null,
+  git_estado: () => ({
+    repositorio: "D:/vault", ramo: "main", remoto: "origin",
+    pendentes: ["Estudos/diario/2026-09-02.md"], fora_do_escopo: 3,
+    atras: 0, adiante: 2, erro: null,
+  }),
+  git_sincronizar: () => ({
+    passos: ["commit de 1 arquivo(s)", "atualizado a partir de origin/main", "enviado"],
+    commitou: true, enviou: true, conflitos: [], erro: null,
+  }),
   mcp_info: () => ({
     porta: 47823,
     token: "mcpmcpmcpmcpmcpmcpmcpmcpmcpmcpmc",
