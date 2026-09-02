@@ -1,5 +1,6 @@
 mod bridge;
 mod db;
+mod entries;
 mod library;
 mod timer;
 
@@ -47,6 +48,12 @@ pub fn run() {
             library::excluir_curso,
             library::favoritar_curso,
             library::abrir_no_navegador,
+            entries::listar_tipos,
+            entries::listar_periodo,
+            entries::criar_lancamento,
+            entries::editar_lancamento,
+            entries::excluir_lancamento,
+            entries::restaurar_lancamento,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

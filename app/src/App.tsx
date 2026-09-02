@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import Hoje from "./Hoje";
 import "./App.css";
 
 type Status = {
@@ -182,6 +183,8 @@ export default function App() {
           </>
         )}
       </section>
+
+      <Hoje cursos={cursos} onErro={setErro} />
 
       <section className="cartao">
         <h2>Meus cursos</h2>

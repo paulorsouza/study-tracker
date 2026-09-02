@@ -95,7 +95,8 @@ code {
   color: var(--warn);
 }
 
-input {
+input,
+select {
   background: #101014;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -107,6 +108,7 @@ input {
 }
 
 input:focus-visible,
+select:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--acc);
   outline-offset: 2px;
@@ -140,8 +142,14 @@ button.primario {
   margin-bottom: 10px;
 }
 
-.linha input {
+.linha input,
+.linha select {
   margin-bottom: 0;
+}
+
+button:disabled {
+  opacity: .45;
+  cursor: default;
 }
 
 .rotulo {
