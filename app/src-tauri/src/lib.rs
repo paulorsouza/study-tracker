@@ -1,4 +1,4 @@
-mod courses;
+mod bridge;
 mod db;
 mod library;
 mod timer;
@@ -18,16 +18,21 @@ pub fn run() {
             let conn = db::abrir(&dir.join("estudos.sqlite3"))?;
             let device_id = db::device_id(&conn)?;
             db::semear(&conn, &device_id)?;
+            let token = bridge::token(&conn)?;
             app.manage(db::Db {
                 conn: Mutex::new(conn),
                 device_id,
             });
 
-            app.manage(courses::UltimasUrls::default());
-
-            let state = timer::TimerState::new(dir.join("spike-timer.jsonl"));
+            let state = timer::TimerState::new(dir.join("timer-eventos.jsonl"));
             app.manage(state);
             timer::spawn_heartbeat(app.handle().clone());
+
+            app.manage(bridge::Ponte {
+                porta: bridge::PORTA_PADRAO,
+                token: token.clone(),
+            });
+            bridge::iniciar(app.handle().clone(), bridge::PORTA_PADRAO, token);
 
             Ok(())
         })
@@ -37,16 +42,12 @@ pub fn run() {
             timer::timer_status,
             timer::timer_recover,
             timer::timer_discard_recovery,
-            courses::abrir_curso,
-            courses::abrir_no_navegador,
-            courses::janelas_curso,
-            courses::fechar_curso,
-            courses::sair_tela_cheia,
-            courses::url_atual,
             library::listar_cursos,
             library::criar_curso,
             library::excluir_curso,
             library::favoritar_curso,
+            library::abrir_no_navegador,
+            bridge::ponte_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

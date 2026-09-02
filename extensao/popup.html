@@ -1,0 +1,75 @@
+<meta charset="utf-8">
+<title>Estudos</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 13px/1.5 system-ui, "Segoe UI", sans-serif;
+    width: 320px; margin: 0; padding: 14px;
+    background: #16161a; color: #e8e8ea;
+  }
+  h1 { font-size: 13px; margin: 0 0 10px; color: #9a9aa4;
+       text-transform: uppercase; letter-spacing: .06em; }
+  .pagina { font-size: 12px; color: #9a9aa4; word-break: break-all;
+            margin-bottom: 12px; }
+  input, select, button {
+    font: inherit; border-radius: 7px; padding: 8px 10px; width: 100%;
+    box-sizing: border-box; margin-bottom: 8px;
+  }
+  input, select {
+    background: #0f0f13; border: 1px solid #2e2e36; color: #e8e8ea;
+  }
+  button { border: 1px solid #2e2e36; background: #26262e; color: #e8e8ea;
+           cursor: pointer; }
+  button.primario { background: #7aa2f7; border-color: #7aa2f7;
+                    color: #10131c; font-weight: 600; }
+  button:hover { border-color: #4a4a56; }
+  .relogio { font: 600 24px/1.2 ui-monospace, Consolas, monospace;
+             font-variant-numeric: tabular-nums; margin-bottom: 2px; }
+  .desc { color: #9a9aa4; margin: 0 0 10px; }
+  #msg { font-size: 12px; margin-top: 6px; min-height: 16px; }
+  .erro { color: #f7768e; }
+  .ok { color: #9ece6a; }
+  hr { border: 0; border-top: 1px solid #2e2e36; margin: 14px 0; }
+  a { color: #7aa2f7; }
+</style>
+
+<div id="app">
+  <div id="carregando" class="desc">conectando ao app…</div>
+
+  <div id="parear" hidden>
+    <h1>Não pareado</h1>
+    <p class="desc">
+      Abra o app Estudos e cole o token nas opções desta extensão.
+    </p>
+    <button id="abrirOpcoes" class="primario">Abrir opções</button>
+  </div>
+
+  <div id="conteudo" hidden>
+    <div id="rodando" hidden>
+      <h1>Contando agora</h1>
+      <div class="relogio" id="relogio">0m 00s</div>
+      <p class="desc" id="descAtual"></p>
+      <button id="parar" class="primario">Parar</button>
+      <hr>
+    </div>
+
+    <div id="parado">
+      <h1>Esta página</h1>
+      <div class="pagina" id="url">—</div>
+
+      <select id="curso"></select>
+      <input id="descricao" placeholder="O que você vai estudar?">
+      <button id="iniciar" class="primario">Iniciar cronômetro</button>
+
+      <hr>
+      <h1>Salvar rota</h1>
+      <input id="titulo" placeholder="Nome do curso">
+      <button id="salvar">Salvar esta página como curso</button>
+      <button id="atualizar">Atualizar rota do curso escolhido</button>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+</div>
+
+<script src="popup.js"></script>

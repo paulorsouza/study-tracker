@@ -1,5 +1,15 @@
 # Fase 0 — spike técnico
 
+> **ENCERRADA em 2026-09-01.** O spike cumpriu o papel: provou que o modo
+> integrado era viável tecnicamente no Windows *e* que era pior de usar que o
+> navegador dedicado. A segunda descoberta valeu mais que a primeira e levou a
+> D-007 — o app deixou de abrir conteúdo de plataforma.
+>
+> A matriz abaixo fica como registro histórico. A maior parte das linhas deixou
+> de importar: sem webview embarcada não há motor para testar. O que sobreviveu
+> foram os achados, especialmente A-005 (vazamento em log de diagnóstico) e o
+> teste do cronômetro em P4, que continua valendo.
+
 Código deliberadamente descartável. Existe para responder quatro perguntas que
 travam decisões caras. Nada aqui precisa ser bonito, testado ou reaproveitado —
 mas o **resultado** é obrigatório antes da Fase 1.
@@ -182,3 +192,20 @@ existe e é reaproveitado), então não é diretório volátil.
 
 Observação colhida no caminho: o perfil traz uma pasta `WidevineCdm` — o
 WebView2 embarca o CDM, coerente com a sonda da janela principal.
+
+## A-008 — O spike foi bem-sucedido ao ser descartado
+**2026-09-01**
+
+O modo integrado funcionou: login OAuth passou, a aula abriu, o Widevine existe
+no WebView2. Tecnicamente aprovado — e mesmo assim abandonado, porque no uso
+real o Chrome ganha: a sessão já está lá, o caminho até a aula é mais curto e o
+player é o que o usuário conhece.
+
+Vale registrar porque contraria o instinto: as três correções que fiz no modo
+integrado (deadlock, CSP, nova janela) foram todas legítimas e todas jogadas
+fora. **Isso é o spike funcionando, não desperdiçado** — quatro horas de código
+descartável evitaram construir a Fase 2 inteira sobre uma premissa que o uso
+real derrubaria.
+
+O critério que decidiu não estava na matriz de compatibilidade. Nenhuma linha
+dela perguntava "isto é melhor do que o que o usuário já faz hoje?".

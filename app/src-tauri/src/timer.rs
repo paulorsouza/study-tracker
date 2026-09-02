@@ -51,6 +51,7 @@ pub struct Running {
     pub started_wall: i64,
     pub started_mono: Instant,
     pub description: String,
+    pub curso_id: Option<String>,
 }
 
 pub struct TimerState {
@@ -130,10 +131,13 @@ pub struct Recovery {
     pub gap_ms: i64,
 }
 
-#[tauri::command]
-pub fn timer_start(
-    state: tauri::State<TimerState>,
+/// Início do cronômetro, independente de quem pediu. A interface e a extensão
+/// do Chrome chamam daqui — se cada uma tivesse a própria lógica, elas
+/// divergiriam na primeira correção.
+pub fn iniciar(
+    state: &TimerState,
     description: String,
+    curso_id: Option<String>,
 ) -> Result<Status, String> {
     let mut running = state.running.lock().unwrap();
     if running.is_some() {
@@ -154,6 +158,7 @@ pub fn timer_start(
         started_wall: wall,
         started_mono: Instant::now(),
         description: description.clone(),
+        curso_id,
     });
 
     Ok(Status {
@@ -166,7 +171,20 @@ pub fn timer_start(
 }
 
 #[tauri::command]
+pub fn timer_start(
+    state: tauri::State<TimerState>,
+    description: String,
+    curso_id: Option<String>,
+) -> Result<Status, String> {
+    iniciar(&state, description, curso_id)
+}
+
+#[tauri::command]
 pub fn timer_status(state: tauri::State<TimerState>) -> Option<Status> {
+    status_de(&state)
+}
+
+pub fn status_de(state: &TimerState) -> Option<Status> {
     let running = state.running.lock().unwrap();
     let r = running.as_ref()?;
     let wall_ms = now_ms() - r.started_wall;
@@ -180,23 +198,53 @@ pub fn timer_status(state: tauri::State<TimerState>) -> Option<Status> {
     })
 }
 
-#[tauri::command]
-pub fn timer_stop(state: tauri::State<TimerState>) -> Result<StopResult, String> {
+/// Parada do cronômetro. Grava nos dois lugares, e cada um tem um papel:
+/// o log append-only é o que sobrevive a queda de energia; a linha em
+/// `time_entries` é o que os relatórios conseguem consultar.
+pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, String> {
     let mut running = state.running.lock().unwrap();
     let r = running.take().ok_or("nenhum cronômetro ativo")?;
-    let wall_ms = now_ms() - r.started_wall;
+    let fim = now_ms();
+    let wall_ms = fim - r.started_wall;
     let mono_ms = r.started_mono.elapsed().as_millis() as i64;
+
     state.append(&Event::Stop {
         session: r.session.clone(),
-        wall: now_ms(),
+        wall: fim,
         mono_ms,
     });
+
+    if let Ok(conn) = db.conn.lock() {
+        let _ = conn.execute(
+            "INSERT INTO time_entries
+               (id, started_at, ended_at, activity_type_id, description, course_id,
+                source, device_id, version, created_at, updated_at)
+             VALUES (?1, ?2, ?3, 'at-estudo', ?4, ?5, 'timer', ?6, 1, ?3, ?3)",
+            rusqlite::params![
+                uuid::Uuid::new_v4().to_string(),
+                r.started_wall,
+                fim,
+                if r.description.is_empty() { None } else { Some(&r.description) },
+                r.curso_id,
+                db.device_id,
+            ],
+        );
+    }
+
     Ok(StopResult {
         session: r.session,
         wall_ms,
         mono_ms,
         drift_ms: wall_ms - mono_ms,
     })
+}
+
+#[tauri::command]
+pub fn timer_stop(
+    state: tauri::State<TimerState>,
+    db: tauri::State<crate::db::Db>,
+) -> Result<StopResult, String> {
+    parar(&state, &db)
 }
 
 /// Varre o log procurando uma sessão que começou e nunca parou.

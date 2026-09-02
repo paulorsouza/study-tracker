@@ -22,6 +22,10 @@ pub struct Curso {
 
 #[tauri::command]
 pub fn listar_cursos(db: tauri::State<Db>) -> Result<Vec<Curso>, String> {
+    listar(&db)
+}
+
+pub fn listar(db: &Db) -> Result<Vec<Curso>, String> {
     let conn = db.conn.lock().unwrap();
     let mut stmt = conn
         .prepare(
@@ -51,12 +55,28 @@ pub fn listar_cursos(db: tauri::State<Db>) -> Result<Vec<Curso>, String> {
     Ok(linhas)
 }
 
+/// Lista enxuta para a extensão: ela só precisa escolher contra o quê contar
+/// tempo, não do registro inteiro.
+pub fn cursos_json(db: &Db) -> serde_json::Value {
+    match listar(db) {
+        Ok(cs) => serde_json::json!(cs
+            .iter()
+            .map(|c| serde_json::json!({ "id": c.id, "titulo": c.titulo }))
+            .collect::<Vec<_>>()),
+        Err(_) => serde_json::json!([]),
+    }
+}
+
 #[tauri::command]
 pub fn criar_curso(
     db: tauri::State<Db>,
     titulo: String,
     url: Option<String>,
 ) -> Result<String, String> {
+    criar(&db, titulo, url)
+}
+
+pub fn criar(db: &Db, titulo: String, url: Option<String>) -> Result<String, String> {
     let titulo = titulo.trim().to_string();
     if titulo.is_empty() {
         return Err("o curso precisa de um título".into());
@@ -112,4 +132,21 @@ pub fn registrar_ultima_url(db: &Db, curso_id: &str, url: &str) {
           WHERE id = ?1 AND deleted_at IS NULL",
         params![curso_id, url, agora_ms()],
     );
+}
+
+/// Modo navegador dedicado — agora o único (D-007). Abre no navegador padrão
+/// do sistema, onde a sessão do usuário já existe. Não copia cookie nem
+/// credencial de lugar nenhum.
+#[tauri::command]
+pub fn abrir_no_navegador(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let parsed = tauri::Url::parse(&url).map_err(|e| format!("URL inválida: {e}"))?;
+    // Só http(s): bloqueia file:, javascript:, data: e esquemas customizados
+    // antes de chegarem ao navegador (§8 do plano).
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(format!("esquema não permitido: {}", parsed.scheme()));
+    }
+    app.opener()
+        .open_url(parsed.as_str(), None::<&str>)
+        .map_err(|e| format!("falha ao abrir navegador: {e}"))
 }
