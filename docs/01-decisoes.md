@@ -627,3 +627,21 @@ Nele, clicar no nome abre o curso e o botão de play abre **e** começa a contar
 — duas ações explícitas em vez de uma. Ligar o cronômetro como efeito colateral
 de abrir uma página é o tipo de surpresa que faz o registro deixar de ser
 confiável.
+
+## D-030 — Exportação e tela de Relatórios ficam fora
+**2026-09-02**
+
+§3.11 pedia exportação CSV/JSON, relatório semanal em Markdown e uma tela de
+Relatórios com corte por mês, matéria, Pomodoros concluídos e horários de maior
+consistência. **Cortados.**
+
+O que já existe cobre a pergunta que o plano queria responder: o Painel mostra
+estudo por dia, por curso, por atividade, sequência e metas; a exportação para o
+Obsidian já leva sessões, tarefas e notas para fora do app em Markdown.
+
+O que se perde, para ficar registrado: não há como abrir os dados numa planilha,
+nem consultar por mês ou por matéria, nem ver quantos Pomodoros foram
+interrompidos. Se algum desses virar pergunta real durante o uso, o item volta —
+mas volta por necessidade demonstrada, não por estar no plano original.
+
+A ordem do que resta está em `04-pendencias.md`.
