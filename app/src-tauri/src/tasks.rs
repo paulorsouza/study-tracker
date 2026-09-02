@@ -87,6 +87,13 @@ pub fn listar_tarefas(
             vec![],
         ),
         // Intervalo: usado pela semana. Sem `ate`, é um dia só.
+        // Todas as tarefas, sem recorte de data. Serve aos filtros do histórico,
+        // que precisam oferecer inclusive a tarefa que nunca foi planejada
+        // para um dia.
+        "todas" => (
+            format!("{SELECT} ORDER BY t.estado = 'concluida', t.dia_planejado, t.ordem"),
+            vec![],
+        ),
         _ => (
             format!(
                 "{SELECT} AND t.dia_planejado >= ?1 AND t.dia_planejado <= ?2

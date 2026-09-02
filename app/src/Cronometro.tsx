@@ -11,7 +11,7 @@ export const ACOES: { id: string; nome: string; padrao: string }[] = [
   { id: "pausar", nome: "Pausar ou retomar", padrao: "Ctrl+P" },
   { id: "nota", nome: "Nota da sessão", padrao: "Ctrl+M" },
   { id: "compacto", nome: "Modo compacto", padrao: "Ctrl+Shift+C" },
-  { id: "hoje", nome: "Ir para Hoje", padrao: "Ctrl+1" },
+  { id: "hoje", nome: "Ir para Tempo", padrao: "Ctrl+1" },
   { id: "foco", nome: "Ir para Foco", padrao: "Ctrl+2" },
 ];
 

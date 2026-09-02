@@ -504,6 +504,59 @@ const respostas: Record<string, (a: any) => unknown> = {
     });
     return v;
   },
+  // O calendário só prova que funciona se o bloco criado aparecer — por isso o
+  // mock escreve mesmo no array, em vez de devolver um id de mentira.
+  criar_lancamento: (a: any) => {
+    const id = `m${Date.now()}`;
+    lancamentos.push(
+      monta(id, a.inicio, a.fim, a.activityTypeId, a.descricao ?? null, a.cursoId ?? null)
+    );
+    return id;
+  },
+  editar_lancamento: (a: any) => {
+    const l = lancamentos.find((x) => x.id === a.id);
+    if (l) {
+      l.started_at = a.inicio;
+      l.ended_at = a.fim;
+      l.activity_type_id = a.activityTypeId;
+      l.description = a.descricao ?? null;
+      l.atividade = cor(a.activityTypeId).nome;
+      l.cor = cor(a.activityTypeId).cor;
+      l.cor_escura = cor(a.activityTypeId).cor_escura;
+      l.conta_como_estudo = cor(a.activityTypeId).conta_como_estudo;
+      l.course_id = a.cursoId ?? null;
+      l.curso = a.cursoId ? CURSOS.find((c) => c.id === a.cursoId)!.titulo : null;
+    }
+    return null;
+  },
+  excluir_lancamento: (a: any) => {
+    const i = lancamentos.findIndex((x) => x.id === a.id);
+    if (i >= 0) lancamentos.splice(i, 1);
+    return null;
+  },
+  buscar_lancamentos: (a: any) => {
+    const q = (a.texto ?? "").toLowerCase();
+    const v = lancamentos
+      .filter(
+        (l) =>
+          (!q ||
+            (l.description ?? "").toLowerCase().includes(q) ||
+            (l.curso ?? "").toLowerCase().includes(q)) &&
+          (!a.desde || l.started_at >= a.desde) &&
+          (!a.cursoId || l.course_id === a.cursoId) &&
+          (!a.tipoId || l.activity_type_id === a.tipoId)
+      )
+      .sort((x, y) => y.started_at - x.started_at);
+    return {
+      itens: v.slice(a.deslocamento, a.deslocamento + a.limite),
+      total: v.length,
+      total_ms: v.reduce((s, l) => s + (l.ended_at - l.started_at), 0),
+      estudo_ms: v.reduce(
+        (s, l) => s + (l.conta_como_estudo ? l.ended_at - l.started_at : 0),
+        0
+      ),
+    };
+  },
   listar_favoritos: () => [
     { id: "fv1", rotulo: "Blender de manhã", descricao: "Aula do dia",
       activity_type_id: "at-estudo", atividade: "Estudo", cor: "#4f8ef7",

@@ -1197,3 +1197,177 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   background: color-mix(in oklab, var(--acc) 16%, transparent);
   color: var(--acc);
 }
+
+/* --- folha da semana ------------------------------------------------------ */
+
+.periodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.periodo-rotulo { color: var(--tx-2); font-size: 12.5px; margin-left: 4px; }
+
+.folha-rolagem { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+
+.folha {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.folha th, .folha td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.folha thead th { padding: 0 10px 8px; font-weight: 500; color: var(--tx-2); }
+.folha td, .folha thead th:not(:first-child) { text-align: right; }
+.folha tbody th, .folha tfoot th {
+  text-align: left;
+  font-weight: 500;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.folha tbody tr:last-child td, .folha tbody tr:last-child th { border-bottom: 0; }
+.folha tfoot th, .folha tfoot td {
+  border-bottom: 0;
+  border-top: 1px solid var(--line-2);
+  font-weight: 600;
+  position: relative;
+}
+.folha-total { font-weight: 600; }
+.folha-vazia { color: var(--tx-3); }
+.folha-hoje { color: var(--acc); }
+
+.folha-dia {
+  display: inline-flex;
+  gap: 5px;
+  align-items: baseline;
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  border-radius: 5px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.folha-dia:hover { background: var(--surf-3); color: var(--tx); }
+
+/* Barra fina sob o total do dia: dá a forma da semana sem custar uma linha. */
+.folha-barra {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--serie-1);
+  margin-left: auto;
+}
+
+/* --- calendário ----------------------------------------------------------- */
+
+.cal-rolagem { overflow: auto; max-height: 62vh; margin: 0 -4px; padding: 0 4px; }
+.cal { min-width: 620px; }
+
+.cal-cab {
+  display: grid;
+  grid-template-columns: 46px repeat(7, 1fr);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surf);
+  padding-bottom: 6px;
+}
+
+.cal-dia { text-align: center; font-size: 12px; color: var(--tx-2); }
+.cal-dia .num { color: var(--tx); font-weight: 600; }
+.cal-dia-hoje, .cal-dia-hoje .num { color: var(--acc); }
+
+.cal-corpo {
+  display: grid;
+  grid-template-columns: 46px repeat(7, 1fr);
+  position: relative;
+}
+
+.cal-horas { position: relative; }
+
+.cal-hora {
+  position: relative;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--tx-3);
+}
+.cal-hora span { position: absolute; top: -6px; right: 8px; background: var(--surf); padding: 0 2px; }
+
+.cal-col { position: relative; border-left: 1px solid var(--line); touch-action: none; }
+.cal-celula { border-top: 1px solid var(--line); }
+
+.cal-agora {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--acc);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.cal-bloco {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 5px;
+  padding: 2px 6px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.25;
+  cursor: grab;
+  z-index: 1;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
+}
+
+.cal-bloco:active { cursor: grabbing; }
+.cal-bloco-sel { outline: 2px solid var(--tx); outline-offset: 1px; }
+.cal-bloco-sobreposto { box-shadow: 0 0 0 1.5px var(--warn), 0 1px 3px rgb(0 0 0 / 0.22); }
+.cal-bloco-txt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-bloco-dur { opacity: 0.85; font-size: 10px; }
+
+.cal-bloco-novo {
+  background: color-mix(in oklab, var(--acc) 55%, transparent);
+  border: 1px dashed var(--acc);
+  pointer-events: none;
+}
+
+/* Alças de 7px: grandes o bastante para acertar, pequenas o bastante para não
+   engolir o arrasto de mover. */
+.cal-alca { position: absolute; left: 0; right: 0; height: 7px; cursor: ns-resize; }
+.cal-alca-topo { top: 0; }
+.cal-alca-baixo { bottom: 0; }
+
+.cal-detalhe { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+/* --- histórico ------------------------------------------------------------ */
+
+.hist-dia {
+  margin: 16px 0 4px;
+  font-size: 11.5px;
+  color: var(--tx-2);
+  letter-spacing: 0.02em;
+}
+.hist-dia:first-child { margin-top: 0; }
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--tx-2);
+  font-variant-numeric: tabular-nums;
+}

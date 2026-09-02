@@ -668,8 +668,6 @@ Isso expôs dois defeitos reais no motor de sincronização, os dois corrigidos:
   agora sai de `tabela_de_tags()`, e a próxima entidade com tags acrescenta uma
   linha em vez de descobrir o silêncio semanas depois.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-032 — pausar fecha o segmento; o Pomodoro pausa por fase
@@ -701,5 +699,42 @@ inflaria o dia em silêncio. Sobreposição continua **permitida** — caminhar 
 os dogs durante a pausa é legítimo — mas agora aparece marcada, porque dois
 lançamentos sobrepostos por engano fazem o dia passar de 24 horas sem ninguém
 notar.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-033 — as quatro visões do tempo moram juntas, e o calendário é uma régua
+
+Dia, Semana, Calendário e Histórico viraram abas de uma tela só, **Tempo**, que
+tomou o lugar de **Hoje** na navegação. São recortes de uma única tabela
+(`03-modelo-de-tempo.md`); separá-los no menu faria parecer que existem quatro
+registros de tempo diferentes, que é justamente o erro que o modelo de uma
+tabela evita.
+
+Decisões dentro de cada uma:
+
+- **Semana** soma pelo dia do **início** do lançamento. Repartir uma sessão que
+  atravessa a meia-noite entre dois dias faria a folha divergir da lista do Dia,
+  que é onde o usuário confere. E célula vazia fica vazia: um zero afirma que
+  nada aconteceu, o vazio só diz que nada foi registrado — num app que se pode
+  esquecer de ligar, são coisas diferentes.
+
+- **Calendário** é uma régua, não uma biblioteca: um minuto vale `H/60` pixels e
+  toda posição sai dessa conta. Blocos que dividem relógio repartem a largura em
+  vez de empilhar — sobreposição é permitida no modelo, e um calendário que
+  escondesse um lançamento atrás do outro falharia na única coisa que ele faz.
+  Arrastar atravessa colunas: um bloco preso ao dia em que nasceu obrigaria a
+  excluir e recriar para corrigir a data, que é o erro mais comum de quem lança
+  à mão. Passo de 5 minutos, e clique sem arrasto não cria nada.
+
+- **Histórico** monta a consulta em pedaços, mas todo valor entra por marcador
+  `?N` — o que é concatenado são só os marcadores e as cláusulas escritas no
+  código. Os totais vêm de **todos** os que casaram com o filtro, não da página
+  visível: quem filtra quer saber quanto tempo aquilo deu, não quanto deu nos
+  quarenta primeiros.
+
+`subjects` continua sem tela e por isso ficou fora dos filtros — oferecer um
+seletor sempre vazio seria pior que não oferecer.
 
 A ordem do que resta está em `04-pendencias.md`.

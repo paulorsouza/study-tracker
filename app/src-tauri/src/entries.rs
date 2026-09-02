@@ -820,3 +820,153 @@ mod testes_sobreposicao {
         assert_eq!(marcados(vec![l(0, Some(10))]), [false]);
     }
 }
+
+// --- histórico: busca e filtros (§3.5) ---------------------------------------
+
+#[derive(Serialize)]
+pub struct Pagina {
+    pub itens: Vec<Lancamento>,
+    /// Quantos lançamentos o filtro encontrou ao todo, não quantos vieram nesta
+    /// página. Sem isto a interface não teria como dizer "40 de 312".
+    pub total: i64,
+    /// Soma de **todos** os que casaram, não só da página. É a resposta para
+    /// "quanto tempo isso deu", que é a pergunta real de quem filtra.
+    pub total_ms: i64,
+    pub estudo_ms: i64,
+}
+
+/// Registra um valor e devolve o marcador que o representa no SQL.
+///
+/// Todo dado do usuário entra por aqui. O que é concatenado na consulta são só
+/// os marcadores — `?3`, `?4` — e os pedaços de cláusula escritos abaixo, à
+/// vista. Texto do usuário nunca vira SQL.
+fn marcador(vals: &mut Vec<rusqlite::types::Value>, v: rusqlite::types::Value) -> String {
+    vals.push(v);
+    format!("?{}", vals.len())
+}
+
+/// Histórico com busca e filtros.
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+pub fn buscar_lancamentos(
+    db: tauri::State<Db>,
+    texto: Option<String>,
+    desde: Option<i64>,
+    ate: Option<i64>,
+    curso_id: Option<String>,
+    tipo_id: Option<String>,
+    tarefa_id: Option<String>,
+    tag: Option<String>,
+    limite: i64,
+    deslocamento: i64,
+) -> Result<Pagina, String> {
+    let mut cond: Vec<String> = vec!["e.deleted_at IS NULL".into()];
+    let mut vals: Vec<rusqlite::types::Value> = Vec::new();
+
+    if let Some(t) = texto.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+        // Procura também no nome do curso: buscar "blender" e não achar a
+        // sessão que está *dentro* do curso de Blender seria uma surpresa ruim.
+        let m = marcador(&mut vals, format!("%{t}%").into());
+        cond.push(format!("(e.description LIKE {m} OR c.titulo LIKE {m})"));
+    }
+    if let Some(v) = desde {
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!("e.started_at >= {m}"));
+    }
+    if let Some(v) = ate {
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!("e.started_at < {m}"));
+    }
+    if let Some(v) = curso_id.filter(|s| !s.is_empty()) {
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!("e.course_id = {m}"));
+    }
+    if let Some(v) = tipo_id.filter(|s| !s.is_empty()) {
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!("e.activity_type_id = {m}"));
+    }
+    if let Some(v) = tarefa_id.filter(|s| !s.is_empty()) {
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!("e.task_id = {m}"));
+    }
+    if let Some(v) = tag.filter(|s| !s.is_empty()) {
+        // Lançamento não tem etiqueta própria: a etiqueta é do curso. Filtrar
+        // por tag é filtrar pelos cursos que a têm.
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!(
+            "e.course_id IN (SELECT course_id FROM course_tags WHERE tag = {m})"
+        ));
+    }
+
+    let onde = cond.join(" AND ");
+    let de = "FROM time_entries e
+              JOIN activity_types a ON a.id = e.activity_type_id
+              LEFT JOIN courses c ON c.id = e.course_id";
+
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+
+    let (total, total_ms, estudo_ms): (i64, i64, i64) = conn
+        .query_row(
+            &format!(
+                "SELECT count(*),
+                        COALESCE(SUM(COALESCE(e.ended_at, e.started_at) - e.started_at), 0),
+                        COALESCE(SUM(CASE WHEN a.conta_como_estudo = 1
+                                          THEN COALESCE(e.ended_at, e.started_at) - e.started_at
+                                          ELSE 0 END), 0)
+                   {de} WHERE {onde}"
+            ),
+            rusqlite::params_from_iter(vals.iter()),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let mut pag = vals.clone();
+    let m_lim = marcador(&mut pag, limite.clamp(1, 500).into());
+    let m_off = marcador(&mut pag, deslocamento.max(0).into());
+
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT e.id, e.started_at, e.ended_at, e.activity_type_id, a.nome, a.cor,
+                    a.cor_escura, a.conta_como_estudo, e.description, e.course_id,
+                    c.titulo, e.source
+               {de} WHERE {onde}
+              ORDER BY e.started_at DESC
+              LIMIT {m_lim} OFFSET {m_off}"
+        ))
+        .map_err(|e| e.to_string())?;
+
+    let mut itens = stmt
+        .query_map(rusqlite::params_from_iter(pag.iter()), |r| {
+            Ok(Lancamento {
+                id: r.get(0)?,
+                started_at: r.get(1)?,
+                ended_at: r.get(2)?,
+                activity_type_id: r.get(3)?,
+                atividade: r.get(4)?,
+                cor: r.get(5)?,
+                cor_escura: r.get(6)?,
+                conta_como_estudo: r.get::<_, i64>(7)? != 0,
+                description: r.get(8)?,
+                course_id: r.get(9)?,
+                curso: r.get(10)?,
+                source: r.get(11)?,
+                sobrepoe: false,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // A marcação de sobreposição espera ordem crescente; a lista sai
+    // decrescente porque histórico se lê do mais recente para trás.
+    itens.reverse();
+    marcar_sobreposicao(&mut itens);
+    itens.reverse();
+
+    Ok(Pagina {
+        itens,
+        total,
+        total_ms,
+        estudo_ms,
+    })
+}

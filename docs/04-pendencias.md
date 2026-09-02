@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. As visualizações do tempo são as próximas.
+Em ordem acordada. As atividades pessoais são as próximas.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -53,14 +53,23 @@ Em ordem acordada. As visualizações do tempo são as próximas.
 - [x] **Destacar sobreposição** — continua permitida, agora visível
 - [x] Atalhos de teclado configuráveis — dentro do app, não globais (D-032)
 
-### 3. Visualizações do tempo — §3.5
+### 3. Visualizações do tempo — §3.5 ✅
 
-- [ ] Semana: grade por dia, sem obrigação de preenchimento
-- [ ] Calendário: blocos criados, movidos e redimensionados
-- [ ] Histórico: busca e filtros por período, curso, tarefa, tipo e tag
+- [x] Semana: grade por dia, sem obrigação de preenchimento
+- [x] Calendário: blocos criados, movidos e redimensionados
+- [x] Histórico: busca e filtros por período, curso, tarefa, tipo e tag
 
-> Bloco grande e o mais fácil de construir errado. Vale esperar uso real —
-> como você consulta o histórico decide o formato.
+> O aviso continua valendo: é o bloco mais fácil de construir errado, e só o
+> uso real dirá se o formato serve. As quatro visões moram em **Tempo**, que
+> substituiu **Hoje** na navegação — são recortes de uma tabela só.
+>
+> **Matéria (`subjects`) ficou de fora do filtro.** A tabela existe desde a
+> migração 001 e nunca foi exposta em lugar nenhum do app: não há como criar
+> uma matéria, então filtrar por ela ofereceria uma lista sempre vazia. Volta
+> junto com a tela que a criar, se ela vier.
+>
+> Filtrar por **tag** filtra pela etiqueta do *curso* — lançamento não tem
+> etiqueta própria no modelo.
 
 ### 4. Atividades pessoais — §3.5
 

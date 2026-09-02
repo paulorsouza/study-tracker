@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Painel from "./Painel";
 import BarraJanela from "./BarraJanela";
-import Hoje from "./Hoje";
+import Tempo from "./Tempo";
 import Planejamento from "./Planejamento";
 import Foco from "./Foco";
 import Notas, { NotaRapida } from "./Notas";
@@ -272,7 +272,7 @@ export default function App() {
 
   const itens: { id: Aba; nome: string; Icone: typeof I.Relogio }[] = [
     { id: "painel", nome: "Painel", Icone: I.Painel },
-    { id: "hoje", nome: "Hoje", Icone: I.Calendario },
+    { id: "hoje", nome: "Tempo", Icone: I.Calendario },
     { id: "plano", nome: "Planejamento", Icone: I.Lista },
     { id: "foco", nome: "Foco", Icone: I.Alvo },
     { id: "notas", nome: "Notas", Icone: I.Nota },
@@ -496,7 +496,7 @@ export default function App() {
             <Painel cursos={cursos} versao={versao} tema={tema} irPara={setAba} />
           )}
           {aba === "hoje" && (
-            <Hoje cursos={cursos} versao={versao} tema={tema} onErro={setErro} onMudou={mudou} />
+            <Tempo cursos={cursos} versao={versao} tema={tema} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "plano" && (
             <Planejamento cursos={cursos} versao={versao} onErro={setErro} onMudou={mudou} />

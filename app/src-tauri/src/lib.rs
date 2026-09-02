@@ -65,6 +65,7 @@ pub fn run() {
             timer::timer_ajustar_inicio,
             timer::timer_continuar,
             timer::timer_favorito,
+            entries::buscar_lancamentos,
             entries::duplicar_lancamento,
             entries::dividir_lancamento,
             entries::unir_lancamentos,
