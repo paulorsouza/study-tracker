@@ -131,6 +131,9 @@ impl TimerState {
 #[derive(Serialize)]
 pub struct Status {
     pub session: String,
+    /// Entrada que está sendo gravada agora. É o que permite à nota rápida
+    /// amarrar no instante da sessão (§3.10).
+    pub entry_id: String,
     pub description: String,
     /// Tempo pelo relógio de parede — pode ter sido inflado por suspensão.
     pub wall_ms: i64,
@@ -178,6 +181,7 @@ pub fn iniciar(state: &TimerState, inicio: Inicio) -> Result<Status, String> {
     let session = format!("s{}", now_ms());
     let wall = now_ms();
     let description = inicio.description.clone();
+    let entry_id = inicio.entry_id.clone();
     state.append(&Event::Start {
         session: session.clone(),
         wall,
@@ -193,6 +197,7 @@ pub fn iniciar(state: &TimerState, inicio: Inicio) -> Result<Status, String> {
 
     Ok(Status {
         session,
+        entry_id,
         description,
         wall_ms: 0,
         mono_ms: 0,
@@ -222,6 +227,7 @@ pub fn status_de(state: &TimerState) -> Option<Status> {
     let mono_ms = r.started_mono.elapsed().as_millis() as i64;
     Some(Status {
         session: r.session.clone(),
+        entry_id: r.inicio.entry_id.clone(),
         description: r.inicio.description.clone(),
         wall_ms,
         mono_ms,

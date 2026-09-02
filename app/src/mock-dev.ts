@@ -211,6 +211,41 @@ const cfgPomo = {
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  listar_tags: () => ["blender", "renda-variavel", "retopologia", "duvida"],
+  salvar_nota: () => "nova",
+  excluir_nota: () => null,
+  fixar_nota: () => null,
+  revisar_nota: () => null,
+  listar_notas: ({ busca, tag, revisarAte }) => {
+    const base = [
+      { id: "n1", titulo: "Retopologia — o que travou",
+        conteudo: "## O que aprendi\nO fluxo de retopologia manual no Blender depende de snap ativo.\n\n## Em uma frase\nSnap primeiro, malha depois.",
+        modelo: "resumo", course_id: "c1", curso: CURSOS[0].titulo,
+        task_id: null, tarefa: null, time_entry_id: "e4", revisar_em: null,
+        revisada_em: null, disponivel_para_ia: true, fixada: true,
+        created_at: Date.now() - 3600000, updated_at: Date.now() - 3600000,
+        tags: ["blender", "retopologia"] },
+      { id: "n2", titulo: null,
+        conteudo: "## O que nao entendi\nDiferenca pratica entre ordem a mercado e ordem limitada quando o livro esta fino.\n\n## Onde procurar\nAula 13 e o material complementar.",
+        modelo: "duvidas", course_id: "c2", curso: CURSOS[1].titulo,
+        task_id: null, tarefa: null, time_entry_id: null,
+        revisar_em: isoDia(0), revisada_em: null, disponivel_para_ia: false,
+        fixada: false, created_at: Date.now() - 86400000,
+        updated_at: Date.now() - 86400000, tags: ["renda-variavel", "duvida"] },
+      { id: "n3", titulo: "Proximo passo do curso de Blender",
+        conteudo: "## Proximo passo\nRefazer o exercicio da aula 12 do zero, sem olhar a solucao.",
+        modelo: "proxima_acao", course_id: "c1", curso: CURSOS[0].titulo,
+        task_id: null, tarefa: null, time_entry_id: null, revisar_em: null,
+        revisada_em: null, disponivel_para_ia: false, fixada: false,
+        created_at: Date.now() - 5 * 86400000, updated_at: Date.now() - 5 * 86400000,
+        tags: ["blender"] },
+    ];
+    let r = base;
+    if (busca) r = r.filter((n) => (n.conteudo + (n.titulo ?? "")).toLowerCase().includes(busca.toLowerCase()));
+    if (tag) r = r.filter((n) => n.tags.includes(tag));
+    if (revisarAte) r = r.filter((n) => n.revisar_em && n.revisar_em <= revisarAte && !n.revisada_em);
+    return r;
+  },
   paleta: () => [
     { nome: "azul", clara: "#2a78d6", escura: "#3987e5" },
     { nome: "laranja", clara: "#eb6834", escura: "#d95926" },
@@ -325,6 +360,7 @@ const respostas: Record<string, (a: any) => unknown> = {
     rodando
       ? {
           session: "mock",
+          entry_id: "mock-entry",
           description: rodando.descricao,
           wall_ms: Date.now() - rodando.inicio,
           mono_ms: Date.now() - rodando.inicio,

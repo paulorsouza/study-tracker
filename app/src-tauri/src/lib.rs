@@ -3,6 +3,7 @@ mod categorias;
 mod db;
 mod entries;
 mod library;
+mod notas;
 mod pomodoro;
 mod tasks;
 mod timer;
@@ -88,6 +89,12 @@ pub fn run() {
             categorias::listar_metas,
             categorias::salvar_meta,
             categorias::excluir_meta,
+            notas::listar_notas,
+            notas::listar_tags,
+            notas::salvar_nota,
+            notas::excluir_nota,
+            notas::fixar_nota,
+            notas::revisar_nota,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

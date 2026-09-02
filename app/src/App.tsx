@@ -4,6 +4,7 @@ import Painel from "./Painel";
 import Hoje from "./Hoje";
 import Planejamento from "./Planejamento";
 import Foco from "./Foco";
+import Notas, { NotaRapida } from "./Notas";
 import Cursos from "./Cursos";
 import Config from "./Config";
 import * as I from "./icones";
@@ -21,6 +22,7 @@ export type Curso = {
 
 type Status = {
   session: string;
+  entry_id: string;
   description: string;
   wall_ms: number;
   mono_ms: number;
@@ -34,7 +36,7 @@ type Recovery = {
   gap_ms: number;
 };
 
-type Aba = "painel" | "hoje" | "plano" | "foco" | "cursos" | "config";
+type Aba = "painel" | "hoje" | "plano" | "foco" | "notas" | "cursos" | "config";
 
 export function dur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -61,6 +63,7 @@ export default function App() {
   const [erro, setErro] = useState<string | null>(null);
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [versao, setVersao] = useState(0);
+  const [rapida, setRapida] = useState<NotaRapida>(null);
   const [tema, setTema] = useState<"escuro" | "claro">(
     () => (localStorage.getItem("tema") as "escuro" | "claro") ?? "escuro"
   );
@@ -124,6 +127,7 @@ export default function App() {
     { id: "hoje", nome: "Hoje", Icone: I.Calendario },
     { id: "plano", nome: "Planejamento", Icone: I.Lista },
     { id: "foco", nome: "Foco", Icone: I.Alvo },
+    { id: "notas", nome: "Notas", Icone: I.Nota },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
     { id: "config", nome: "Configurações", Icone: I.Engrenagem },
   ];
@@ -159,6 +163,21 @@ export default function App() {
               <p className="dock-desc">{status!.description || "sem descrição"}</p>
               <button className="btn btn-primario" onClick={parar}>
                 <I.Parar /> Parar
+              </button>
+              {/* §3.10: nota rápida durante a sessão. Amarra no lançamento que
+                  está sendo gravado agora, e não no que estiver aberto na tela. */}
+              <button
+                className="btn"
+                style={{ marginTop: 6 }}
+                onClick={() => {
+                  setRapida({
+                    entryId: status!.entry_id,
+                    descricao: status!.description,
+                  });
+                  setAba("notas");
+                }}
+              >
+                <I.Nota size={15} /> Nota da sessão
               </button>
             </>
           ) : (
@@ -250,6 +269,14 @@ export default function App() {
           )}
           {aba === "foco" && (
             <Foco cursos={cursos} tema={tema} onErro={setErro} onMudou={mudou} />
+          )}
+          {aba === "notas" && (
+            <Notas
+              cursos={cursos}
+              rapida={rapida}
+              onRapidaUsada={() => setRapida(null)}
+              onErro={setErro}
+            />
           )}
           {aba === "cursos" && (
             <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />

@@ -131,3 +131,10 @@ export const Alvo = ({ size = 17 }: P) => (
     <circle cx="12" cy="12" r="1.2" fill="currentColor" />
   </svg>
 );
+
+export const Nota = ({ size = 17 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5 4a1 1 0 0 1 1-1h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" />
+    <path d="M14 3v5h5M8.5 13h7M8.5 17h5" />
+  </svg>
+);

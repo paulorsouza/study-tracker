@@ -776,3 +776,55 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .meta-abaixo { color: var(--warn); }
 .meta-acima { color: var(--warn); }
 .meta-dentro { color: var(--ok); }
+
+/* --- notas ---------------------------------------------------------------- */
+
+.nota-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  font: inherit;
+  color: var(--tx);
+  cursor: pointer;
+}
+
+.nota-card:hover { border-color: var(--line-2); }
+
+.nota-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.nota-cab strong { font-weight: 600; flex: 1; }
+.nota-cab svg { color: var(--warn); flex: none; }
+.nota-data { font-size: 11.5px; color: var(--tx-3); flex: none; }
+
+.nota-previa {
+  margin: 0 0 9px;
+  color: var(--tx-2);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nota-pes { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.nota-marca,
+.nota-tag {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  color: var(--tx-2);
+}
+
+.nota-tag { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent); }
+.nota-revisar { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+.editor-texto {
+  font: 13px/1.6 "Cascadia Mono", Consolas, ui-monospace, monospace;
+  resize: vertical;
+  min-height: 200px;
+}
