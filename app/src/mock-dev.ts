@@ -211,6 +211,10 @@ const cfgPomo = {
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  abrir_mini: () => null,
+  fechar_mini: () => null,
+  expandir: () => null,
+  mini_no_topo: () => null,
   supabase_estado: () => ({
     configurado: true,
     conectado: true,

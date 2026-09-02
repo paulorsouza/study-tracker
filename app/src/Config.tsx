@@ -8,6 +8,20 @@ import * as I from "./icones";
 
 type Ponte = { porta: number; token: string };
 
+type Secao = "aparencia" | "categorias" | "sync" | "integracoes";
+
+const SECOES: { id: Secao; nome: string }[] = [
+  { id: "aparencia", nome: "Aparência" },
+  { id: "categorias", nome: "Categorias e metas" },
+  { id: "sync", nome: "Sincronização" },
+  { id: "integracoes", nome: "Integrações" },
+];
+
+/**
+ * Configurações em seções, não numa página só. Tema, categorias, metas,
+ * sincronização, Obsidian, MCP e extensão empilhados davam uma rolagem em que
+ * nada era achável — e o problema não era de estilo, era de estrutura.
+ */
 export default function Config({
   tema,
   setTema,
@@ -19,6 +33,7 @@ export default function Config({
   onErro: (e: string | null) => void;
   onMudou: () => void;
 }) {
+  const [secao, setSecao] = useState<Secao>("aparencia");
   const [ponte, setPonte] = useState<Ponte | null>(null);
   const [mostrar, setMostrar] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -30,8 +45,25 @@ export default function Config({
   return (
     <>
       <h1 className="titulo-pagina">Configurações</h1>
-      <p className="legenda">Aparência e ligação com o navegador.</p>
+      <p className="legenda">
+        Aparência, categorias, e as pontes com o navegador, o Obsidian e o
+        Claude Desktop.
+      </p>
 
+      <div className="abas">
+        {SECOES.map((x) => (
+          <button
+            key={x.id}
+            className="aba"
+            aria-current={secao === x.id ? "page" : undefined}
+            onClick={() => setSecao(x.id)}
+          >
+            {x.nome}
+          </button>
+        ))}
+      </div>
+
+      {secao === "aparencia" && (
       <section className="card">
         <h2>Tema</h2>
         <div style={{ display: "flex", gap: 8 }}>
@@ -49,15 +81,18 @@ export default function Config({
           </button>
         </div>
       </section>
+      )}
 
-      <Categorias tema={tema} onErro={onErro} onMudou={onMudou} />
+      {secao === "categorias" && (
+        <Categorias tema={tema} onErro={onErro} onMudou={onMudou} />
+      )}
 
-      <Sincronizacao onErro={onErro} onMudou={onMudou} />
+      {secao === "sync" && <Sincronizacao onErro={onErro} onMudou={onMudou} />}
 
-      <Obsidian onErro={onErro} />
-
-      <Mcp onErro={onErro} />
-
+      {secao === "integracoes" && (
+        <>
+          <Obsidian onErro={onErro} />
+          <Mcp onErro={onErro} />
       <section className="card">
         <h2>Extensão do Chrome</h2>
         {!ponte ? (
@@ -128,6 +163,8 @@ export default function Config({
           </>
         )}
       </section>
+        </>
+      )}
     </>
   );
 }

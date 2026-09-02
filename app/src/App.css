@@ -11,42 +11,73 @@
 --------------------------------------------------------------------------- */
 
 :root {
-  --bg: #0e0f13;
-  --surf: #14161c;
-  --surf-2: #1a1d25;
-  --line: #262a34;
-  --line-2: #333949;
-  --tx: #e7e9ee;
-  --tx-2: #99a0b0;
-  --tx-3: #6d7484;
+  /* Superfícies em degraus: fundo, cartão, sulco, realce. Profundidade vem
+     daqui e de sombra curta — borda grossa em tudo é o que faz interface
+     parecer formulário antigo. */
+  --bg: #0b0c0f;
+  --surf: #131519;
+  --surf-2: #1a1d23;
+  --surf-3: #22262e;
+  --line: #23262e;
+  --line-2: #31353f;
+
+  --tx: #eceef2;
+  --tx-2: #a0a7b4;
+  --tx-3: #6e7583;
+
   --acc: #6c8cff;
-  --acc-tx: #0b0e18;
-  --ok: #56d364;
+  --acc-2: #8aa3ff;
+  --acc-tx: #0a0d18;
+  --acc-fraco: rgba(108, 140, 255, .14);
+
+  --ok: #4ec98a;
   --warn: #e3b341;
-  --danger: #f47174;
+  --danger: #f4707b;
   /* Série única de gráfico: passo escuro da paleta categórica validada. */
   --serie-1: #3987e5;
-  --r: 10px;
-  --r-sm: 7px;
+
+  /* Escala de espaço. Valor avulso e o que produz aquele desalinhamento que
+     ninguem sabe nomear mas todo mundo percebe. */
+  --e1: 4px;  --e2: 8px;  --e3: 12px; --e4: 16px;
+  --e5: 24px; --e6: 32px; --e7: 48px;
+
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 16px;
+
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, .35);
+  --sombra-2: 0 4px 16px rgba(0, 0, 0, .32);
+  --sombra-3: 0 12px 40px rgba(0, 0, 0, .45);
+  --curva: cubic-bezier(.2, .7, .3, 1);
 
   color-scheme: dark;
 }
 
 :root[data-tema="claro"] {
-  --bg: #f6f7f9;
+  --bg: #f4f5f8;
   --surf: #ffffff;
-  --surf-2: #f1f3f6;
-  --line: #e3e6ec;
-  --line-2: #cfd4de;
-  --tx: #171a20;
-  --tx-2: #5c6373;
-  --tx-3: #838b9b;
+  --surf-2: #f5f6f9;
+  --surf-3: #eceef3;
+  --line: #e5e8ee;
+  --line-2: #d3d8e1;
+
+  --tx: #14161b;
+  --tx-2: #565d6c;
+  --tx-3: #858c9a;
+
   --acc: #3b5bdb;
+  --acc-2: #314cc0;
   --acc-tx: #ffffff;
-  --ok: #2f9e44;
-  --warn: #b8860b;
-  --danger: #d64545;
+  --acc-fraco: rgba(59, 91, 219, .10);
+
+  --ok: #2b9a63;
+  --warn: #a8770c;
+  --danger: #d1454f;
   --serie-1: #2a78d6;
+
+  --sombra-1: 0 1px 2px rgba(16, 20, 30, .05);
+  --sombra-2: 0 4px 16px rgba(16, 20, 30, .07);
+  --sombra-3: 0 12px 40px rgba(16, 20, 30, .12);
 
   color-scheme: light;
 }
@@ -70,7 +101,7 @@ body {
 
 .shell {
   display: grid;
-  grid-template-columns: 212px 1fr;
+  grid-template-columns: 224px 1fr;
   height: 100%;
 }
 
@@ -96,6 +127,7 @@ body {
 .marca svg { color: var(--acc); }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -113,28 +145,39 @@ body {
 .nav-item:hover { background: var(--surf-2); color: var(--tx); }
 
 .nav-item[aria-current="page"] {
-  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  background: var(--acc-fraco);
   color: var(--tx);
   font-weight: 600;
 }
 
+/* Marca fina à esquerda: diz qual é a seção sem depender só do preenchimento,
+   que praticamente some para quem enxerga pouco contraste. */
+.nav-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--acc);
+}
+
 .nav-item[aria-current="page"] svg { color: var(--acc); }
 
-.principal {
-  overflow-y: auto;
-  padding: 26px 30px 60px;
-}
+.principal { overflow-y: auto; padding: var(--e6) var(--e6) var(--e7); }
 
-.conteudo { max-width: 840px; margin: 0 auto; }
+.conteudo { max-width: 880px; margin: 0 auto; }
 
 .titulo-pagina {
-  font-size: 21px;
+  font-size: 24px;
   font-weight: 650;
-  letter-spacing: -0.015em;
-  margin: 0 0 3px;
+  letter-spacing: -.025em;
+  margin: 0 0 var(--e1);
 }
 
-.legenda { color: var(--tx-2); margin: 0 0 22px; }
+.legenda { color: var(--tx-2); margin: 0 0 var(--e5); max-width: 62ch; }
 
 /* --- cartões ------------------------------------------------------------- */
 
@@ -142,12 +185,13 @@ body {
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 18px 20px;
-  margin-bottom: 16px;
+  padding: var(--e5);
+  margin-bottom: var(--e4);
+  box-shadow: var(--sombra-1);
 }
 
 .card > h2 {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 620;
   margin: 0 0 14px;
   letter-spacing: -0.005em;
@@ -178,21 +222,25 @@ body {
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .12s, border-color .12s;
+  transition: background .14s var(--curva), border-color .14s var(--curva),
+              transform .14s var(--curva);
 }
 
-.btn:hover:not(:disabled) { border-color: var(--tx-3); }
-.btn:disabled { opacity: .4; cursor: default; }
+.btn:hover:not(:disabled) { background: var(--surf-3); border-color: var(--tx-3); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .42; cursor: default; }
 
 .btn-primario {
   background: var(--acc);
   border-color: var(--acc);
   color: var(--acc-tx);
   font-weight: 600;
+  box-shadow: var(--sombra-1);
 }
 
 .btn-primario:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--acc) 88%, white);
+  background: var(--acc-2);
+  border-color: var(--acc-2);
 }
 
 .btn-fantasma {
@@ -285,8 +333,10 @@ body {
 @keyframes pulso { 50% { opacity: .3; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pulso { animation: none; }
-  * { transition: none !important; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+  }
 }
 
 /* --- linha do tempo do dia ----------------------------------------------- */
@@ -377,12 +427,13 @@ body {
 .aviso {
   display: flex;
   align-items: flex-start;
-  gap: 11px;
-  padding: 13px 15px;
+  gap: var(--e3);
+  padding: var(--e4);
   border: 1px solid var(--line-2);
   border-radius: var(--r);
   background: var(--surf);
-  margin-bottom: 16px;
+  margin-bottom: var(--e4);
+  box-shadow: var(--sombra-1);
 }
 
 .aviso-erro { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
@@ -419,9 +470,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   padding: 3px;
   background: var(--surf-2);
   border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  margin-bottom: 16px;
+  border-radius: 10px;
+  margin-bottom: var(--e4);
   width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .aba {
@@ -443,7 +496,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   background: var(--surf);
   color: var(--tx);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+  box-shadow: var(--sombra-1);
 }
 
 .selo {
@@ -494,12 +547,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   width: 74px;
   height: 5px;
   border-radius: 3px;
-  background: var(--surf-2);
+  background: var(--surf-3);
   overflow: hidden;
   flex: none;
 }
-
-:root[data-tema="claro"] .progresso { background: var(--line); }
 
 .progresso-barra { display: block; height: 100%; border-radius: 3px; }
 
@@ -529,7 +580,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   background: var(--surf);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 15px 17px;
+  padding: var(--e4) var(--e5);
+  box-shadow: var(--sombra-1);
 }
 
 .tile-valor {
@@ -562,8 +614,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .barras {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
-  height: 132px;
+  gap: 3px;
+  height: 148px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -604,11 +656,12 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  box-shadow: var(--sombra-2);
 }
 
 .eixo {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   margin-top: 6px;
   font-size: 10.5px;
   color: var(--tx-3);
@@ -641,15 +694,13 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 }
 
 .ranking-trilho {
-  width: 84px;
+  width: 88px;
   height: 6px;
   border-radius: 3px;
-  background: var(--surf-2);
+  background: var(--surf-3);
   overflow: hidden;
   flex: none;
 }
-
-:root[data-tema="claro"] .ranking-trilho { background: var(--line); }
 
 .ranking-barra {
   display: block;
@@ -741,11 +792,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   position: relative;
   height: 10px;
   border-radius: 5px;
-  background: var(--surf-2);
+  background: var(--surf-3);
   overflow: hidden;
 }
-
-:root[data-tema="claro"] .meta-trilho { background: var(--line); }
 
 /* A faixa aceitável fica atrás da barra, em tom neutro: ela é referência, não
    um dado a mais competindo por atenção. */
@@ -791,9 +840,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   font: inherit;
   color: var(--tx);
   cursor: pointer;
+  box-shadow: var(--sombra-1);
+  transition: border-color .14s var(--curva), transform .14s var(--curva);
 }
 
-.nota-card:hover { border-color: var(--line-2); }
+.nota-card:hover { border-color: var(--line-2); transform: translateY(-1px); }
 
 .nota-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
 .nota-cab strong { font-weight: 600; flex: 1; }
@@ -856,3 +907,72 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   white-space: pre;
   color: var(--tx-2);
 }
+
+
+/* ---------------------------------------------------------------------------
+   Janela compacta: só relógio e Pomodoro.
+   É o "timer compacto sempre acessível" de §3.5 — e com o estudo acontecendo
+   no Chrome (D-007), é esta janela que faz sentido ficar visível, não a
+   principal.
+--------------------------------------------------------------------------- */
+
+.mini {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surf);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  overflow: hidden;
+  user-select: none;
+}
+
+.mini-barra {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  padding: 7px var(--e3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surf-2);
+  cursor: grab;
+}
+
+.mini-barra:active { cursor: grabbing; }
+
+.mini-titulo {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--tx-3);
+}
+
+.mini-corpo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--e4);
+  padding: var(--e3) var(--e4);
+  min-width: 0;
+}
+
+.mini-tempo {
+  font: 650 30px/1 "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+}
+
+.mini-fase { font-size: 11px; color: var(--tx-2); margin-top: 3px; }
+
+.mini-desc {
+  font-size: 12px;
+  color: var(--tx-2);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-acoes { display: flex; gap: 6px; margin-left: auto; flex: none; }
+.mini-info { min-width: 0; flex: 1; }

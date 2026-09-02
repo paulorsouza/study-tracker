@@ -536,3 +536,48 @@ Regras de conflito, todas de §7:
 
 O Supabase rotaciona o token de renovação a cada uso, então guardar o novo é
 obrigatório — sem isso a sincronização seguinte encontraria um token queimado.
+
+## D-026 — Janela compacta: só relógio e Pomodoro
+**2026-09-02**
+
+§3.5 pede "timer compacto sempre acessível". Com D-007, o estudo acontece no
+Chrome e a janela principal fica escondida a maior parte do tempo — então é a
+compacta que faz sentido ficar visível, não a completa.
+
+390×112, sem decoração do sistema, arrastável pela própria barra, sempre no
+topo (desafixável), fora da barra de tarefas — é acessório da janela principal,
+não uma segunda instância do app.
+
+Três decisões:
+
+1. **As duas janelas partilham o mesmo pacote** e se distinguem pelo rótulo. Um
+   segundo `index.html` duplicaria a configuração do Vite e o carregamento do
+   React para não ganhar nada.
+2. **Fechar a compacta não para nada.** O relógio e o ciclo correm no processo
+   do app desde D-014; ela só mostra e comanda.
+3. **Os comandos que criam janela são `async`**, pela mesma razão de A-003 —
+   comando síncrono trava a thread principal e a janela nasce em branco. A
+   lição de setembro voltou a valer aqui.
+
+Em desenvolvimento, `?mini` na URL renderiza a compacta no navegador: dá para
+ajustar estilo sem recompilar o Rust a cada mudança.
+
+## D-027 — Configurações em seções, e por que o visual mudou
+**2026-09-02**
+
+Tema, categorias, metas, sincronização, Obsidian, MCP e extensão empilhados
+numa página só produziam uma rolagem em que nada era achável. **Isso não é
+problema de estilo, é de estrutura** — dividir em Aparência, Categorias e
+metas, Sincronização e Integrações resolve o que nenhuma cor resolveria.
+
+No sistema visual, o que mudou e por quê:
+
+- **quatro degraus de superfície** em vez de dois, para profundidade vir de
+  superfície e sombra curta em vez de borda dura. Borda grossa em tudo é o que
+  faz interface parecer formulário antigo;
+- **escala de espaço em múltiplos de quatro**. Valor avulso é o que produz
+  aquele desalinhamento que ninguém sabe nomear mas todo mundo percebe;
+- **marca fina à esquerda na seção ativa**, porque o preenchimento sozinho
+  praticamente some para quem enxerga pouco contraste;
+- as regras `[data-tema="claro"]` espalhadas para corrigir trilhos **sumiram**:
+  com a escala de superfície, o mesmo token serve nos dois temas.

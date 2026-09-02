@@ -138,3 +138,30 @@ export const Nota = ({ size = 17 }: P) => (
     <path d="M14 3v5h5M8.5 13h7M8.5 17h5" />
   </svg>
 );
+
+export const Alfinete = ({ size = 15, preso = true }: P & { preso?: boolean }) => (
+  <svg {...base(size)} fill={preso ? "currentColor" : "none"}>
+    <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z" />
+    <path d="M12 14v7" fill="none" />
+  </svg>
+);
+
+export const Expandir = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 10V4h6M20 14v6h-6M4 4l7 7M20 20l-7-7" />
+  </svg>
+);
+
+export const Fechar = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
+export const Janelinha = ({ size = 17 }: P) => (
+  <svg {...base(size)}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 9h18" />
+    <rect x="6" y="12" width="7" height="4" rx="1" />
+  </svg>
+);

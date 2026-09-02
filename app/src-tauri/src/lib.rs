@@ -3,6 +3,7 @@ mod categorias;
 mod db;
 mod entries;
 mod git;
+mod janela;
 mod library;
 mod notas;
 mod obsidian;
@@ -121,6 +122,10 @@ pub fn run() {
             sync::sync_pendencias,
             sync::sync_conflitos,
             sync::sync_resolver,
+            janela::abrir_mini,
+            janela::fechar_mini,
+            janela::expandir,
+            janela::mini_no_topo,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

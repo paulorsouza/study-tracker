@@ -152,7 +152,15 @@ export default function App() {
           </button>
         ))}
 
-        <div className="dock">
+        <button
+          className="btn btn-fantasma"
+          style={{ marginTop: "auto", width: "100%", justifyContent: "flex-start", gap: 11 }}
+          onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}
+        >
+          <I.Janelinha /> Modo compacto
+        </button>
+
+        <div className="dock" style={{ marginTop: 0 }}>
           {rodando ? (
             <>
               <div className="dock-rotulo" style={{ display: "flex", alignItems: "center", gap: 7 }}>
