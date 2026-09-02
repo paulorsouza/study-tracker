@@ -17,6 +17,7 @@ type Estado = {
   decorrido_ms: number;
   planejado_ms: number;
   descricao: string;
+  pausada: boolean;
 };
 
 type Config = {
@@ -204,15 +205,31 @@ export default function Foco({
                   <button className="btn btn-primario" onClick={() => acao("pomodoro_avancar")}>
                     <I.Play /> Começar {est.rotulo_aguardando?.toLowerCase()}
                   </button>
-                ) : (
-                  <button className="btn" onClick={() => acao("pomodoro_avancar")}>
-                    Pular para a próxima
+                ) : est.pausada ? (
+                  <button className="btn btn-primario" onClick={() => acao("pomodoro_retomar")}>
+                    <I.Play /> Retomar {est.rotulo?.toLowerCase()}
                   </button>
+                ) : (
+                  <>
+                    <button className="btn" onClick={() => acao("pomodoro_pausar")}>
+                      <I.Pausa /> Pausar
+                    </button>
+                    <button className="btn" onClick={() => acao("pomodoro_avancar")}>
+                      Pular para a próxima
+                    </button>
+                  </>
                 )}
                 <button className="btn btn-perigo" onClick={() => acao("pomodoro_encerrar")}>
                   <I.Parar /> Encerrar sessão
                 </button>
               </div>
+
+              {est.pausada && (
+                <p className="nota">
+                  O relógio parou onde estava. Retomar abre o que falta da fase,
+                  não ela inteira — pausar não devolve tempo.
+                </p>
+              )}
 
               {est.aguardando && (
                 <p className="nota">

@@ -69,6 +69,8 @@ const LANC = [
   ["e3", emHoras(9, 25), emHoras(9, 33), "at-pausa", null, null],
   ["e4", emHoras(9, 33), emHoras(10, 48), "at-estudo", "Retopologia e UV", "c1"],
   ["e5", emHoras(12, 5), emHoras(13, 0), "at-academia", "Treino B", null],
+  // Sobreposto de propósito: é o caso que o destaque tem que pegar.
+  ["e5b", emHoras(12, 40), emHoras(13, 10), "at-estudo", "Podcast enquanto treina", null],
   ["e6", emHoras(14, 20), emHoras(15, 5), "at-estudo", "Renda variável — aula 12", "c2"],
   ["e7", emHoras(15, 5), emHoras(15, 20), "at-descanso", null, null],
   ["e8", emHoras(15, 20), emHoras(16, 42), "at-estudo", "Exercícios da aula 12", "c2"],
@@ -90,6 +92,7 @@ const monta = (
   course_id: curso,
   curso: curso ? CURSOS.find((c) => c.id === curso)!.titulo : null,
   source: "timer",
+  sobrepoe: false,
 });
 
 const lancamentos = LANC.map(([id, ini, fim, tipo, desc, curso]) =>
@@ -186,7 +189,8 @@ const TAREFAS = [
     estado: "aberta", concluida_em: null, realizado_ms: 0 },
 ];
 
-let rodando: { inicio: number; descricao: string } | null = null;
+let rodando: { inicio: number; descricao: string; acumulado?: number } | null = null;
+let pausado: { acumulado: number; descricao: string } | null = null;
 
 // Sessão de Pomodoro simulada: já com dois focos feitos e um em andamento, para
 // a tela poder ser avaliada cheia — anel a meio caminho, pontos parcialmente
@@ -422,6 +426,7 @@ const respostas: Record<string, (a: any) => unknown> = {
     decorrido_ms: pomo.fase ? Date.now() - pomo.inicio : 0,
     planejado_ms: pomo.fase ? pomo.planejado_ms : 0,
     descricao: pomo.descricao,
+    pausada: false,
   }),
   pomodoro_ciclos: () => {
     if (!pomo.ativo) return [];
@@ -484,8 +489,71 @@ const respostas: Record<string, (a: any) => unknown> = {
   excluir_tarefa: () => null,
   replanejar_atrasadas: () => 2,
   listar_tipos: () => TIPOS,
-  listar_periodo: ({ inicio, fim }) =>
-    lancamentos.filter((l) => l.started_at < fim && l.ended_at > inicio),
+  listar_periodo: ({ inicio, fim }) => {
+    const v = lancamentos
+      .filter((l) => l.started_at < fim && l.ended_at > inicio)
+      .map((l) => ({ ...l, sobrepoe: false }))
+      .sort((a, b) => a.started_at - b.started_at);
+    let maior: number | null = null;
+    v.forEach((l, i) => {
+      if (maior !== null && l.started_at < v[maior].ended_at) {
+        l.sobrepoe = true;
+        v[maior].sobrepoe = true;
+      }
+      if (maior === null || l.ended_at > v[maior].ended_at) maior = i;
+    });
+    return v;
+  },
+  listar_favoritos: () => [
+    { id: "fv1", rotulo: "Blender de manhã", descricao: "Aula do dia",
+      activity_type_id: "at-estudo", atividade: "Estudo", cor: "#4f8ef7",
+      course_id: "c1", curso: CURSOS[0].titulo, task_id: null },
+    { id: "fv2", rotulo: "Treino", descricao: null,
+      activity_type_id: "at-academia", atividade: "Academia", cor: "#e2803c",
+      course_id: null, curso: null, task_id: null },
+  ],
+  criar_favorito: () => "fv3",
+  excluir_favorito: () => null,
+  duplicar_lancamento: () => "novo",
+  dividir_lancamento: () => ["a", "b"],
+  unir_lancamentos: () => "unido",
+  atalhos_ler: () => "{}",
+  atalhos_salvar: () => null,
+  pomodoro_pausar: () => { pomo.fase = null; return null; },
+  pomodoro_retomar: () => null,
+  timer_editar: ({ descricao }: any) => {
+    if (rodando) rodando.descricao = descricao;
+    return respostas.timer_status({});
+  },
+  timer_ajustar_inicio: ({ inicio }: any) => {
+    if (rodando) rodando.inicio = inicio;
+    return respostas.timer_status({});
+  },
+  timer_continuar: ({ entryId }: any) => {
+    const l = lancamentos.find((x) => x.id === entryId);
+    rodando = { inicio: Date.now(), descricao: l?.description ?? "" };
+    pausado = null;
+    return respostas.timer_status({});
+  },
+  timer_favorito: () => {
+    rodando = { inicio: Date.now(), descricao: "Blender de manhã" };
+    pausado = null;
+    return respostas.timer_status({});
+  },
+  timer_pausar: () => {
+    if (rodando) {
+      pausado = { acumulado: Date.now() - rodando.inicio, descricao: rodando.descricao };
+      rodando = null;
+    }
+    return respostas.timer_status({});
+  },
+  timer_retomar: () => {
+    if (pausado) {
+      rodando = { inicio: Date.now(), descricao: pausado.descricao, acumulado: pausado.acumulado };
+      pausado = null;
+    }
+    return respostas.timer_status({});
+  },
   timer_recover: () => null,
   ponte_info: () => ({ porta: 47823, token: "mockmockmockmockmockmockmockmock" }),
   timer_status: () =>
@@ -497,14 +565,35 @@ const respostas: Record<string, (a: any) => unknown> = {
           wall_ms: Date.now() - rodando.inicio,
           mono_ms: Date.now() - rodando.inicio,
           drift_ms: 0,
+          acumulado_ms: rodando.acumulado ?? 0,
+          pausado: false,
+          curso_id: null,
+          tarefa_id: null,
+          inicio_wall: rodando.inicio,
+        }
+      : pausado
+      ? {
+          session: "",
+          entry_id: "mock-entry",
+          description: pausado.descricao,
+          wall_ms: 0,
+          mono_ms: 0,
+          drift_ms: 0,
+          acumulado_ms: pausado.acumulado,
+          pausado: true,
+          curso_id: null,
+          tarefa_id: null,
+          inicio_wall: 0,
         }
       : null,
   timer_start: ({ description }) => {
     rodando = { inicio: Date.now(), descricao: description };
+    pausado = null;
     return {};
   },
   timer_stop: () => {
     rodando = null;
+    pausado = null;
     return {};
   },
 };

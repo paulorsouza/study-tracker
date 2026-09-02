@@ -9,6 +9,7 @@ import Notas, { NotaRapida } from "./Notas";
 import Cursos from "./Cursos";
 import Config from "./Config";
 import * as I from "./icones";
+import { ACOES, combo } from "./Cronometro";
 import "./App.css";
 
 export type Curso = {
@@ -21,13 +22,31 @@ export type Curso = {
   favorito: boolean;
 };
 
-type Status = {
+export type Status = {
   session: string;
   entry_id: string;
   description: string;
   wall_ms: number;
   mono_ms: number;
   drift_ms: number;
+  /// Segmentos já fechados desta sessão, de antes das pausas.
+  acumulado_ms: number;
+  pausado: boolean;
+  curso_id: string | null;
+  tarefa_id: string | null;
+  inicio_wall: number;
+};
+
+export type Favorito = {
+  id: string;
+  rotulo: string;
+  descricao: string | null;
+  activity_type_id: string;
+  atividade: string;
+  cor: string;
+  course_id: string | null;
+  curso: string | null;
+  task_id: string | null;
 };
 
 type Recovery = {
@@ -56,6 +75,23 @@ export function durCurta(ms: number) {
   return m === 0 ? `${h}h` : `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
+/** HH:MM local, para o campo de correção do início. */
+function horaLocal(ms: number) {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** O inverso, ancorado em hoje. Uma hora à frente do relógio é de ontem — é o
+ *  caso de quem atravessa a meia-noite estudando. */
+function deHoraLocal(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return null;
+  const d = new Date();
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  if (d.getTime() > Date.now()) d.setDate(d.getDate() - 1);
+  return d.getTime();
+}
+
 export default function App() {
   const [aba, setAba] = useState<Aba>("painel");
   const [status, setStatus] = useState<Status | null>(null);
@@ -65,6 +101,12 @@ export default function App() {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [versao, setVersao] = useState(0);
   const [rapida, setRapida] = useState<NotaRapida>(null);
+  const [favoritos, setFavoritos] = useState<Favorito[]>([]);
+  const [editandoDock, setEditandoDock] = useState(false);
+  const [dockDesc, setDockDesc] = useState("");
+  const [dockCurso, setDockCurso] = useState("");
+  const [dockInicio, setDockInicio] = useState("");
+  const [atalhos, setAtalhos] = useState<Record<string, string>>({});
   const [tema, setTema] = useState<"escuro" | "claro">(
     () => (localStorage.getItem("tema") as "escuro" | "claro") ?? "escuro"
   );
@@ -85,10 +127,23 @@ export default function App() {
     setVersao((v) => v + 1);
   }, [recarregarCursos]);
 
+  const recarregarFavoritos = useCallback(() => {
+    invoke<Favorito[]>("listar_favoritos").then(setFavoritos).catch(() => {});
+  }, []);
+
   useEffect(() => {
     recarregarCursos();
+    recarregarFavoritos();
     invoke<Recovery | null>("timer_recover").then(setRecovery).catch(() => {});
-  }, [recarregarCursos]);
+  }, [recarregarCursos, recarregarFavoritos]);
+
+  useEffect(recarregarFavoritos, [versao, recarregarFavoritos]);
+
+  useEffect(() => {
+    invoke<string>("atalhos_ler")
+      .then((j) => setAtalhos(JSON.parse(j)))
+      .catch(() => {});
+  }, [versao]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -115,13 +170,105 @@ export default function App() {
     invoke("timer_stop")
       .then(() => {
         setErro(null);
+        setEditandoDock(false);
         mudou();
       })
       .catch((e) => setErro(String(e)));
   };
 
+  const cmd = (nome: string, args?: Record<string, unknown>) =>
+    invoke(nome, args)
+      .then(() => {
+        setErro(null);
+        mudou();
+      })
+      .catch((e) => setErro(String(e)));
+
+  const abrirEdicaoDock = () => {
+    if (!status) return;
+    setDockDesc(status.description);
+    setDockCurso(status.curso_id ?? "");
+    setDockInicio(status.inicio_wall ? horaLocal(status.inicio_wall) : "");
+    setEditandoDock(true);
+  };
+
+  const salvarEdicaoDock = async () => {
+    try {
+      await invoke("timer_editar", {
+        descricao: dockDesc,
+        cursoId: dockCurso || null,
+        tarefaId: status?.tarefa_id ?? null,
+      });
+      // O ajuste de início é uma chamada à parte porque só faz sentido com o
+      // relógio correndo — pausado, não há segmento aberto para deslocar.
+      if (dockInicio && status && !status.pausado) {
+        const novo = deHoraLocal(dockInicio);
+        if (novo !== null && novo !== status.inicio_wall) {
+          await invoke("timer_ajustar_inicio", { inicio: novo });
+        }
+      }
+      setErro(null);
+      setEditandoDock(false);
+    } catch (e) {
+      setErro(String(e));
+    }
+  };
+
+  // Ouvinte único dos atalhos. Fica aqui e não em cada tela porque as ações são
+  // do app inteiro — e porque um ouvinte por tela daria duas respostas para a
+  // mesma tecla quando duas estivessem montadas.
+  //
+  // Sem lista de dependências de propósito: o que o atalho faz depende do
+  // estado do cronômetro, que muda a cada leitura. Uma lista fixaria o closure
+  // e Ctrl+Enter pararia de saber se há sessão correndo.
+  useEffect(() => {
+    const ouvir = (e: KeyboardEvent) => {
+      const alvo = e.target as HTMLElement | null;
+      // Digitar numa caixa de texto não é acionar atalho. A exceção é a
+      // combinação com Ctrl/Alt, que ninguém digita por acidente.
+      const digitando =
+        alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName) && !e.ctrlKey && !e.altKey && !e.metaKey;
+      if (digitando) return;
+
+      const c = combo(e);
+      const acaoId = ACOES.find((a) => (atalhos[a.id] ?? a.padrao) === c)?.id;
+      if (!acaoId) return;
+      e.preventDefault();
+
+      switch (acaoId) {
+        case "iniciar":
+          if (status) parar();
+          else iniciar();
+          break;
+        case "pausar":
+          if (status?.pausado) cmd("timer_retomar");
+          else if (status) cmd("timer_pausar");
+          break;
+        case "nota":
+          if (status) {
+            setRapida({ entryId: status.entry_id, descricao: status.description });
+            setAba("notas");
+          }
+          break;
+        case "compacto":
+          invoke("abrir_mini").catch((x) => setErro(String(x)));
+          break;
+        case "hoje":
+          setAba("hoje");
+          break;
+        case "foco":
+          setAba("foco");
+          break;
+      }
+    };
+    window.addEventListener("keydown", ouvir);
+    return () => window.removeEventListener("keydown", ouvir);
+  });
+
   const rodando = !!status;
-  const suspeita = status && Math.abs(status.drift_ms) > 2000;
+  const pausado = !!status?.pausado;
+  const totalSessao = status ? status.acumulado_ms + status.wall_ms : 0;
+  const suspeita = status && !status.pausado && Math.abs(status.drift_ms) > 2000;
 
   const itens: { id: Aba; nome: string; Icone: typeof I.Relogio }[] = [
     { id: "painel", nome: "Painel", Icone: I.Painel },
@@ -167,19 +314,78 @@ export default function App() {
           {rodando ? (
             <>
               <div className="dock-rotulo" style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <span className="pulso" />
-                contando
+                {pausado ? <I.Pausa size={11} /> : <span className="pulso" />}
+                {pausado ? "pausado" : "contando"}
               </div>
-              <div className="dock-tempo">{dur(status!.wall_ms)}</div>
-              <p className="dock-desc">{status!.description || "sem descrição"}</p>
-              <button className="btn btn-primario" onClick={parar}>
-                <I.Parar /> Parar
-              </button>
+              <div className="dock-tempo">{dur(totalSessao)}</div>
+
+              {editandoDock ? (
+                <div style={{ display: "grid", gap: 6, marginBottom: 8 }}>
+                  <input
+                    value={dockDesc}
+                    onChange={(e) => setDockDesc(e.target.value)}
+                    placeholder="descrição"
+                    autoFocus
+                  />
+                  <select value={dockCurso} onChange={(e) => setDockCurso(e.target.value)}>
+                    <option value="">— sem curso —</option>
+                    {cursos.map((c) => (
+                      <option key={c.id} value={c.id}>{c.titulo}</option>
+                    ))}
+                  </select>
+                  {!pausado && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                      <span className="dock-rotulo" style={{ margin: 0 }}>início</span>
+                      <input
+                        value={dockInicio}
+                        onChange={(e) => setDockInicio(e.target.value)}
+                        placeholder="HH:MM"
+                        style={{ width: 70 }}
+                      />
+                    </label>
+                  )}
+                  <div className="linha">
+                    <button className="btn btn-primario" onClick={salvarEdicaoDock}>
+                      Salvar
+                    </button>
+                    <button className="btn btn-fantasma" onClick={() => setEditandoDock(false)}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="dock-desc dock-desc-botao"
+                  onClick={abrirEdicaoDock}
+                  title="Trocar descrição, curso ou hora de início"
+                >
+                  {status!.description || "sem descrição"}
+                  <I.Lapis size={12} />
+                </button>
+              )}
+
+              <div className="linha" style={{ marginBottom: 6 }}>
+                {pausado ? (
+                  <button
+                    className="btn btn-primario cresce"
+                    onClick={() => cmd("timer_retomar")}
+                  >
+                    <I.Play /> Retomar
+                  </button>
+                ) : (
+                  <button className="btn cresce" onClick={() => cmd("timer_pausar")}>
+                    <I.Pausa /> Pausar
+                  </button>
+                )}
+                <button className="btn btn-icone" onClick={parar} aria-label="Parar">
+                  <I.Parar />
+                </button>
+              </div>
+
               {/* §3.10: nota rápida durante a sessão. Amarra no lançamento que
                   está sendo gravado agora, e não no que estiver aberto na tela. */}
               <button
                 className="btn"
-                style={{ marginTop: 6 }}
                 onClick={() => {
                   setRapida({
                     entryId: status!.entry_id,
@@ -204,6 +410,23 @@ export default function App() {
               <button className="btn btn-primario" onClick={iniciar}>
                 <I.Play /> Iniciar
               </button>
+
+              {favoritos.length > 0 && (
+                <div className="dock-favoritos">
+                  <div className="dock-rotulo">atalhos</div>
+                  {favoritos.slice(0, 5).map((f) => (
+                    <button
+                      key={f.id}
+                      className="dock-favorito"
+                      onClick={() => cmd("timer_favorito", { id: f.id })}
+                      title={[f.descricao, f.curso, f.atividade].filter(Boolean).join(" · ")}
+                    >
+                      <span className="ponto" style={{ background: f.cor }} />
+                      <span>{f.rotulo}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -293,7 +516,7 @@ export default function App() {
             <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />
           )}
           {aba === "config" && (
-            <Config tema={tema} setTema={setTema} onErro={setErro} onMudou={mudou} />
+            <Config tema={tema} setTema={setTema} cursos={cursos} onErro={setErro} onMudou={mudou} />
           )}
         </div>
         </main>

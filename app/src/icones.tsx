@@ -49,6 +49,34 @@ export const Play = ({ size = 16 }: P) => (
   </svg>
 );
 
+export const Pausa = ({ size = 16 }: P) => (
+  <svg {...base(size)} fill="currentColor" stroke="none">
+    <rect x="7" y="6" width="3.4" height="12" rx="1.2" />
+    <rect x="13.6" y="6" width="3.4" height="12" rx="1.2" />
+  </svg>
+);
+
+export const Tesoura = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="6" cy="6" r="2.5" />
+    <circle cx="6" cy="18" r="2.5" />
+    <path d="M8.1 7.6 20 18M20 6 8.1 16.4" />
+  </svg>
+);
+
+export const Copia = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V5a1 1 0 0 1 1-1h9" />
+  </svg>
+);
+
+export const Juntar = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 6h5a4 4 0 0 1 4 4v4a4 4 0 0 0 4 4h3M17 15l3 3-3 3" />
+  </svg>
+);
+
 export const Parar = ({ size = 16 }: P) => (
   <svg {...base(size)} fill="currentColor" stroke="none">
     <rect x="7" y="7" width="10" height="10" rx="2" />

@@ -26,6 +26,13 @@ pub struct Lancamento {
     pub course_id: Option<String>,
     pub curso: Option<String>,
     pub source: String,
+    /// Este lançamento cobre um pedaço de tempo que outro também cobre.
+    ///
+    /// Sobreposição continua **permitida** — caminhar com os dogs durante a
+    /// pausa do Pomodoro é um caso legítimo (`docs/03-modelo-de-tempo.md`). O
+    /// que não pode é passar despercebida: dois lançamentos sobrepostos por
+    /// engano fazem o total do dia passar de 24 horas sem ninguém notar.
+    pub sobrepoe: bool,
 }
 
 #[derive(Serialize)]
@@ -128,7 +135,7 @@ pub fn listar_periodo(
         )
         .map_err(|e| e.to_string())?;
 
-    let v = stmt
+    let mut v = stmt
         .query_map(params![inicio, fim], |r| {
             Ok(Lancamento {
                 id: r.get(0)?,
@@ -143,12 +150,33 @@ pub fn listar_periodo(
                 course_id: r.get(9)?,
                 curso: r.get(10)?,
                 source: r.get(11)?,
+                sobrepoe: false,
             })
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
+
+    marcar_sobreposicao(&mut v);
     Ok(v)
+}
+
+/// Marca quem divide relógio com quem. A lista já vem ordenada por início, o
+/// que reduz a comparação a "começou antes do fim mais distante que já vi".
+fn marcar_sobreposicao(v: &mut [Lancamento]) {
+    let mut maior_fim: Option<(usize, i64)> = None;
+    for i in 0..v.len() {
+        let (inicio, fim) = (v[i].started_at, v[i].ended_at.unwrap_or(i64::MAX));
+        if let Some((j, ate)) = maior_fim {
+            if inicio < ate {
+                v[i].sobrepoe = true;
+                v[j].sobrepoe = true;
+            }
+        }
+        if maior_fim.is_none_or(|(_, ate)| fim > ate) {
+            maior_fim = Some((i, fim));
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -391,4 +419,404 @@ pub fn resumo_json(db: &Db, desde: i64, ate: i64) -> serde_json::Value {
         "por_atividade": por_atividade,
         "por_curso": por_curso,
     })
+}
+
+// --- dividir, unir e duplicar (§3.5) -----------------------------------------
+
+/// Duplica um lançamento logo depois do original, com a mesma duração.
+///
+/// Colar em seguida e não "agora" é deliberado: o caso real é registrar dois
+/// blocos iguais e seguidos, e um lançamento que caísse no instante presente se
+/// sobreporia ao cronômetro que talvez esteja rodando.
+#[tauri::command]
+pub fn duplicar_lancamento(db: tauri::State<Db>, id: String) -> Result<String, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let novo = uuid::Uuid::new_v4().to_string();
+    let agora = agora_ms();
+    let n = conn
+        .execute(
+            "INSERT INTO time_entries
+               (id, started_at, ended_at, activity_type_id, description, course_id,
+                task_id, subject_id, source, device_id, version, created_at, updated_at)
+             SELECT ?2,
+                    ended_at,
+                    ended_at + (ended_at - started_at),
+                    activity_type_id, description, course_id, task_id, subject_id,
+                    'manual', ?3, 1, ?4, ?4
+               FROM time_entries
+              WHERE id = ?1 AND deleted_at IS NULL AND ended_at IS NOT NULL",
+            params![id, novo, db.device_id, agora],
+        )
+        .map_err(|e| e.to_string())?;
+    if n == 0 {
+        return Err("só dá para duplicar um lançamento já encerrado".into());
+    }
+    Ok(novo)
+}
+
+/// Corta um lançamento em dois no instante `em`.
+///
+/// As duas metades são linhas novas e o original é excluído logicamente, em vez
+/// de encolher o original e criar uma segunda. Assim `session_revisions` guarda
+/// um estado anterior íntegro: desfazer é restaurar uma linha, não remontar
+/// duas.
+#[tauri::command]
+pub fn dividir_lancamento(
+    db: tauri::State<Db>,
+    id: String,
+    em: i64,
+) -> Result<Vec<String>, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let (inicio, fim): (i64, Option<i64>) = conn
+        .query_row(
+            "SELECT started_at, ended_at FROM time_entries
+              WHERE id = ?1 AND deleted_at IS NULL",
+            params![id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|_| "lançamento não encontrado".to_string())?;
+    let fim = fim.ok_or("não dá para dividir um lançamento em aberto")?;
+
+    if em <= inicio || em >= fim {
+        return Err("o corte precisa cair dentro do lançamento".into());
+    }
+
+    registrar_revisao(&conn, &db.device_id, &id, "dividir")?;
+    let agora = agora_ms();
+    let mut ids = Vec::new();
+    for (a, b) in [(inicio, em), (em, fim)] {
+        let novo = uuid::Uuid::new_v4().to_string();
+        conn.execute(
+            "INSERT INTO time_entries
+               (id, started_at, ended_at, activity_type_id, description, course_id,
+                task_id, subject_id, context, parent_id, source, device_id,
+                version, created_at, updated_at)
+             SELECT ?2, ?3, ?4, activity_type_id, description, course_id, task_id,
+                    subject_id, context, parent_id, 'dividido', ?5, 1, ?6, ?6
+               FROM time_entries WHERE id = ?1",
+            params![id, novo, a, b, db.device_id, agora],
+        )
+        .map_err(|e| e.to_string())?;
+        ids.push(novo);
+    }
+
+    conn.execute(
+        "UPDATE time_entries SET deleted_at = ?2, updated_at = ?2, version = version + 1
+          WHERE id = ?1",
+        params![id, agora],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(ids)
+}
+
+/// Junta lançamentos consecutivos compatíveis numa linha só.
+///
+/// Compatível é regra do domínio, não conveniência: mesma categoria e mesmo
+/// curso. Unir categorias diferentes quebraria o total por atividade, que é a
+/// pergunta central do Painel — então isto recusa em vez de adivinhar.
+#[tauri::command]
+pub fn unir_lancamentos(db: tauri::State<Db>, ids: Vec<String>) -> Result<String, String> {
+    if ids.len() < 2 {
+        return Err("selecione ao menos dois lançamentos".into());
+    }
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+
+    struct L {
+        id: String,
+        inicio: i64,
+        fim: Option<i64>,
+        tipo: String,
+        curso: Option<String>,
+        descricao: Option<String>,
+    }
+
+    let mut linhas = Vec::new();
+    for id in &ids {
+        let l = conn
+            .query_row(
+                "SELECT id, started_at, ended_at, activity_type_id, course_id, description
+                   FROM time_entries WHERE id = ?1 AND deleted_at IS NULL",
+                params![id],
+                |r| {
+                    Ok(L {
+                        id: r.get(0)?,
+                        inicio: r.get(1)?,
+                        fim: r.get(2)?,
+                        tipo: r.get(3)?,
+                        curso: r.get(4)?,
+                        descricao: r.get(5)?,
+                    })
+                },
+            )
+            .map_err(|_| format!("lançamento {id} não encontrado"))?;
+        if l.fim.is_none() {
+            return Err("não dá para unir um lançamento em aberto".into());
+        }
+        linhas.push(l);
+    }
+    linhas.sort_by_key(|l| l.inicio);
+
+    if linhas.iter().any(|l| l.tipo != linhas[0].tipo) {
+        return Err("só dá para unir lançamentos da mesma categoria".into());
+    }
+    if linhas.iter().any(|l| l.curso != linhas[0].curso) {
+        return Err("só dá para unir lançamentos do mesmo curso".into());
+    }
+
+    // O buraco entre um e outro entra no resultado: unir declara que aquele
+    // período foi uma coisa só. Acima de meia hora é provável que não tenha
+    // sido, e o app prefere recusar a inflar o total do dia em silêncio.
+    const BURACO_MAXIMO: i64 = 30 * 60_000;
+    for par in linhas.windows(2) {
+        if par[1].inicio - par[0].fim.unwrap_or(0) > BURACO_MAXIMO {
+            return Err("há mais de 30 minutos de intervalo entre eles".into());
+        }
+    }
+
+    let agora = agora_ms();
+    let novo = uuid::Uuid::new_v4().to_string();
+    let descricao = linhas.iter().find_map(|l| l.descricao.clone());
+    conn.execute(
+        "INSERT INTO time_entries
+           (id, started_at, ended_at, activity_type_id, description, course_id,
+            source, device_id, version, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'unido', ?7, 1, ?8, ?8)",
+        params![
+            novo,
+            linhas[0].inicio,
+            linhas[linhas.len() - 1].fim,
+            linhas[0].tipo,
+            descricao,
+            linhas[0].curso,
+            db.device_id,
+            agora
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    for l in &linhas {
+        registrar_revisao(&conn, &db.device_id, &l.id, "unir")?;
+        conn.execute(
+            "UPDATE time_entries SET deleted_at = ?2, updated_at = ?2, version = version + 1
+              WHERE id = ?1",
+            params![l.id, agora],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(novo)
+}
+
+// --- combinações favoritas (§3.5) --------------------------------------------
+
+#[derive(Serialize)]
+pub struct Favorito {
+    pub id: String,
+    pub rotulo: String,
+    pub descricao: Option<String>,
+    pub activity_type_id: String,
+    pub atividade: String,
+    pub cor: String,
+    pub course_id: Option<String>,
+    pub curso: Option<String>,
+    pub task_id: Option<String>,
+}
+
+#[tauri::command]
+pub fn listar_favoritos(db: tauri::State<Db>) -> Result<Vec<Favorito>, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT f.id, f.rotulo, f.descricao, f.activity_type_id, a.nome, a.cor,
+                    f.course_id, c.titulo, f.task_id
+               FROM time_favorites f
+               JOIN activity_types a ON a.id = f.activity_type_id
+               LEFT JOIN courses c ON c.id = f.course_id
+              WHERE f.deleted_at IS NULL
+              ORDER BY f.usos DESC, f.rotulo",
+        )
+        .map_err(|e| e.to_string())?;
+    let v = stmt
+        .query_map([], |r| {
+            Ok(Favorito {
+                id: r.get(0)?,
+                rotulo: r.get(1)?,
+                descricao: r.get(2)?,
+                activity_type_id: r.get(3)?,
+                atividade: r.get(4)?,
+                cor: r.get(5)?,
+                course_id: r.get(6)?,
+                curso: r.get(7)?,
+                task_id: r.get(8)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(v)
+}
+
+#[tauri::command]
+pub fn criar_favorito(
+    db: tauri::State<Db>,
+    rotulo: String,
+    descricao: Option<String>,
+    activity_type_id: String,
+    curso_id: Option<String>,
+    tarefa_id: Option<String>,
+) -> Result<String, String> {
+    let rotulo = rotulo.trim().to_string();
+    if rotulo.is_empty() {
+        return Err("o favorito precisa de um nome".into());
+    }
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let agora = agora_ms();
+    conn.execute(
+        "INSERT INTO time_favorites
+           (id, rotulo, descricao, activity_type_id, course_id, task_id,
+            device_id, version, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?8)",
+        params![
+            id,
+            rotulo,
+            descricao,
+            activity_type_id,
+            curso_id,
+            tarefa_id,
+            db.device_id,
+            agora
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn excluir_favorito(db: tauri::State<Db>, id: String) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    conn.execute(
+        "UPDATE time_favorites SET deleted_at = ?2, updated_at = ?2, version = version + 1
+          WHERE id = ?1",
+        params![id, agora_ms()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Marca um favorito como usado. É o que ordena a lista pelo que o usuário
+/// realmente aciona, em vez de pela ordem em que ele criou.
+pub fn contar_uso(db: &Db, id: &str) {
+    if let Ok(conn) = db.conn.lock() {
+        let _ = conn.execute(
+            "UPDATE time_favorites SET usos = usos + 1, updated_at = ?2, version = version + 1
+              WHERE id = ?1",
+            params![id, agora_ms()],
+        );
+    }
+}
+
+// --- atalhos de teclado (§3.5) -----------------------------------------------
+
+/// Os atalhos são do app, não do sistema: registrar combinação global
+/// sequestraria a tecla dentro do Chrome, que é justamente onde o usuário
+/// estuda. Aqui só guardamos o mapa; quem escuta é a interface.
+#[tauri::command]
+pub fn atalhos_ler(db: tauri::State<Db>) -> Result<String, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    Ok(conn
+        .query_row(
+            "SELECT valor FROM settings WHERE chave = 'atalhos'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .unwrap_or_else(|_| "{}".into()))
+}
+
+#[tauri::command]
+pub fn atalhos_salvar(db: tauri::State<Db>, mapa: String) -> Result<(), String> {
+    // Recusa lixo antes de gravar: um JSON quebrado aqui deixaria o app sem
+    // atalho nenhum na próxima abertura, sem dizer por quê.
+    serde_json::from_str::<std::collections::BTreeMap<String, String>>(&mapa)
+        .map_err(|e| format!("mapa de atalhos inválido: {e}"))?;
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    conn.execute(
+        "INSERT INTO settings (chave, valor) VALUES ('atalhos', ?1)
+         ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor",
+        params![mapa],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod testes_sobreposicao {
+    use super::{marcar_sobreposicao, Lancamento};
+
+    fn l(inicio: i64, fim: Option<i64>) -> Lancamento {
+        Lancamento {
+            id: format!("e{inicio}"),
+            started_at: inicio,
+            ended_at: fim,
+            activity_type_id: "at-estudo".into(),
+            atividade: "Estudo".into(),
+            cor: "#000".into(),
+            cor_escura: None,
+            conta_como_estudo: true,
+            description: None,
+            course_id: None,
+            curso: None,
+            source: "manual".into(),
+            sobrepoe: false,
+        }
+    }
+
+    fn marcados(mut v: Vec<Lancamento>) -> Vec<bool> {
+        marcar_sobreposicao(&mut v);
+        v.iter().map(|x| x.sobrepoe).collect()
+    }
+
+    #[test]
+    fn encostar_nao_e_sobrepor() {
+        // Fim de um igual ao início do outro é o caso normal de sessões
+        // seguidas. Marcar isso encheria a tela de alerta falso.
+        assert_eq!(marcados(vec![l(0, Some(100)), l(100, Some(200))]), [false, false]);
+    }
+
+    #[test]
+    fn os_dois_lados_sao_marcados() {
+        assert_eq!(marcados(vec![l(0, Some(150)), l(100, Some(200))]), [true, true]);
+    }
+
+    #[test]
+    fn contido_dentro_de_outro() {
+        // A caminhada durante a pausa do Pomodoro: legítima, mas visível.
+        assert_eq!(
+            marcados(vec![l(0, Some(1000)), l(200, Some(300)), l(1000, Some(1100))]),
+            [true, true, false],
+            "o terceiro encosta no primeiro, não o invade"
+        );
+    }
+
+    #[test]
+    fn o_maior_fim_e_que_manda_e_nao_o_anterior() {
+        // Sem guardar o fim mais distante, o terceiro seria comparado com o
+        // segundo — que termina cedo — e a invasão do primeiro passaria batida.
+        assert_eq!(
+            marcados(vec![l(0, Some(9000)), l(10, Some(20)), l(5000, Some(6000))]),
+            [true, true, true]
+        );
+    }
+
+    #[test]
+    fn lancamento_em_aberto_engole_o_que_vier_depois() {
+        // Sem `ended_at`, o lançamento ainda está correndo: qualquer coisa que
+        // comece depois dele está de fato sobreposta.
+        assert_eq!(marcados(vec![l(0, None), l(500, Some(600))]), [true, true]);
+    }
+
+    #[test]
+    fn lista_vazia_e_unica_nao_quebram() {
+        assert_eq!(marcados(vec![]), Vec::<bool>::new());
+        assert_eq!(marcados(vec![l(0, Some(10))]), [false]);
+    }
 }

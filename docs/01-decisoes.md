@@ -644,8 +644,6 @@ nem consultar por mês ou por matéria, nem ver quantos Pomodoros foram
 interrompidos. Se algum desses virar pergunta real durante o uso, o item volta —
 mas volta por necessidade demonstrada, não por estar no plano original.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-031 — a capa do curso fica na máquina, o endereço é que viaja
@@ -669,5 +667,39 @@ Isso expôs dois defeitos reais no motor de sincronização, os dois corrigidos:
   curso etiquetado numa máquina chegava sem etiqueta na outra. A tabela filha
   agora sai de `tabela_de_tags()`, e a próxima entidade com tags acrescenta uma
   linha em vez de descobrir o silêncio semanas depois.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-032 — pausar fecha o segmento; o Pomodoro pausa por fase
+
+Pausar **não** deixa a linha aberta atravessando o intervalo parado. Fecha o
+segmento e abre outro ao retomar, com o mesmo `parent_id` — a mesma âncora que
+o Pomodoro já usava, com a primeira entrada apontando para si mesma.
+
+Duas razões, e nenhuma é de estilo:
+
+- `activity_type` é a verdade cronológica do dia
+  (`03-modelo-de-tempo.md`). Uma linha que engolisse o almoço faria o total do
+  dia mentir, e o total do dia é o número em que o app pede para acreditar.
+- Segmento fechado sobrevive a queda de energia. É a razão de o módulo do
+  cronômetro existir; deixar tempo só na memória a contradiz.
+
+O Pomodoro pausa por outro caminho, de propósito. Ali o que precisa sobreviver
+é a **fase**, com o que falta dela: `gasto_ms` guarda o que já correu e retomar
+abre o restante. Sem isso, pausar viraria uma forma silenciosa de esticar o
+ciclo de 25 minutos.
+
+Os atalhos de teclado ficam **dentro do app**, não registrados no sistema. Um
+atalho global sequestraria a tecla dentro do Chrome — que é exatamente onde o
+usuário estuda (D-007). Quem escuta é a interface; o Rust só guarda o mapa.
+
+Unir lançamentos recusa em vez de adivinhar: categorias ou cursos diferentes
+quebrariam o total por atividade, e mais de 30 minutos de intervalo entre eles
+inflaria o dia em silêncio. Sobreposição continua **permitida** — caminhar com
+os dogs durante a pausa é legítimo — mas agora aparece marcada, porque dois
+lançamentos sobrepostos por engano fazem o dia passar de 24 horas sem ninguém
+notar.
 
 A ordem do que resta está em `04-pendencias.md`.

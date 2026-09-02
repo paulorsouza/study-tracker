@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Categorias from "./Categorias";
+import Cronometro from "./Cronometro";
 import Mcp from "./Mcp";
 import Obsidian from "./Obsidian";
 import Sincronizacao from "./Sincronizacao";
 import * as I from "./icones";
+import { Curso } from "./App";
 
 type Ponte = { porta: number; token: string };
 
-type Secao = "aparencia" | "categorias" | "sync" | "integracoes";
+type Secao = "aparencia" | "categorias" | "cronometro" | "sync" | "integracoes";
 
 const SECOES: { id: Secao; nome: string }[] = [
   { id: "aparencia", nome: "Aparência" },
   { id: "categorias", nome: "Categorias e metas" },
+  { id: "cronometro", nome: "Cronômetro" },
   { id: "sync", nome: "Sincronização" },
   { id: "integracoes", nome: "Integrações" },
 ];
@@ -25,11 +28,13 @@ const SECOES: { id: Secao; nome: string }[] = [
 export default function Config({
   tema,
   setTema,
+  cursos,
   onErro,
   onMudou,
 }: {
   tema: "escuro" | "claro";
   setTema: (t: "escuro" | "claro") => void;
+  cursos: Curso[];
   onErro: (e: string | null) => void;
   onMudou: () => void;
 }) {
@@ -62,6 +67,10 @@ export default function Config({
           </button>
         ))}
       </div>
+
+      {secao === "cronometro" && (
+        <Cronometro cursos={cursos} onErro={onErro} onMudou={onMudou} />
+      )}
 
       {secao === "aparencia" && (
       <section className="card">

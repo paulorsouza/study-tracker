@@ -375,7 +375,55 @@ body {
   white-space: nowrap;
 }
 
+/* A descrição da sessão é clicável: trocar o rótulo do que está correndo é
+   frequente o bastante para não merecer uma tela. */
+.dock-desc-botao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dock-desc-botao svg { flex: none; opacity: 0; transition: opacity 0.12s; }
+.dock-desc-botao:hover { color: var(--tx); }
+.dock-desc-botao:hover svg { opacity: 0.7; }
+
+.dock-favoritos { margin-top: 12px; display: grid; gap: 3px; }
+
+.dock-favorito {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--tx-2);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dock-favorito:hover { background: var(--surf-3); color: var(--tx); }
+.dock-favorito span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-favorito .ponto { flex: none; border: 0; width: 7px; height: 7px; }
+
+/* Um lançamento que divide relógio com outro. Continua legítimo — só não pode
+   passar despercebido. */
+.lanc-sobreposto { background: color-mix(in oklab, var(--warn) 9%, transparent); }
+.lanc-sobreposto .lanc-cor { box-shadow: 0 0 0 1.5px var(--warn); }
+
 .dock .btn { width: 100%; }
+.dock .linha .btn { width: auto; }
+.dock .linha .btn.cresce { flex: 1; }
 
 .pulso {
   width: 7px; height: 7px; border-radius: 50%;
@@ -434,6 +482,8 @@ body {
 .lanc {
   display: flex;
   align-items: center;
+  /* Quebra para o corte inline poder ocupar uma linha inteira abaixo. */
+  flex-wrap: wrap;
   gap: 12px;
   padding: 9px 10px;
   border-radius: var(--r-sm);
@@ -1071,3 +1121,79 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .medidas td { padding: 7px 0; border-bottom: 1px solid var(--line); }
 .medidas tr:last-child td { border-bottom: 0; }
 .medidas td:first-child { color: var(--tx-2); width: 130px; }
+
+/* --- ações sobre lançamentos ---------------------------------------------- */
+
+/* Largura explícita: a regra geral de `input` é 100%, e sem isto a caixinha
+   estica e empurra a linha inteira para baixo. */
+.lanc-marca {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--acc);
+  cursor: pointer;
+}
+.lanc-marca:disabled { cursor: default; opacity: 0.35; }
+
+.marca-aviso {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: color-mix(in oklab, var(--warn) 18%, transparent);
+  color: var(--warn);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
+
+/* O corte abre na própria linha: pedir a hora numa janela separada tiraria da
+   vista justamente o lançamento que está sendo cortado. */
+.lanc-corte {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 2px 26px;
+  font-size: 12.5px;
+  color: var(--tx-2);
+}
+
+.lanc-corte input { width: 76px; }
+
+.barra-selecao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--tx-2);
+}
+
+.barra-selecao span:first-child { flex: 1; }
+
+/* Combinação de teclas: parece tecla, e o estado de captura tem que ser óbvio
+   porque enquanto ele está ligado o teclado inteiro é consumido. */
+.tecla {
+  min-width: 96px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surf-2);
+  color: var(--tx);
+  font: inherit;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.tecla:hover { border-color: var(--acc); }
+
+.tecla-capturando {
+  border-color: var(--acc);
+  background: color-mix(in oklab, var(--acc) 16%, transparent);
+  color: var(--acc);
+}

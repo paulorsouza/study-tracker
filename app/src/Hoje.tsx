@@ -16,6 +16,7 @@ type Lancamento = {
   course_id: string | null;
   curso: string | null;
   source: string;
+  sobrepoe: boolean;
 };
 
 type Tipo = {
@@ -68,6 +69,9 @@ export default function Hoje({
 }) {
   const [dia, setDia] = useState(() => new Date());
   const [itens, setItens] = useState<Lancamento[]>([]);
+  const [selecao, setSelecao] = useState<string[]>([]);
+  const [cortando, setCortando] = useState<string | null>(null);
+  const [corte, setCorte] = useState("");
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [editando, setEditando] = useState<string | null>(null);
   const [desfazer, setDesfazer] = useState<string | null>(null);
@@ -152,6 +156,35 @@ export default function Hoje({
         recarregar();
       })
       .catch((e) => onErro(String(e)));
+  };
+
+  const acao = (cmd: string, args: Record<string, unknown>) =>
+    invoke(cmd, args)
+      .then(() => {
+        onErro(null);
+        setSelecao([]);
+        recarregar();
+        onMudou();
+      })
+      .catch((e) => onErro(String(e)));
+
+  /// Abre o corte na própria linha, com o meio só como sugestão.
+  ///
+  /// Cortar no meio automaticamente seria quase sempre errado: quem divide sabe
+  /// a hora em que a sessão mudou de assunto, e é essa hora que importa.
+  const abrirCorte = (i: Lancamento) => {
+    setCortando(i.id);
+    setCorte(hhmm(i.started_at + ((i.ended_at ?? Date.now()) - i.started_at) / 2));
+  };
+
+  const confirmarCorte = (id: string) => {
+    if (!/^\d{1,2}:\d{2}$/.test(corte.trim())) {
+      onErro(`não entendi a hora “${corte}”. Use HH:MM`);
+      return;
+    }
+    acao("dividir_lancamento", { id, em: comHora(dia, corte.trim()) }).then(() =>
+      setCortando(null)
+    );
   };
 
   const excluir = (id: string) =>
@@ -294,7 +327,22 @@ export default function Hoje({
                 onErro={onErro}
               />
             ) : (
-              <div key={i.id} className="lanc">
+              <div
+                key={i.id}
+                className={`lanc${i.sobrepoe ? " lanc-sobreposto" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  className="lanc-marca"
+                  checked={selecao.includes(i.id)}
+                  disabled={!i.ended_at}
+                  onChange={(e) =>
+                    setSelecao((s) =>
+                      e.target.checked ? [...s, i.id] : s.filter((x) => x !== i.id)
+                    )
+                  }
+                  aria-label={`Selecionar ${i.description || i.atividade}`}
+                />
                 <span className="lanc-cor" style={{ background: corDe(i, tema) }} />
                 <span className="lanc-hora num">
                   {hhmm(i.started_at)} – {i.ended_at ? hhmm(i.ended_at) : "agora"}
@@ -302,11 +350,42 @@ export default function Hoje({
                 <span className="lanc-texto">
                   {i.description || <span style={{ color: "var(--tx-2)" }}>{i.atividade}</span>}
                   {i.curso && <span className="lanc-curso"> · {i.curso}</span>}
+                  {i.sobrepoe && (
+                    <span className="marca-aviso" title="Divide relógio com outro lançamento">
+                      sobreposto
+                    </span>
+                  )}
                 </span>
                 <span className="lanc-dur num">
                   {durCurta((i.ended_at ?? Date.now()) - i.started_at)}
                 </span>
                 <span className="lanc-acoes">
+                  <button
+                    className="btn btn-fantasma btn-icone"
+                    onClick={() => acao("timer_continuar", { entryId: i.id })}
+                    aria-label="Continuar este lançamento agora"
+                    title="Continuar agora"
+                  >
+                    <I.Play size={14} />
+                  </button>
+                  <button
+                    className="btn btn-fantasma btn-icone"
+                    onClick={() => acao("duplicar_lancamento", { id: i.id })}
+                    disabled={!i.ended_at}
+                    aria-label="Duplicar lançamento"
+                    title="Duplicar"
+                  >
+                    <I.Copia />
+                  </button>
+                  <button
+                    className="btn btn-fantasma btn-icone"
+                    onClick={() => abrirCorte(i)}
+                    disabled={!i.ended_at}
+                    aria-label="Dividir lançamento em dois"
+                    title="Dividir"
+                  >
+                    <I.Tesoura />
+                  </button>
                   <button
                     className="btn btn-fantasma btn-icone"
                     onClick={() => setEditando(i.id)}
@@ -324,9 +403,47 @@ export default function Hoje({
                     <I.Lixeira />
                   </button>
                 </span>
+                {cortando === i.id && (
+                  <div className="lanc-corte">
+                    <label htmlFor={`corte-${i.id}`}>cortar às</label>
+                    <input
+                      id={`corte-${i.id}`}
+                      value={corte}
+                      onChange={(e) => setCorte(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && confirmarCorte(i.id)}
+                      placeholder="HH:MM"
+                      autoFocus
+                    />
+                    <button className="btn btn-primario" onClick={() => confirmarCorte(i.id)}>
+                      Cortar
+                    </button>
+                    <button className="btn btn-fantasma" onClick={() => setCortando(null)}>
+                      Cancelar
+                    </button>
+                  </div>
+                )}
               </div>
             )
           )
+        )}
+
+        {selecao.length > 0 && (
+          <div className="barra-selecao" role="status">
+            <span>
+              {selecao.length} selecionado{selecao.length === 1 ? "" : "s"}
+            </span>
+            <button
+              className="btn"
+              disabled={selecao.length < 2}
+              onClick={() => acao("unir_lancamentos", { ids: selecao })}
+              title="Vira um lançamento só, do início do primeiro ao fim do último"
+            >
+              <I.Juntar /> Unir
+            </button>
+            <button className="btn btn-fantasma" onClick={() => setSelecao([])}>
+              Limpar
+            </button>
+          </div>
         )}
       </section>
 

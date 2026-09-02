@@ -92,6 +92,13 @@ pub struct Sessao {
     pub curso_id: Option<String>,
     pub tarefa_id: Option<String>,
     pub descricao: String,
+    /// Fase congelada pela pausa. Fica fora de `fase` de propósito: o relógio
+    /// que vigia o fim do ciclo lê `fase`, e uma fase pausada não deve vencer.
+    pub pausada: Option<Fase>,
+    /// Quanto da fase corrente já foi gasto em segmentos anteriores. Retomar
+    /// abre a fase pelo que falta, não pelo tempo cheio — senão pausar viraria
+    /// uma forma de esticar o Pomodoro.
+    pub gasto_ms: i64,
 }
 
 pub struct PomodoroState(pub Mutex<Sessao>);
@@ -108,6 +115,7 @@ pub struct Estado {
     pub decorrido_ms: i64,
     pub planejado_ms: i64,
     pub descricao: String,
+    pub pausada: bool,
 }
 
 // --- persistência da configuração e da sessão -------------------------------
@@ -189,7 +197,8 @@ fn abrir_fase(
     // outras da sessão apontam para ela.
     let sessao_id = sess.sessao_id.clone().unwrap_or_else(|| entry_id.clone());
 
-    let planejado = cfg.minutos(fase) * 60_000;
+    // O que falta da fase, não a fase inteira: retomar não devolve tempo.
+    let planejado = (cfg.minutos(fase) * 60_000 - sess.gasto_ms).max(1_000);
     timer::iniciar(
         timer,
         Inicio {
@@ -274,6 +283,7 @@ fn encerrar_fase(
 
     let seguinte = proxima(cfg, sess);
     sess.fase = None;
+    sess.gasto_ms = 0;
 
     let automatico = match seguinte {
         Fase::Foco => cfg.auto_foco,
@@ -334,6 +344,42 @@ pub fn pomodoro_avancar(
     Ok(())
 }
 
+/// Pausa o Pomodoro: fecha a fase corrente e guarda quanto dela já correu.
+///
+/// Não usa a pausa do cronômetro livre. São dois estados diferentes: aqui o que
+/// precisa sobreviver é a *fase*, com o que falta dela, e não só a identidade
+/// da sessão.
+#[tauri::command]
+pub fn pomodoro_pausar(
+    db: tauri::State<Db>,
+    timer: tauri::State<TimerState>,
+    pomo: tauri::State<PomodoroState>,
+) -> Result<(), String> {
+    let mut sess = pomo.0.lock().map_err(|_| "estado ocupado")?;
+    let fase = sess.fase.ok_or("nenhuma fase em andamento")?;
+    let decorrido = timer::status_de(&timer).map(|s| s.wall_ms).unwrap_or(0);
+    timer::parar(&timer, &db)?;
+    sess.gasto_ms += decorrido;
+    sess.fase = None;
+    sess.pausada = Some(fase);
+    salvar_sessao(&db, &sess);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn pomodoro_retomar(
+    db: tauri::State<Db>,
+    timer: tauri::State<TimerState>,
+    pomo: tauri::State<PomodoroState>,
+) -> Result<(), String> {
+    let cfg = config_de(&db);
+    let mut sess = pomo.0.lock().map_err(|_| "estado ocupado")?;
+    let fase = sess.pausada.take().ok_or("o Pomodoro não está pausado")?;
+    abrir_fase(&timer, &cfg, &mut sess, fase)?;
+    salvar_sessao(&db, &sess);
+    Ok(())
+}
+
 #[tauri::command]
 pub fn pomodoro_encerrar(
     db: tauri::State<Db>,
@@ -362,16 +408,21 @@ pub fn pomodoro_estado(
     let st = timer::status_de(&timer);
 
     Estado {
-        ativo: sess.fase.is_some() || sess.aguardando.is_some(),
-        fase: sess.fase,
-        rotulo: sess.fase.map(|f| f.rotulo().to_string()),
+        ativo: sess.fase.is_some() || sess.aguardando.is_some() || sess.pausada.is_some(),
+        fase: sess.fase.or(sess.pausada),
+        rotulo: sess.fase.or(sess.pausada).map(|f| f.rotulo().to_string()),
         aguardando: sess.aguardando,
         rotulo_aguardando: sess.aguardando.map(|f| f.rotulo().to_string()),
         focos: sess.focos,
         ciclos_ate_longa: cfg.ciclos_ate_longa,
-        decorrido_ms: st.as_ref().map(|s| s.wall_ms).unwrap_or(0),
-        planejado_ms: sess.fase.map(|f| cfg.minutos(f) * 60_000).unwrap_or(0),
+        decorrido_ms: sess.gasto_ms + st.as_ref().map(|s| s.wall_ms).unwrap_or(0),
+        planejado_ms: sess
+            .fase
+            .or(sess.pausada)
+            .map(|f| cfg.minutos(f) * 60_000)
+            .unwrap_or(0),
         descricao: sess.descricao,
+        pausada: sess.pausada.is_some(),
     }
 }
 
@@ -402,7 +453,7 @@ pub fn spawn_relogio(app: tauri::AppHandle) {
             continue;
         };
 
-        if st.wall_ms >= cfg.minutos(fase) * 60_000 {
+        if sess.gasto_ms + st.wall_ms >= cfg.minutos(fase) * 60_000 {
             encerrar_fase(&app, &db, &timer, &mut sess, &cfg);
         }
     });

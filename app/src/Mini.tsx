@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import * as I from "./icones";
 import "./App.css";
 
-type Status = { description: string; wall_ms: number };
+type Status = { description: string; wall_ms: number; acumulado_ms: number; pausado: boolean };
 type Curso = {
   id: string;
   titulo: string;
@@ -163,12 +163,23 @@ export default function Mini() {
         ) : st ? (
           <>
             <div className="mini-info">
-              <div className="mini-tempo">{dur(st.wall_ms)}</div>
-              <div className="mini-desc">{st.description || "sem descrição"}</div>
+              <div className="mini-tempo">{dur(st.acumulado_ms + st.wall_ms)}</div>
+              <div className="mini-desc">
+                {st.pausado && <I.Pausa size={11} />} {st.description || "sem descrição"}
+              </div>
             </div>
             <div className="mini-acoes">
+              {st.pausado ? (
+                <button className="btn btn-primario" onClick={() => acao("timer_retomar")}>
+                  <I.Play size={15} /> Retomar
+                </button>
+              ) : (
+                <button className="btn" onClick={() => acao("timer_pausar")}>
+                  <I.Pausa size={15} />
+                </button>
+              )}
               <button className="btn btn-primario" onClick={() => acao("timer_stop")}>
-                <I.Parar size={15} /> Parar
+                <I.Parar size={15} />
               </button>
             </div>
           </>

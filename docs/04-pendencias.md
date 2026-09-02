@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. O cronômetro é o próximo.
+Em ordem acordada. As visualizações do tempo são as próximas.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -40,18 +40,18 @@ Em ordem acordada. O cronômetro é o próximo.
 - [x] Cadastro de plataforma personalizada — falta um formulário na tela;
       hoje só pelo comando `criar_plataforma`
 
-### 2. Cronômetro e lançamentos — §3.5
+### 2. Cronômetro e lançamentos — §3.5 ✅
 
-- [ ] Pausar e retomar (cronômetro e Pomodoro)
-- [ ] Trocar descrição ou curso com o cronômetro rodando
-- [ ] Corrigir a hora de início sem parar
-- [ ] Continuar um lançamento anterior num clique
-- [ ] Favoritar combinações frequentes
-- [ ] Duplicar lançamento
-- [ ] Dividir uma sessão em duas
-- [ ] Unir lançamentos consecutivos compatíveis
-- [ ] **Destacar sobreposição** — hoje ela é permitida mas passa despercebida
-- [ ] Atalhos de teclado configuráveis
+- [x] Pausar e retomar (cronômetro e Pomodoro)
+- [x] Trocar descrição ou curso com o cronômetro rodando
+- [x] Corrigir a hora de início sem parar
+- [x] Continuar um lançamento anterior num clique
+- [x] Favoritar combinações frequentes
+- [x] Duplicar lançamento
+- [x] Dividir uma sessão em duas
+- [x] Unir lançamentos consecutivos compatíveis
+- [x] **Destacar sobreposição** — continua permitida, agora visível
+- [x] Atalhos de teclado configuráveis — dentro do app, não globais (D-032)
 
 ### 3. Visualizações do tempo — §3.5
 
