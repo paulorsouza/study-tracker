@@ -211,6 +211,26 @@ const cfgPomo = {
 
 const respostas: Record<string, (a: any) => unknown> = {
   listar_cursos: () => CURSOS,
+  mcp_info: () => ({
+    porta: 47823,
+    token: "mcpmcpmcpmcpmcpmcpmcpmcpmcpmcpmc",
+    config: {
+      habilitado: true, leitura: true, escrita: true,
+      ferramentas: { criar_tarefa: true, concluir_tarefa: true,
+                     criar_nota: false, controlar_cronometro: true },
+    },
+  }),
+  mcp_salvar_config: () => null,
+  mcp_revogar: () => "novo-token",
+  listar_auditoria: () => [
+    { id: "a1", origem: "mcp", acao: "criar_nota", detalhe: '{"titulo":null}',
+      resultado: "recusado", created_at: Date.now() - 120000 },
+    { id: "a2", origem: "mcp", acao: "criar_tarefa",
+      detalhe: '{"titulo":"Revisar aula 13"}', resultado: "ok",
+      created_at: Date.now() - 300000 },
+    { id: "a3", origem: "mcp", acao: "ler_planejamento", detalhe: "{}",
+      resultado: "ok", created_at: Date.now() - 420000 },
+  ],
   listar_tags: () => ["blender", "renda-variavel", "retopologia", "duvida"],
   salvar_nota: () => "nova",
   excluir_nota: () => null,

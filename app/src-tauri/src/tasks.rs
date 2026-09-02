@@ -269,3 +269,86 @@ pub fn replanejar_atrasadas(
         .map_err(|e| e.to_string())?;
     Ok(n)
 }
+
+/// Planejamento em JSON, para a ponte.
+pub fn planejamento_json(db: &Db, dia: Option<&str>, ate: Option<&str>) -> serde_json::Value {
+    let Ok(conn) = db.conn.lock() else {
+        return serde_json::json!([]);
+    };
+    let d = dia.unwrap_or("");
+    let a = ate.unwrap_or(d);
+    let sql = format!(
+        "{SELECT} AND t.dia_planejado >= ?1 AND t.dia_planejado <= ?2
+         ORDER BY t.dia_planejado, t.ordem"
+    );
+    let mut stmt = match conn.prepare(&sql) {
+        Ok(s) => s,
+        Err(_) => return serde_json::json!([]),
+    };
+    let linhas = stmt
+        .query_map(params![d, a], |r| {
+            let t = ler(r)?;
+            Ok(serde_json::json!({
+                "id": t.id,
+                "titulo": t.titulo,
+                "curso": t.curso,
+                "dia": t.dia_planejado,
+                "estado": t.estado,
+                "prioridade": t.prioridade,
+                "estimado_min": t.duracao_estimada_min,
+                "realizado_min": t.realizado_ms / 60000,
+            }))
+        })
+        .and_then(|it| it.collect::<Result<Vec<_>, _>>())
+        .unwrap_or_default();
+    serde_json::json!(linhas)
+}
+
+pub fn criar_simples(
+    db: &Db,
+    titulo: String,
+    dia: Option<String>,
+    curso_id: Option<String>,
+    duracao_min: Option<i64>,
+) -> Result<String, String> {
+    let titulo = titulo.trim().to_string();
+    if titulo.is_empty() {
+        return Err("a tarefa precisa de um título".into());
+    }
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let ordem: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(ordem), -1) + 1 FROM tasks
+              WHERE deleted_at IS NULL AND dia_planejado IS ?1",
+            params![dia],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let id = uuid::Uuid::new_v4().to_string();
+    let agora = agora_ms();
+    conn.execute(
+        "INSERT INTO tasks (id, titulo, course_id, duracao_estimada_min, prioridade,
+                            dia_planejado, ordem, estado, device_id, version,
+                            created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, 'aberta', ?7, 1, ?8, ?8)",
+        params![id, titulo, curso_id, duracao_min, dia, ordem, db.device_id, agora],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+pub fn concluir_simples(db: &Db, id: &str) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let n = conn
+        .execute(
+            "UPDATE tasks SET estado = 'concluida', concluida_em = ?2, updated_at = ?2,
+                              version = version + 1
+              WHERE id = ?1 AND deleted_at IS NULL",
+            params![id, agora_ms()],
+        )
+        .map_err(|e| e.to_string())?;
+    if n == 0 {
+        return Err("tarefa não encontrada".into());
+    }
+    Ok(())
+}

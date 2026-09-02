@@ -333,3 +333,62 @@ mod testes {
         assert_eq!(parse_duracao("h30"), None);
     }
 }
+
+/// Resumo agregado do período, para a ponte. Sai pronto em minutos: o cliente
+/// MCP não deveria precisar somar nada para responder "quanto estudei".
+pub fn resumo_json(db: &Db, desde: i64, ate: i64) -> serde_json::Value {
+    let Ok(conn) = db.conn.lock() else {
+        return serde_json::json!({});
+    };
+
+    let por_atividade = conn
+        .prepare(
+            "SELECT a.nome, a.conta_como_estudo,
+                    SUM(COALESCE(e.ended_at, ?2) - e.started_at) / 60000
+               FROM time_entries e
+               JOIN activity_types a ON a.id = e.activity_type_id
+              WHERE e.deleted_at IS NULL AND e.started_at < ?2
+                AND COALESCE(e.ended_at, ?2) > ?1
+              GROUP BY a.id ORDER BY 3 DESC",
+        )
+        .and_then(|mut s| {
+            s.query_map(params![desde, ate], |r| {
+                Ok(serde_json::json!({
+                    "atividade": r.get::<_, String>(0)?,
+                    "conta_como_estudo": r.get::<_, i64>(1)? != 0,
+                    "minutos": r.get::<_, i64>(2)?,
+                }))
+            })?
+            .collect::<Result<Vec<_>, _>>()
+        })
+        .unwrap_or_default();
+
+    let por_curso = conn
+        .prepare(
+            "SELECT COALESCE(c.titulo, ?3),
+                    SUM(COALESCE(e.ended_at, ?2) - e.started_at) / 60000
+               FROM time_entries e
+               JOIN activity_types a ON a.id = e.activity_type_id
+               LEFT JOIN courses c ON c.id = e.course_id
+              WHERE e.deleted_at IS NULL AND a.conta_como_estudo = 1
+                AND e.started_at < ?2 AND COALESCE(e.ended_at, ?2) > ?1
+              GROUP BY e.course_id ORDER BY 2 DESC",
+        )
+        .and_then(|mut s| {
+            s.query_map(params![desde, ate, "Sem curso"], |r| {
+                Ok(serde_json::json!({
+                    "curso": r.get::<_, String>(0)?,
+                    "minutos": r.get::<_, i64>(1)?,
+                }))
+            })?
+            .collect::<Result<Vec<_>, _>>()
+        })
+        .unwrap_or_default();
+
+    serde_json::json!({
+        "desde": desde,
+        "ate": ate,
+        "por_atividade": por_atividade,
+        "por_curso": por_curso,
+    })
+}

@@ -347,3 +347,50 @@ Outro computador. Testes em lote, depois da versão Windows. Ver D-003.
 Respondida na prática, em duas partes: "um dash com visão macro, bem simples"
 (painel entregue em 2026-09-01) e metas de piso e teto por categoria (D-017).
 As métricas não são de desempenho — são de **equilíbrio da rotina**.
+
+## D-019 — O servidor MCP não abre o banco
+**2026-09-02**
+
+Claude Desktop sobe servidores MCP como subprocesso por stdio, então o caminho
+óbvio seria o servidor abrir o SQLite direto. Recusado: ele viraria um **segundo
+escritor**, e as invariantes do produto (cronômetro único por dispositivo,
+versionamento, histórico de revisões, exclusão lógica) vivem no Rust do app, não
+no esquema. Duplicá-las num processo separado é como elas divergem.
+
+O servidor MCP é um **adaptador fino sobre a ponte HTTP** que a extensão já usa.
+Três consequências que valem mais que a economia de código:
+
+1. **O filtro de nota está no app, não no adaptador.** `GET /notas` só devolve
+   linha com `disponivel_para_ia = 1`. Um defeito no servidor MCP não vaza nota
+   nenhuma — ele simplesmente não recebe o que não foi liberado.
+2. **Permissão e auditoria ficam num lugar só.** Não existe caminho que escreva
+   sem passar por elas.
+3. **Herda a trava de token.** Nada de superfície de rede nova.
+
+O custo: o app precisa estar aberto. É a mesma restrição da extensão, e é
+honesta — a ponte vive dentro do app.
+
+## D-020 — Dois tokens, e a escrita nasce desligada
+**2026-09-02**
+
+Token da extensão e token do MCP são distintos. Não é preciosismo: eles são
+revogáveis separadamente e têm alcances diferentes. Se o token da extensão vazar
+num backup do perfil do Chrome, revogá-lo não pode derrubar a integração com o
+Claude Desktop.
+
+Camadas de permissão do MCP, todas verificadas no app:
+
+| Camada | Padrão | Por quê |
+|---|---|---|
+| Integração ativa | **desligada** | um MCP recém-instalado não deve ler nada |
+| Leitura | ligada | inútil sem isso, e não altera nada |
+| Escrita | **desligada** | criar e apagar por padrão é a configuração errada |
+| Cada ferramenta | ligada | só vale com escrita ligada; §4.2 pede desligar uma a uma |
+
+Toda escrita vai para `audit_events` — **inclusive as recusadas**, que são
+justamente as que interessa investigar depois. O detalhe gravado é cortado em
+400 caracteres: auditoria é rastro, não cópia do conteúdo, senão o próprio log
+vira o vazamento.
+
+Revogar troca o token e vale no pedido seguinte: a ponte relê o token a cada
+requisição em vez de guardá-lo na subida.

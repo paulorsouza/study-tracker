@@ -4,6 +4,7 @@ mod db;
 mod entries;
 mod library;
 mod notas;
+mod permissoes;
 mod pomodoro;
 mod tasks;
 mod timer;
@@ -95,6 +96,10 @@ pub fn run() {
             notas::excluir_nota,
             notas::fixar_nota,
             notas::revisar_nota,
+            permissoes::mcp_info,
+            permissoes::mcp_salvar_config,
+            permissoes::mcp_revogar,
+            permissoes::listar_auditoria,
             bridge::ponte_info,
         ])
         .run(tauri::generate_context!())

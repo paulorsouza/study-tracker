@@ -828,3 +828,31 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   resize: vertical;
   min-height: 200px;
 }
+
+/* --- permissões e auditoria ----------------------------------------------- */
+
+.perm { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+.perm-linha { display: flex; gap: 10px; align-items: flex-start; }
+.perm-linha input { margin-top: 2px; flex: none; }
+
+.detalhe { margin-top: 14px; }
+
+.detalhe > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--tx-2);
+  padding: 4px 0;
+}
+
+.detalhe > summary:hover { color: var(--tx); }
+
+.bloco-codigo {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font: 11.5px/1.6 "Cascadia Mono", Consolas, ui-monospace, monospace;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--tx-2);
+}

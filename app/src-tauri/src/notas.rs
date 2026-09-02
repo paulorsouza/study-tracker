@@ -279,3 +279,71 @@ pub fn revisar_nota(db: tauri::State<Db>, id: String, proxima: Option<String>) -
     .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// Notas visíveis para a IA. O filtro é **aqui**, no servidor, não no cliente
+/// MCP: se dependesse do adaptador pedir direito, bastaria um bug dele para
+/// vazar tudo. O servidor nunca devolve nota não marcada, ponto.
+pub fn listar_para_ia(db: &Db, busca: Option<&str>) -> serde_json::Value {
+    let Ok(conn) = db.conn.lock() else {
+        return serde_json::json!([]);
+    };
+    let padrao = busca
+        .map(|b| format!("%{}%", b.trim().to_lowercase()))
+        .unwrap_or_else(|| "%".into());
+
+    let mut stmt = match conn.prepare(
+        "SELECT n.id, n.titulo, n.conteudo, n.modelo, c.titulo, n.revisar_em,
+                n.created_at
+           FROM notes n
+           LEFT JOIN courses c ON c.id = n.course_id
+          WHERE n.deleted_at IS NULL AND n.disponivel_para_ia = 1
+            AND (lower(n.conteudo) LIKE ?1 OR lower(COALESCE(n.titulo,'')) LIKE ?1)
+          ORDER BY n.updated_at DESC LIMIT 50",
+    ) {
+        Ok(s) => s,
+        Err(_) => return serde_json::json!([]),
+    };
+
+    let linhas = stmt
+        .query_map(params![padrao], |r| {
+            Ok(serde_json::json!({
+                "id": r.get::<_, String>(0)?,
+                "titulo": r.get::<_, Option<String>>(1)?,
+                "conteudo": r.get::<_, String>(2)?,
+                "modelo": r.get::<_, String>(3)?,
+                "curso": r.get::<_, Option<String>>(4)?,
+                "revisar_em": r.get::<_, Option<String>>(5)?,
+                "criada_em": r.get::<_, i64>(6)?,
+            }))
+        })
+        .and_then(|it| it.collect::<Result<Vec<_>, _>>())
+        .unwrap_or_default();
+
+    serde_json::json!(linhas)
+}
+
+/// Criação simplificada, para a ponte. Nasce invisível para a IA mesmo quando
+/// foi a própria IA que criou — quem decide o que ela pode reler é o usuário.
+pub fn criar_simples(
+    db: &Db,
+    titulo: Option<String>,
+    conteudo: String,
+    curso_id: Option<String>,
+    tags: Vec<String>,
+) -> Result<String, String> {
+    if conteudo.trim().is_empty() {
+        return Err("a nota está vazia".into());
+    }
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let agora = agora_ms();
+    conn.execute(
+        "INSERT INTO notes (id, titulo, conteudo, modelo, course_id, device_id,
+                            version, created_at, updated_at)
+         VALUES (?1, ?2, ?3, 'livre', ?4, ?5, 1, ?6, ?6)",
+        params![id, titulo, conteudo, curso_id, db.device_id, agora],
+    )
+    .map_err(|e| e.to_string())?;
+    gravar_tags(&conn, &id, &tags)?;
+    Ok(id)
+}

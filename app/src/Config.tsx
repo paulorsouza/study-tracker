@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Categorias from "./Categorias";
+import Mcp from "./Mcp";
 import * as I from "./icones";
 
 type Ponte = { porta: number; token: string };
@@ -48,6 +49,8 @@ export default function Config({
       </section>
 
       <Categorias tema={tema} onErro={onErro} onMudou={onMudou} />
+
+      <Mcp onErro={onErro} />
 
       <section className="card">
         <h2>Extensão do Chrome</h2>
