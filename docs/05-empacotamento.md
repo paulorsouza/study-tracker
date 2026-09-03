@@ -58,6 +58,26 @@ sucesso. Estão na lista de não verificado de `04-pendencias.md`:
 - **Notificações.** Vão pelo `notify-send`/D-Bus. Ambiente sem daemon de
   notificação engole o aviso de fim do Pomodoro.
 
+## O que saiu na primeira montagem (v0.0.1)
+
+| sistema | arquivo | tamanho |
+|---|---|---|
+| Windows | `estudos.exe` | 20 MB |
+| Windows | `Estudos_0.0.1_x64_en-US.msi` | 7,2 MB |
+| Windows | `Estudos_0.0.1_x64-setup.exe` | 5,1 MB |
+| Linux | `Estudos_0.0.1_amd64.AppImage` | 83 MB |
+| Linux | `Estudos_0.0.1_amd64.deb` | 9,2 MB |
+| Linux | `Estudos-0.0.1-1.x86_64.rpm` | 9,2 MB |
+
+O `.deb` declara as dependências certas, e a que mais importa está lá:
+
+```
+Depends: libayatana-appindicator3-1, libwebkit2gtk-4.1-0, libgtk-3-0
+```
+
+`libayatana-appindicator3-1` é a bandeja. Se ela sumisse da lista, o app
+instalaria e subiria sem ícone nenhum — e ninguém saberia por quê.
+
 ## CI
 
 `.github/workflows/build.yml` monta os dois sistemas na mesma execução, em tag

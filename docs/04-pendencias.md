@@ -148,11 +148,19 @@ lista, só saiu da fila de agora.
 > dependem do ponteiro — o calendário é a mais evidente, porque criar e mover
 > bloco hoje **só** funciona com arrasto.
 
-### 10. Empacotamento — Fase 6
+### 10. Empacotamento — Fase 6 (em andamento)
 
-- [ ] Instaladores Windows e Linux
+- [x] Instaladores Windows e Linux — gerados e baixados; ver
+      `05-empacotamento.md`
 - [ ] Atualização assinada e rollback
 - [ ] Documentação de uso
+
+> Windows sai desta máquina (`npm run tauri build`). **Linux não sai daqui**: o
+> Tauri não faz cross-compile, porque o webview é do sistema. Quem monta é o
+> CI, em `ubuntu-22.04`.
+>
+> Nenhum dos dois foi **executado** ainda — só produzido. É a diferença entre
+> "compila" e "funciona", e é o que a lista abaixo separa.
 
 ---
 
