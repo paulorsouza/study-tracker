@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. Acessibilidade e idioma são os próximos.
+Em ordem acordada. O empacotamento é o próximo.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -131,12 +131,22 @@ Em ordem acordada. Acessibilidade e idioma são os próximos.
 > o próprio plano condiciona integração direta a "interface oficial, estável e
 > adequada", e ela não existe.
 
-### 9. Acessibilidade e idioma — §9
+### 9. Acessibilidade e idioma — §9 ⏸ adiado
+
+Adiado por decisão do usuário em 2026-09-03. **Não é descarte**: continua na
+lista, só saiu da fila de agora.
 
 - [ ] Tema de alto contraste
 - [ ] Escala de interface e texto
 - [ ] Operação completa por teclado nas funções centrais
 - [ ] Idioma
+
+> O que já existe e não se perde enquanto isso: a paleta é validada para
+> daltonismo nos dois temas (D-012), os atalhos de teclado do cronômetro são
+> configuráveis (D-032) e os controles têm rótulo acessível. O que falta é o
+> tema de alto contraste, a escala e a cobertura de teclado nas telas que ainda
+> dependem do ponteiro — o calendário é a mais evidente, porque criar e mover
+> bloco hoje **só** funciona com arrasto.
 
 ### 10. Empacotamento — Fase 6
 
