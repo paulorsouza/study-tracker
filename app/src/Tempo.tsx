@@ -4,6 +4,7 @@ import Hoje from "./Hoje";
 import Semana from "./Semana";
 import Calendario from "./Calendario";
 import Historico from "./Historico";
+import { useCompacto } from "./dispositivo";
 
 type Vista = "dia" | "semana" | "calendario" | "historico";
 
@@ -13,6 +14,12 @@ const VISTAS: { id: Vista; nome: string }[] = [
   { id: "calendario", nome: "Calendário" },
   { id: "historico", nome: "Histórico" },
 ];
+
+/// O calendário só se opera arrastando: criar, mover e esticar bloco não têm
+/// alternativa por toque. Numa tela estreita ele viraria uma grade bonita e
+/// inerte — pior que não estar lá, porque parece que deveria funcionar.
+const vistasDe = (compacto: boolean) =>
+  compacto ? VISTAS.filter((v) => v.id !== "calendario") : VISTAS;
 
 /**
  * As quatro visões do mesmo tempo (§3.5).
@@ -35,12 +42,16 @@ export default function Tempo({
   onMudou: () => void;
 }) {
   const [vista, setVista] = useState<Vista>("dia");
+  const compacto = useCompacto();
+  // Girar o tablet para retrato com o calendário aberto não pode deixar a tela
+  // em branco: a vista volta para o dia junto com a aba.
+  if (compacto && vista === "calendario") setVista("dia");
   const [dia, setDia] = useState<Date | null>(null);
 
   return (
     <>
       <div className="abas" style={{ marginBottom: 20 }}>
-        {VISTAS.map((v) => (
+        {vistasDe(compacto).map((v) => (
           <button
             key={v.id}
             className="aba"
@@ -73,7 +84,7 @@ export default function Tempo({
           }}
         />
       )}
-      {vista === "calendario" && (
+      {vista === "calendario" && !compacto && (
         <Calendario
           cursos={cursos}
           versao={versao}

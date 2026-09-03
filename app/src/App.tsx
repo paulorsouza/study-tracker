@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Painel from "./Painel";
 import BarraJanela from "./BarraJanela";
+import { useCompacto, ehMovel } from "./dispositivo";
 import Tempo from "./Tempo";
 import Planejamento from "./Planejamento";
 import Foco from "./Foco";
@@ -121,6 +122,7 @@ export default function App() {
   const [dockCurso, setDockCurso] = useState("");
   const [dockInicio, setDockInicio] = useState("");
   const [atalhos, setAtalhos] = useState<Record<string, string>>({});
+  const compacto = useCompacto();
   const [tema, setTema] = useState<"escuro" | "claro">(
     () => (localStorage.getItem("tema") as "escuro" | "claro") ?? "escuro"
   );
@@ -297,47 +299,60 @@ export default function App() {
   const totalSessao = status ? status.acumulado_ms + status.wall_ms : 0;
   const suspeita = status && !status.pausado && Math.abs(status.drift_ms) > 2000;
 
-  const itens: { id: Aba; nome: string; Icone: typeof I.Relogio }[] = [
+  // `curto` é o rótulo da barra de baixo, onde sete destinos dividem a largura
+  // de um celular. O nome inteiro continua no `aria-label`: encurtar o texto
+  // visível não pode encurtar o que o leitor de tela anuncia.
+  const itens: { id: Aba; nome: string; curto?: string; Icone: typeof I.Relogio }[] = [
     { id: "painel", nome: "Painel", Icone: I.Painel },
     { id: "hoje", nome: "Tempo", Icone: I.Calendario },
-    { id: "plano", nome: "Planejamento", Icone: I.Lista },
+    { id: "plano", nome: "Planejamento", curto: "Plano", Icone: I.Lista },
     { id: "foco", nome: "Foco", Icone: I.Alvo },
     { id: "notas", nome: "Notas", Icone: I.Nota },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
-    { id: "config", nome: "Configurações", Icone: I.Engrenagem },
+    { id: "config", nome: "Configurações", curto: "Ajustes", Icone: I.Engrenagem },
   ];
 
   return (
     <div className="app-raiz">
-      <BarraJanela />
-      <div className="shell">
-        <nav className="lateral" aria-label="Seções">
-        <div className="marca">
-          <I.Relogio size={19} />
-          Estudos
-        </div>
+      {/* A barra de título é nossa porque a decoração do sistema foi desligada
+          (D-028). No celular não há janela para minimizar, maximizar ou
+          fechar — mostrá-la seria oferecer três botões que não fazem nada. */}
+      {!ehMovel && <BarraJanela />}
+      <div className={`shell${compacto ? " shell-compacto" : ""}`}>
+        <nav className={`lateral${compacto ? " lateral-barra" : ""}`} aria-label="Seções">
+        {!compacto && (
+          <div className="marca">
+            <I.Relogio size={19} />
+            Estudos
+          </div>
+        )}
 
-        {itens.map(({ id, nome, Icone }) => (
+        {itens.map(({ id, nome, curto, Icone }) => (
           <button
             key={id}
             className="nav-item"
             aria-current={aba === id ? "page" : undefined}
+            aria-label={compacto ? nome : undefined}
             onClick={() => setAba(id)}
           >
             <Icone />
-            {nome}
+            {compacto ? curto ?? nome : nome}
           </button>
         ))}
 
-        <button
-          className="btn btn-fantasma"
-          style={{ marginTop: "auto", width: "100%", justifyContent: "flex-start", gap: 11 }}
-          onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}
-        >
-          <I.Janelinha /> Modo compacto
-        </button>
+        {/* Segunda janela não existe no Android, e numa janela estreita o modo
+            compacto não resolve nada que a própria janela já não resolva. */}
+        {!compacto && !ehMovel && (
+          <button
+            className="btn btn-fantasma"
+            style={{ marginTop: "auto", width: "100%", justifyContent: "flex-start", gap: 11 }}
+            onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}
+          >
+            <I.Janelinha /> Modo compacto
+          </button>
+        )}
 
-        <div className="dock" style={{ marginTop: 0 }}>
+        <div className={`dock${compacto ? " dock-barra" : ""}`} style={{ marginTop: 0 }}>
           {rodando ? (
             <>
               <div className="dock-rotulo" style={{ display: "flex", alignItems: "center", gap: 7 }}>

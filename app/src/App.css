@@ -1469,3 +1469,119 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
 .passos li { margin-bottom: 4px; }
 .passos b { color: var(--tx); font-weight: 600; }
+
+/* --- tela estreita: celular e tablet em pé ---------------------------------
+   A barra lateral vira barra de baixo, que é onde o polegar alcança. O corte
+   é por largura e não por sistema: janela estreita no desktop sofre do mesmo
+   aperto, e um layout só é melhor que dois que divergem. */
+
+.shell-compacto {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+}
+
+/* Duas faixas empilhadas dentro do mesmo `nav`: o cronômetro em cima, os
+   destinos embaixo. `flex-wrap` com o dock ocupando a linha inteira resolve sem
+   mexer na marcação — que é a mesma dos dois layouts. */
+.lateral-barra {
+  order: 2;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-end;
+  border-right: 0;
+  border-top: 1px solid var(--line);
+  padding: 0;
+  gap: 0;
+  overflow: visible;
+  /* Acima da barra de gestos do Android, e do notch quando deitado. */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.lateral-barra > .dock-barra { flex: 1 0 100%; order: -1; }
+
+.lateral-barra .nav-item {
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  padding: 9px 2px 8px;
+  font-size: 10.5px;
+  border-radius: 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.lateral-barra .nav-item svg { flex: none; }
+
+/* O item ativo é marcado por cima, não por fundo: numa fileira de sete, o
+   retângulo preenchido come a barra inteira. */
+.lateral-barra .nav-item[aria-current="page"] {
+  background: none;
+  color: var(--acc);
+  box-shadow: inset 0 2px 0 var(--acc);
+}
+
+/* --- cronômetro na tela estreita ------------------------------------------
+   Vira uma faixa acima da navegação. Continua sendo o dock, com as mesmas
+   ações — o que muda é a direção. */
+
+.dock-barra {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 9px 12px;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surf-2);
+}
+
+.dock-barra .dock-rotulo { margin: 0; flex: none; }
+.dock-barra .dock-tempo { font-size: 20px; margin: 0; flex: none; }
+.dock-barra .dock-desc,
+.dock-barra .dock-desc-botao { margin: 0; flex: 1; min-width: 0; }
+.dock-barra input { flex: 1; margin: 0 !important; min-width: 0; }
+.dock-barra .btn { width: auto; flex: none; }
+.dock-barra .linha { margin: 0 !important; flex: none; }
+
+/* Atalhos e recentes ocupam altura que a faixa não tem, e o Painel já os
+   oferece com mais espaço. */
+.dock-barra .dock-favoritos,
+.dock-barra .dock-recentes { display: none; }
+
+/* Dois cortes, e não um, porque a barra lateral custa 224px: um tablet em pé
+   com 768px de tela tem menos de 550px de conteúdo, e sofre o mesmo aperto de
+   um celular mesmo mantendo a lateral. A linha do lançamento é a primeira a
+   quebrar, então ela quebra antes. */
+@media (max-width: 899px) {
+  /* A linha vira três faixas. Antes ela tinha caixa, cor, ícone, horário,
+     descrição, duração e cinco botões lado a lado — e a descrição, que é o que
+     identifica a sessão, sobrava com um caractere. */
+  .lanc { gap: 8px 9px; row-gap: 4px; }
+  .lanc-hora { order: 0; }
+  .lanc-dur { order: 0; margin-left: auto; }
+  .lanc-texto { order: 1; flex: 1 0 100%; }
+  .lanc-acoes { order: 2; flex: 1 0 100%; justify-content: flex-end; opacity: 1; }
+  .lanc-corte { margin-left: 0; }
+
+  /* Campo com largura fixa foi dimensionado para uma tela que não existe aqui. */
+  .grade > .campo { width: auto !important; flex: 1 1 240px; }
+  .duas { grid-template-columns: 1fr; }
+
+  /* Alvo de toque: 24px é confortável no mouse e frustrante no dedo. */
+  .btn-icone { min-width: 38px; min-height: 38px; }
+}
+
+@media (max-width: 759px) {
+  .conteudo { padding: 16px 14px 10px; }
+  .titulo-pagina { font-size: 21px; }
+
+  /* Duas colunas em 360px não são duas colunas, são duas colunas ilegíveis. */
+  .tiles, .totais { grid-template-columns: repeat(2, 1fr); }
+  .grade > .campo { flex: 1 1 100%; }
+  .grade { gap: 10px; }
+
+  /* Tabelas largas rolam dentro do cartão em vez de esticarem a página. */
+  .folha-rolagem, .cal-rolagem { -webkit-overflow-scrolling: touch; }
+}

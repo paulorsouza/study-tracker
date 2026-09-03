@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
 import { Tipo, corDe } from "./tempo-comum";
+import { useCompacto } from "./dispositivo";
 import * as I from "./icones";
 
 type Tarefa = {
@@ -77,6 +78,9 @@ export default function Planejamento({
   const [novaDur, setNovaDur] = useState("");
   const [novaPri, setNovaPri] = useState(0);
   const [novoTipo, setNovoTipo] = useState("");
+  // Reordenar é arrastar, e arrastar com o dedo briga com rolar a lista. Numa
+  // tela estreita a lista continua inteira; só a reordenação sai.
+  const compacto = useCompacto();
   const [tipos, setTipos] = useState<Tipo[]>([]);
 
   const hojeIso = iso(new Date());
@@ -359,7 +363,7 @@ export default function Planejamento({
               iniciar={iniciar}
               onErro={onErro}
               hojeIso={hojeIso}
-              arrastavel={modo === "dia" || modo === "sem_dia"}
+              arrastavel={!compacto && (modo === "dia" || modo === "sem_dia")}
               onArrastar={() => (arrastando.current = t.id)}
               onSoltar={() => soltar(t)}
             />

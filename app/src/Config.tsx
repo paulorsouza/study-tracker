@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Categorias from "./Categorias";
 import Conta from "./Conta";
 import Cronometro from "./Cronometro";
+import { ehMovel } from "./dispositivo";
 import Materias from "./Materias";
 import Mcp from "./Mcp";
 import NotebookLM from "./NotebookLM";
@@ -15,13 +16,16 @@ type Ponte = { porta: number; token: string };
 
 type Secao = "aparencia" | "categorias" | "cronometro" | "sync" | "conta" | "integracoes";
 
+// Obsidian, MCP e NotebookLM dependem de pasta escolhida, processo externo e
+// ponte HTTP — nada disso existe no Android, e os comandos nem são registrados
+// lá. Oferecer a aba seria oferecer um botão que devolve erro.
 const SECOES: { id: Secao; nome: string }[] = [
   { id: "aparencia", nome: "Aparência" },
   { id: "categorias", nome: "Categorias e metas" },
   { id: "cronometro", nome: "Cronômetro" },
   { id: "sync", nome: "Sincronização" },
   { id: "conta", nome: "Conta e dados" },
-  { id: "integracoes", nome: "Integrações" },
+  ...(ehMovel ? [] : [{ id: "integracoes" as Secao, nome: "Integrações" }]),
 ];
 
 /**
