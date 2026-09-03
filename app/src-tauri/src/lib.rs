@@ -8,6 +8,7 @@ mod git;
 mod janela;
 mod library;
 mod notas;
+mod notebooklm;
 mod obsidian;
 mod supabase;
 mod sync;
@@ -75,6 +76,8 @@ pub fn run() {
             entries::salvar_detalhes,
             entries::listar_recentes,
             exportacao::exportar_dados,
+            notebooklm::gerar_pacote,
+            notebooklm::abrir_notebooklm,
             entries::listar_materias,
             entries::criar_materia,
             entries::editar_materia,

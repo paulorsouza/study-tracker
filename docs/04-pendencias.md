@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. O NotebookLM é o próximo.
+Em ordem acordada. Acessibilidade e idioma são os próximos.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -118,10 +118,18 @@ Em ordem acordada. O NotebookLM é o próximo.
 > política de `delete`. Sem ela "apagar os dados do servidor" falharia calado.
 > É preciso rodar o script de novo — ele agora é idempotente.
 
-### 8. NotebookLM — §4.3
+### 8. NotebookLM — §4.3 ✅
 
-- [ ] Pacote por curso ou período
-- [ ] Abrir o NotebookLM e orientar a adição das fontes
+- [x] Pacote por curso ou período — **em Markdown só** (D-038)
+- [x] Abrir o NotebookLM e orientar a adição das fontes
+
+> §4.3 lista "Markdown, PDF e CSV". O NotebookLM **não aceita CSV** como fonte,
+> e PDF exigiria uma caixa de geração inteira para entregar o mesmo texto num
+> formato que o NotebookLM converte de volta para texto. Ficou Markdown.
+>
+> Integração via Google Drive e envio automático de fonte continuam **fora**:
+> o próprio plano condiciona integração direta a "interface oficial, estável e
+> adequada", e ela não existe.
 
 ### 9. Acessibilidade e idioma — §9
 

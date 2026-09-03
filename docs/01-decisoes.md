@@ -845,8 +845,6 @@ backend, transforma a verificação numa conversa do frontend com ele mesmo.
 Verificar contra o banco real, como foi feito com as migrações, é o que teria
 pego isto na hora.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-037 — o que a chave anon permite, e o que ela não permite
@@ -892,5 +890,49 @@ migração futura entra no arquivo sozinha, sem ninguém lembrar. O arquivo é
 escrito em fluxo, e não montado em memória — montar tudo antes de gravar
 funcionaria hoje e falharia no ano em que o histórico ficar grande, que é
 justamente quando alguém exporta.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-038 — o pacote do NotebookLM é Markdown, e respeita o interruptor da nota
+
+§4.3 pede o pacote em "Markdown, PDF e CSV". Saiu só Markdown, por duas razões
+concretas: o NotebookLM **não aceita CSV** como fonte, e PDF custaria uma caixa
+de geração inteira para entregar o mesmo texto num formato que o NotebookLM
+converte de volta para texto na hora de ler. Um arquivo, legível por gente e por
+modelo, é o que o caso pede.
+
+O envio continua manual, como o plano manda: "integração baseada em formatos
+suportados, não em automação de cliques". O app escreve o arquivo, abre o site e
+mostra os três passos. Integração direta só quando houver interface oficial
+estável — que não há.
+
+**Nota marcada como indisponível para IA nunca entra no pacote.** O interruptor
+`disponivel_para_ia` é uma escolha explícita do usuário, e o NotebookLM é IA;
+ignorá-la aqui a desfaria em silêncio. O pacote ainda diz quantas notas ficaram
+de fora, para que a ausência não pareça um defeito.
+
+Duas decisões menores de conteúdo:
+
+- **Dúvidas viram uma seção própria**, "Perguntas em aberto". É o que o
+  NotebookLM responde melhor, e enterrá-las no meio das outras notas
+  desperdiçaria uma pergunta já formulada.
+- **O conteúdo do usuário é escapado.** Uma nota que começa com `#` viraria
+  título e reorganizaria o sumário do documento; o texto entra como texto,
+  nunca como marcação da moldura.
+
+### O que o teste pegou
+
+A montagem ficou separada do comando justamente para poder ser testada com um
+banco semeado — e o primeiro teste derrubou um defeito real: o filtro de curso
+era montado condicionalmente, então "todos os cursos" gerava um SQL sem `?3`
+mas com três parâmetros ligados, e o rusqlite recusa o extra. **O caso mais
+comum, o primeiro que alguém tenta, falhava.** A cláusula virou fixa, com `?3`
+vazio significando "todos".
+
+Um segundo teste meu estava errado, não o código: eu esperava que o recorte de
+período olhasse o fim da sessão. Ele olha o **início**, como o resto do app — e
+mudar isso faria o pacote discordar da folha da semana e do Painel.
 
 A ordem do que resta está em `04-pendencias.md`.

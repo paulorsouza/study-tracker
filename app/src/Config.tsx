@@ -5,6 +5,7 @@ import Conta from "./Conta";
 import Cronometro from "./Cronometro";
 import Materias from "./Materias";
 import Mcp from "./Mcp";
+import NotebookLM from "./NotebookLM";
 import Obsidian from "./Obsidian";
 import Sincronizacao from "./Sincronizacao";
 import * as I from "./icones";
@@ -108,6 +109,7 @@ export default function Config({
       {secao === "integracoes" && (
         <>
           <Obsidian onErro={onErro} />
+          <NotebookLM cursos={cursos} onErro={onErro} />
           <Mcp onErro={onErro} />
       <section className="card">
         <h2>Extensão do Chrome</h2>
