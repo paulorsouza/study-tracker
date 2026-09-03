@@ -307,6 +307,27 @@ const respostas: Record<string, (a: any) => unknown> = {
   supabase_salvar_config: () => null,
   supabase_entrar: () => null,
   supabase_sair: () => null,
+  supabase_recuperar_senha: () => null,
+  supabase_trocar_senha: () => null,
+  supabase_encerrar_outras: () => null,
+  supabase_apagar_nuvem: () => 128,
+  supabase_maquinas: () => [
+    { origem: "9f3c1a7e-0b21-4c5d-9e88-1122aabbccdd", lido_em: Date.now() - 4 * 60000,
+      esta_maquina: true, operacoes: 412 },
+    { origem: "2b71d0c4-88ae-49f1-bb03-5566778899aa", lido_em: Date.now() - 26 * 3600_000,
+      esta_maquina: false, operacoes: 96 },
+  ],
+  exportar_dados: ({ caminho }: any) => ({
+    caminho,
+    bytes: 184_320,
+    linhas: [
+      ["settings", 6], ["activity_types", 8], ["activity_goals", 3],
+      ["subjects", 2], ["platforms", 2], ["courses", 3], ["course_tags", 2],
+      ["tasks", 9], ["time_entries", 412], ["notes", 3], ["note_tags", 5],
+      ["time_favorites", 2], ["session_revisions", 11],
+      ["open_intervals", 0], ["audit_events", 24],
+    ],
+  }),
   supabase_sql: () =>
     "create table if not exists public.sync_operations (...);\n-- ver supabase.rs",
   sync_pendencias: () => ({
@@ -449,6 +470,9 @@ const respostas: Record<string, (a: any) => unknown> = {
   "plugin:window|toggle_maximize": () => null,
   "plugin:window|close": () => null,
   "plugin:event|unlisten": () => null,
+  // O seletor de arquivo é do sistema; na prévia ele devolve um caminho de
+  // mentira só para a tela seguir adiante.
+  "plugin:dialog|save": () => "C:\Users\voce\Downloads\estudos.json",
   pomodoro_config: () => cfgPomo,
   pomodoro_salvar_config: () => null,
   pomodoro_estado: () => ({

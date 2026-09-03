@@ -809,8 +809,6 @@ Comandos separados de propósito, pela terceira vez e pela mesma razão:
 treino) e `salvar_vinculos` (matéria, aula). Cada tela manda o que conhece, e
 nenhuma apaga o que não conhece.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-036 — a próxima tarefa é a próxima da lista, não a mais prioritária
@@ -846,5 +844,53 @@ A lição fica registrada: mock que acompanha a mudança do frontend, e não a d
 backend, transforma a verificação numa conversa do frontend com ele mesmo.
 Verificar contra o banco real, como foi feito com as migrações, é o que teria
 pego isto na hora.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-037 — o que a chave anon permite, e o que ela não permite
+
+§3.1 pede "listar e encerrar sessões em outros computadores" e "exclusão de
+conta e dados sincronizados". Metade disso é impossível de dentro deste app, e
+a resposta certa é dizer isso na tela, não fingir.
+
+Listar sessões do GoTrue e apagar um usuário exigem a chave `service_role`, que
+dá poder de administrador sobre o projeto inteiro — inclusive sobre contas que
+não são a do usuário. Embutir essa chave num executável de desktop seria
+entregar o projeto a quem abrisse o arquivo. A chave `anon` é pública por
+desenho (D-024) e não pode fazer nada disso; é a RLS que protege as linhas.
+
+O que **é** possível, e foi feito:
+
+- **Encerrar as outras sessões** com `logout?scope=others`. Quem está
+  autenticado pode derrubar as próprias sessões, sem administrador nenhum.
+- **Listar as máquinas que sincronizaram**, de `sync_cursores` e do
+  `device_id` das operações. Não são sessões de login, e a tela diz isso — mas
+  respondem a pergunta prática: de onde vieram os dados.
+- **Apagar as operações do servidor**, que a RLS restringe às linhas de
+  `auth.uid()`. O banco **local não é tocado**: apagar a nuvem não é apagar o
+  histórico, e confundir as duas coisas destruiria dado que ninguém mandou
+  destruir.
+- **Excluir a conta** fica no painel do Supabase, com o caminho escrito na tela.
+
+Isso expôs um buraco no SQL do esquema: não havia política de `delete`. A RLS
+teria recusado, e o PostgREST responderia sucesso com zero linhas — falha
+silenciosa, o pior tipo. O script ganhou a política e virou idempotente
+(`drop policy if exists` antes de cada `create`), para poder ser rodado de novo.
+
+### Exportação: não é a que foi cortada
+
+D-030 cortou a exportação **de relatórios** — recortar um período para levar a
+uma planilha. A de §3.1 é outra coisa: o direito de ter os próprios dados de
+volta. Leva o banco inteiro, tabela por tabela, sem filtro. Um arquivo de
+resgate que já vem podado não resgata nada.
+
+As colunas saem de `PRAGMA table_info` e o JSON de cada linha vem do
+`json_object` do próprio SQLite: a exportação não conhece o esquema, então
+migração futura entra no arquivo sozinha, sem ninguém lembrar. O arquivo é
+escrito em fluxo, e não montado em memória — montar tudo antes de gravar
+funcionaria hoje e falharia no ano em que o histórico ficar grande, que é
+justamente quando alguém exporta.
 
 A ordem do que resta está em `04-pendencias.md`.

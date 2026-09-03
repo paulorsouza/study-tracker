@@ -325,14 +325,225 @@ alter table public.sync_operations enable row level security;
 
 -- Cada pessoa só enxerga e só grava as próprias linhas. Esta é a proteção
 -- real do projeto: a chave anon é pública por desenho.
+-- `drop policy if exists` antes de cada `create`: o script precisa poder ser
+-- rodado de novo sem erro, senão quem acrescentar uma política tem de editar o
+-- que já rodou.
+drop policy if exists "dono le" on public.sync_operations;
 create policy "dono le" on public.sync_operations
   for select using (auth.uid() = user_id);
 
+drop policy if exists "dono grava" on public.sync_operations;
 create policy "dono grava" on public.sync_operations
   for insert with check (auth.uid() = user_id);
+
+-- Sem esta, "apagar os dados da nuvem" falharia calado: a RLS recusaria o
+-- delete e o PostgREST responderia sucesso com zero linhas afetadas.
+drop policy if exists "dono apaga" on public.sync_operations;
+create policy "dono apaga" on public.sync_operations
+  for delete using (auth.uid() = user_id);
 "#;
 
 #[tauri::command]
 pub fn supabase_sql() -> &'static str {
     SQL_ESQUEMA
+}
+
+// --- conta (§3.1) ------------------------------------------------------------
+
+/// Pede ao Supabase o e-mail de redefinição de senha.
+///
+/// O app não recebe nem manipula a senha nova: o link do e-mail abre a página
+/// do próprio Supabase. Trazer esse fluxo para dentro do app exigiria embutir a
+/// troca de token do link, e não há ganho que pague guardar mais um segredo.
+#[tauri::command]
+pub async fn supabase_recuperar_senha(
+    db: tauri::State<'_, Db>,
+    email: String,
+) -> Result<(), String> {
+    let cfg = config_de(&db);
+    let email = email.trim().to_lowercase();
+    if email.is_empty() {
+        return Err("informe o e-mail da conta".into());
+    }
+    let (url, key) = base(&cfg)?;
+
+    let r = reqwest::Client::new()
+        .post(format!("{url}/auth/v1/recover"))
+        .header("apikey", &key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "email": email }))
+        .send()
+        .await
+        .map_err(|e| format!("não consegui falar com o Supabase: {e}"))?;
+
+    if !r.status().is_success() {
+        return Err(erro_legivel(r).await);
+    }
+    Ok(())
+}
+
+/// Troca a senha de quem já está conectado.
+///
+/// A senha nova vai direto para o Supabase e não encosta em disco: nem em
+/// `settings`, nem no cofre, nem em log. O que muda no cofre é só o token de
+/// renovação, que o Supabase rotaciona sozinho na próxima sincronização.
+#[tauri::command]
+pub async fn supabase_trocar_senha(
+    db: tauri::State<'_, Db>,
+    nova: String,
+) -> Result<(), String> {
+    if nova.chars().count() < 8 {
+        return Err("a senha precisa de pelo menos 8 caracteres".into());
+    }
+    let cfg = config_de(&db);
+    let token = token_de_acesso(&cfg).await?;
+    let (url, key) = base(&cfg)?;
+
+    let r = reqwest::Client::new()
+        .put(format!("{url}/auth/v1/user"))
+        .header("apikey", &key)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "password": nova }))
+        .send()
+        .await
+        .map_err(|e| format!("não consegui falar com o Supabase: {e}"))?;
+
+    if !r.status().is_success() {
+        return Err(erro_legivel(r).await);
+    }
+    Ok(())
+}
+
+/// Máquina que já sincronizou com esta conta.
+#[derive(Serialize)]
+pub struct Maquina {
+    pub origem: String,
+    pub lido_em: i64,
+    pub esta_maquina: bool,
+    /// Operações que esta máquina mandou e que já chegaram aqui.
+    pub operacoes: i64,
+}
+
+/// As máquinas que sincronizaram, tiradas do que o app já sabe.
+///
+/// **Não são as sessões de autenticação.** Listar sessões do GoTrue exige a
+/// chave `service_role`, que dá poder de administrador sobre o projeto inteiro
+/// — guardá-la num app de desktop seria entregar o projeto a quem abrisse o
+/// executável. O que dá para saber sem ela é o que interessa na prática: de
+/// quais máquinas vieram dados.
+#[tauri::command]
+pub fn supabase_maquinas(db: tauri::State<Db>) -> Result<Vec<Maquina>, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT c.origem, c.lido_em,
+                    (SELECT count(*) FROM sync_operations o WHERE o.device_id = c.origem)
+               FROM sync_cursores c
+              ORDER BY c.lido_em DESC",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut v = stmt
+        .query_map([], |r| {
+            let origem: String = r.get(0)?;
+            Ok(Maquina {
+                esta_maquina: origem == db.device_id,
+                origem,
+                lido_em: r.get(1)?,
+                operacoes: r.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    // Esta máquina entra mesmo sem cursor: no primeiro uso ela ainda não leu
+    // nada de ninguém, e uma lista que não mostra o computador em que o usuário
+    // está parece quebrada.
+    if !v.iter().any(|m| m.esta_maquina) {
+        v.insert(
+            0,
+            Maquina {
+                origem: db.device_id.clone(),
+                lido_em: 0,
+                esta_maquina: true,
+                operacoes: conn
+                    .query_row(
+                        "SELECT count(*) FROM sync_operations WHERE device_id = ?1",
+                        params![db.device_id],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0),
+            },
+        );
+    }
+    Ok(v)
+}
+
+/// Encerra a sessão nas outras máquinas, mantendo esta conectada.
+///
+/// `scope=others` é do próprio GoTrue e não precisa de chave de administrador:
+/// quem está autenticado pode derrubar as próprias sessões. As outras máquinas
+/// pedem login na próxima sincronização; os dados locais delas continuam lá.
+#[tauri::command]
+pub async fn supabase_encerrar_outras(db: tauri::State<'_, Db>) -> Result<(), String> {
+    let cfg = config_de(&db);
+    let token = token_de_acesso(&cfg).await?;
+    let (url, key) = base(&cfg)?;
+
+    let r = reqwest::Client::new()
+        .post(format!("{url}/auth/v1/logout?scope=others"))
+        .header("apikey", &key)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Content-Length", "0")
+        .send()
+        .await
+        .map_err(|e| format!("não consegui falar com o Supabase: {e}"))?;
+
+    if !r.status().is_success() {
+        return Err(erro_legivel(r).await);
+    }
+    Ok(())
+}
+
+/// Apaga do Supabase todas as operações desta conta.
+///
+/// A RLS limita o `delete` às linhas de `auth.uid()`, então isto não tem como
+/// alcançar dados de outra pessoa mesmo que quisesse. O que fica **intacto** é
+/// o banco local: apagar a nuvem não é apagar o histórico do usuário, e
+/// confundir as duas coisas seria destruir dado que ninguém mandou destruir.
+#[tauri::command]
+pub async fn supabase_apagar_nuvem(db: tauri::State<'_, Db>) -> Result<u64, String> {
+    let cfg = config_de(&db);
+    let token = token_de_acesso(&cfg).await?;
+    let (url, key) = base(&cfg)?;
+
+    let r = reqwest::Client::new()
+        .delete(format!("{url}/rest/v1/sync_operations?seq=gte.0"))
+        .header("apikey", &key)
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Prefer", "count=exact")
+        .send()
+        .await
+        .map_err(|e| format!("não consegui falar com o Supabase: {e}"))?;
+
+    if !r.status().is_success() {
+        return Err(erro_legivel(r).await);
+    }
+
+    // `Content-Range: */12` é como o PostgREST devolve a contagem.
+    let apagadas = r
+        .headers()
+        .get("content-range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.rsplit('/').next().and_then(|n| n.parse().ok()))
+        .unwrap_or(0);
+
+    // Os cursores voltam ao zero: sem isto, a próxima leitura começaria de uma
+    // posição que não existe mais e o app pensaria estar em dia.
+    if let Ok(conn) = db.conn.lock() {
+        let _ = conn.execute("DELETE FROM sync_cursores", []);
+        let _ = conn.execute("UPDATE sync_operations SET enviada_em = NULL", []);
+    }
+    Ok(apagadas)
 }

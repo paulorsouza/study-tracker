@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. A conta é a próxima.
+Em ordem acordada. O NotebookLM é o próximo.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -97,12 +97,26 @@ Em ordem acordada. A conta é a próxima.
 - [x] Pomodoros concluídos
 - [x] Aviso de conflito de sincronização na tela inicial, não só em Configurações
 
-### 7. Conta — §3.1
+### 7. Conta — §3.1 ✅ (com dois limites de desenho)
 
-- [ ] Recuperação de senha
-- [ ] Listar e encerrar sessões de outras máquinas
-- [ ] Exportar os próprios dados
-- [ ] Excluir conta e dados sincronizados
+- [x] Recuperação de senha — link por e-mail, mais troca de senha estando logado
+- [x] ~~Listar~~ e encerrar sessões de outras máquinas — **parcial** (D-037)
+- [x] Exportar os próprios dados
+- [x] ~~Excluir conta~~ e dados sincronizados — **parcial** (D-037)
+
+> Dois itens não são possíveis de dentro do app e **não** vão ser: listar as
+> sessões de autenticação e excluir a conta em si exigem a chave `service_role`
+> do Supabase, que dá poder de administrador sobre o projeto inteiro. Um app
+> instalado no computador não pode guardá-la.
+>
+> O que existe no lugar: a lista de **máquinas que sincronizaram**, tirada dos
+> dados que o app já tem, e o botão que encerra as sessões das outras máquinas
+> (`scope=others`, que não precisa de administrador). Excluir a conta fica no
+> painel do Supabase, e a tela diz isso em vez de esconder.
+>
+> A migração 012 não muda nada aqui, mas o **SQL do esquema mudou**: ganhou a
+> política de `delete`. Sem ela "apagar os dados do servidor" falharia calado.
+> É preciso rodar o script de novo — ele agora é idempotente.
 
 ### 8. NotebookLM — §4.3
 
@@ -132,6 +146,8 @@ Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
 - [ ] Notificação do Pomodoro com a janela minimizada
 - [ ] Proteção do vault: exportar, editar no Obsidian, exportar de novo
 - [ ] Sincronização contra um Supabase real — autenticação, envio, recepção
+- [ ] Conta: recuperar senha, trocar senha, encerrar as outras sessões e apagar
+      os dados do servidor (tudo depende do Supabase real; D-037)
 - [ ] MCP ligado no Claude Desktop de verdade
 - [ ] Redimensionar a janela pelas bordas, com a decoração desligada (D-028)
 - [ ] Linux, inteiro (D-003)

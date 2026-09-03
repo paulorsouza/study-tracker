@@ -3,6 +3,7 @@ mod bridge;
 mod categorias;
 mod db;
 mod entries;
+mod exportacao;
 mod git;
 mod janela;
 mod library;
@@ -73,6 +74,7 @@ pub fn run() {
             entries::buscar_lancamentos,
             entries::salvar_detalhes,
             entries::listar_recentes,
+            exportacao::exportar_dados,
             entries::listar_materias,
             entries::criar_materia,
             entries::editar_materia,
@@ -155,6 +157,11 @@ pub fn run() {
             supabase::supabase_sair,
             supabase::supabase_estado,
             supabase::supabase_sql,
+            supabase::supabase_recuperar_senha,
+            supabase::supabase_trocar_senha,
+            supabase::supabase_maquinas,
+            supabase::supabase_encerrar_outras,
+            supabase::supabase_apagar_nuvem,
             sync::sync_agora,
             sync::sync_pendencias,
             sync::sync_conflitos,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Categorias from "./Categorias";
+import Conta from "./Conta";
 import Cronometro from "./Cronometro";
 import Materias from "./Materias";
 import Mcp from "./Mcp";
@@ -11,13 +12,14 @@ import { Curso } from "./App";
 
 type Ponte = { porta: number; token: string };
 
-type Secao = "aparencia" | "categorias" | "cronometro" | "sync" | "integracoes";
+type Secao = "aparencia" | "categorias" | "cronometro" | "sync" | "conta" | "integracoes";
 
 const SECOES: { id: Secao; nome: string }[] = [
   { id: "aparencia", nome: "Aparência" },
   { id: "categorias", nome: "Categorias e metas" },
   { id: "cronometro", nome: "Cronômetro" },
   { id: "sync", nome: "Sincronização" },
+  { id: "conta", nome: "Conta e dados" },
   { id: "integracoes", nome: "Integrações" },
 ];
 
@@ -68,6 +70,8 @@ export default function Config({
           </button>
         ))}
       </div>
+
+      {secao === "conta" && <Conta onErro={onErro} onMudou={onMudou} />}
 
       {secao === "cronometro" && (
         <Cronometro cursos={cursos} onErro={onErro} onMudou={onMudou} />
