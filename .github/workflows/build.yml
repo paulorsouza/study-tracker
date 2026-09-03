@@ -1,0 +1,101 @@
+# Instaladores de Windows e Linux (Fase 6 do plano).
+#
+# Existe porque o Tauri **não faz cross-compile**: o webview é o WebView2 no
+# Windows e o WebKitGTK no Linux, e cada um exige o toolchain e as bibliotecas
+# do próprio sistema. Gerar o Linux a partir da máquina de desenvolvimento não é
+# questão de configurar melhor — é impossível. Uma máquina de cada, então.
+#
+# Dispara em tag `v*` e à mão. Em tag, publica um rascunho de release; ninguém
+# quer descobrir um instalador quebrado depois de ele já estar público.
+
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            rotulo: linux
+          - os: windows-latest
+            rotulo: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # WebKitGTK 4.1 é o webview; `libayatana-appindicator3` é o que faz a
+      # bandeja do sistema existir no Linux — sem ele o app compila e sobe sem
+      # ícone nenhum, que é o pior tipo de falha: silenciosa.
+      # `libxdo` vem do plugin de janela, `patchelf` é exigido pelo AppImage.
+      - name: Dependências do sistema (Linux)
+        if: matrix.rotulo == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            patchelf \
+            file
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # A compilação do Rust é o que domina o tempo aqui; sem cache, cada
+      # execução recompila as mesmas trezentas caixas.
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci
+        working-directory: app
+
+      # Compilar não é o mesmo que estar certo. Os testes rodam antes do
+      # empacotamento para que um instalador não saia de código quebrado.
+      - name: Testes
+        run: cargo test --lib
+        working-directory: app/src-tauri
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: app
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: Estudos ${{ github.ref_name }}
+          releaseBody: |
+            Instaladores gerados automaticamente a partir da tag.
+
+            O que ainda não foi exercitado em uso real está em
+            `docs/04-pendencias.md`, seção "Não verificado".
+          releaseDraft: true
+          prerelease: true
+
+      # Também como artefato do próprio job: dá para baixar e testar sem
+      # publicar release nenhum, que é o caso do `workflow_dispatch`.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: estudos-${{ matrix.rotulo }}
+          if-no-files-found: error
+          path: |
+            app/src-tauri/target/release/bundle/**/*.deb
+            app/src-tauri/target/release/bundle/**/*.rpm
+            app/src-tauri/target/release/bundle/**/*.AppImage
+            app/src-tauri/target/release/bundle/**/*.msi
+            app/src-tauri/target/release/bundle/**/*-setup.exe
