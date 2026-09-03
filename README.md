@@ -18,6 +18,9 @@ está e inicia o cronômetro sem sair da página. O app cuida da gestão.
 | `docs/01-decisoes.md` | **decisões tomadas, com data e motivo** |
 | `docs/02-fase0-spike.md` | o spike técnico e o que ele revelou |
 | `docs/03-modelo-de-tempo.md` | modelo de dados do registro de tempo |
+| `docs/04-pendencias.md` | o que falta, o que foi cortado e o que **não foi verificado** |
+| `docs/05-empacotamento.md` | como gerar os instaladores |
+| `docs/06-linux.md` | montar e testar no Linux, do zero |
 
 Quem for mexer no código: comece por `01-decisoes.md`. Boa parte do que parece
 arbitrário está explicado lá, incluindo as escolhas que foram revertidas.

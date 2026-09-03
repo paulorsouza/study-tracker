@@ -28,7 +28,8 @@ instalar antes além do Rust com a cadeia MSVC e do Node.
 
 ## Linux
 
-Rodar **na máquina Linux**, com as bibliotecas de desenvolvimento presentes:
+Passo a passo completo, incluindo instalar o Rust e o Node numa máquina limpa,
+está em **`06-linux.md`**. O resumo:
 
 ```
 sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \

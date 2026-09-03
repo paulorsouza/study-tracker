@@ -176,4 +176,4 @@ Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
       os dados do servidor (tudo depende do Supabase real; D-037)
 - [ ] MCP ligado no Claude Desktop de verdade
 - [ ] Redimensionar a janela pelas bordas, com a decoração desligada (D-028)
-- [ ] Linux, inteiro (D-003)
+- [ ] Linux, inteiro (D-003) — roteiro em `06-linux.md`
