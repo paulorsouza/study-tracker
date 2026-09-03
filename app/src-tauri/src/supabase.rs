@@ -21,6 +21,7 @@ use crate::db::Db;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
+#[cfg(desktop)]
 const SERVICO_COFRE: &str = "estudos-app";
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -60,23 +61,63 @@ fn gravar_config(db: &Db, c: &Config) -> Result<(), String> {
 
 // --- cofre de credenciais ----------------------------------------------------
 
+#[cfg(desktop)]
 fn cofre(email: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(SERVICO_COFRE, email).map_err(|e| format!("cofre indisponível: {e}"))
 }
 
+#[cfg(desktop)]
 fn guardar_refresh(email: &str, token: &str) -> Result<(), String> {
     cofre(email)?
         .set_password(token)
         .map_err(|e| format!("não consegui guardar no cofre: {e}"))
 }
 
+#[cfg(desktop)]
 fn ler_refresh(email: &str) -> Option<String> {
     cofre(email).ok()?.get_password().ok()
 }
 
+#[cfg(desktop)]
 fn apagar_refresh(email: &str) {
     if let Ok(c) = cofre(email) {
         let _ = c.delete_credential();
+    }
+}
+
+/// No Android o token de renovação vive **só em memória**, e some ao fechar.
+///
+/// O `keyring` não tem backend Android. As saídas seriam guardar o token no
+/// banco — que é exatamente o que D-025 proíbe, porque uma cópia do arquivo
+/// levaria a sessão junto — ou escrever uma ponte para o Keystore, que é
+/// trabalho de verdade e ainda não foi feito.
+///
+/// Entre as duas, esta é a escolha honesta: **pedir login de novo** a cada
+/// abertura. Menos cômodo, e nunca menos seguro. Quando o Keystore existir,
+/// só estas três funções mudam.
+#[cfg(mobile)]
+static REFRESH_EM_MEMORIA: std::sync::Mutex<Option<(String, String)>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(mobile)]
+fn guardar_refresh(email: &str, token: &str) -> Result<(), String> {
+    *REFRESH_EM_MEMORIA
+        .lock()
+        .map_err(|_| "cofre em memória ocupado")? = Some((email.to_string(), token.to_string()));
+    Ok(())
+}
+
+#[cfg(mobile)]
+fn ler_refresh(email: &str) -> Option<String> {
+    let g = REFRESH_EM_MEMORIA.lock().ok()?;
+    let (e, t) = g.as_ref()?;
+    (e == email).then(|| t.clone())
+}
+
+#[cfg(mobile)]
+fn apagar_refresh(_email: &str) {
+    if let Ok(mut g) = REFRESH_EM_MEMORIA.lock() {
+        *g = None;
     }
 }
 
