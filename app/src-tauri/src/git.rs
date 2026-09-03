@@ -21,7 +21,7 @@
 use crate::db::Db;
 use crate::obsidian;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::process::Command;
 
 fn git(dir: &Path, args: &[&str]) -> Result<String, String> {
@@ -67,11 +67,33 @@ pub struct Estado {
     pub erro: Option<String>,
 }
 
-fn caminho_relativo(raiz: &Path, pasta: &Path) -> String {
-    pasta
-        .strip_prefix(raiz)
-        .map(|p| p.to_string_lossy().replace('\\', "/"))
-        .unwrap_or_default()
+/// Onde a pasta de exportação fica dentro do repositório.
+///
+/// Vazio significa "a pasta **é** a raiz", e só isso. Falhar em descobrir é
+/// **erro**, nunca "tudo" — a versão anterior caía em `unwrap_or_default()`, e
+/// a string vazia virava `git add -- .` mais adiante: o vault inteiro no
+/// commit, que é exatamente o que D-021 promete que nunca acontece.
+///
+/// Os dois caminhos são canonicalizados antes de comparar porque o git devolve
+/// o caminho já resolvido — sem nome curto 8.3, sem junção — e comparar isso
+/// com o caminho cru do sistema falha justamente onde ninguém testa. Foi o CI
+/// do Windows que pegou: lá o temporário aparece como `RUNNER~1`, aqui não, e
+/// o mesmo código commitava coisas diferentes.
+fn caminho_relativo(raiz: &Path, pasta: &Path) -> Result<String, String> {
+    let resolver = |p: &Path| {
+        std::fs::canonicalize(p)
+            .map_err(|e| format!("não consegui resolver {}: {e}", p.display()))
+    };
+    let (r, p) = (resolver(raiz)?, resolver(pasta)?);
+    p.strip_prefix(&r)
+        .map(|x| x.to_string_lossy().replace(MAIN_SEPARATOR, "/"))
+        .map_err(|_| {
+            format!(
+                "a pasta de exportação não está dentro do repositório: {} fora de {}",
+                p.display(),
+                r.display()
+            )
+        })
 }
 
 #[tauri::command]
@@ -98,7 +120,10 @@ pub fn git_estado(db: tauri::State<Db>) -> Estado {
         Err(_) => return vazio(Some("a pasta não está dentro de um repositório git".into())),
     };
 
-    let relativo = caminho_relativo(&raiz, &pasta);
+    let relativo = match caminho_relativo(&raiz, &pasta) {
+        Ok(r) => r,
+        Err(e) => return vazio(Some(e)),
+    };
     let ramo = git(&raiz, &["rev-parse", "--abbrev-ref", "HEAD"]).ok();
     let remoto = git(&raiz, &["remote"])
         .ok()
@@ -191,7 +216,15 @@ pub fn sincronizar_em(pasta: &Path, mensagem: Option<String>) -> Sincronizacao {
             return s;
         }
     };
-    let relativo = caminho_relativo(&raiz, pasta);
+    let relativo = match caminho_relativo(&raiz, pasta) {
+        Ok(r) => r,
+        Err(e) => {
+            s.erro = Some(e);
+            return s;
+        }
+    };
+    // Vazio aqui só pode significar que a pasta de exportação é a própria
+    // raiz do repositório — o único caso em que `.` está certo.
     let alvo = if relativo.is_empty() { ".".to_string() } else { relativo };
 
     // 1. Preparar só o que é nosso. O `--` separa caminho de opção e evita
@@ -284,7 +317,7 @@ pub fn sincronizar_em(pasta: &Path, mensagem: Option<String>) -> Sincronizacao {
 
 #[cfg(test)]
 mod testes {
-    use super::{git, sincronizar_em};
+    use super::{caminho_relativo, git, sincronizar_em};
     use std::path::{Path, PathBuf};
 
     /// Monta um remoto nu e dois clones — o cenário real de duas máquinas.
@@ -405,5 +438,37 @@ mod testes {
         assert!(r.commitou);
         assert!(!r.enviou);
         assert!(r.erro.is_none(), "sem remoto não é erro: {:?}", r.erro);
+    }
+
+    /// O defeito que o CI do Windows pegou.
+    ///
+    /// Antes, quando `strip_prefix` falhava — nome curto 8.3, junção, qualquer
+    /// diferença entre o caminho que o git devolve e o que o sistema entrega —
+    /// a função caía em `unwrap_or_default()`. A string vazia virava
+    /// `git add -- .` e o vault inteiro entrava no commit. Falhar tem de ser
+    /// erro; "tudo" nunca é um palpite aceitável aqui.
+    #[test]
+    fn pasta_fora_da_raiz_e_erro_e_nao_a_raiz_inteira() {
+        let base = std::env::temp_dir().join("estudos-git-escopo-relativo");
+        let _ = std::fs::remove_dir_all(&base);
+        let (raiz, fora) = (base.join("repo"), base.join("outro/lugar"));
+        std::fs::create_dir_all(&raiz).unwrap();
+        std::fs::create_dir_all(&fora).unwrap();
+
+        let r = caminho_relativo(&raiz, &fora);
+        assert!(r.is_err(), "devolveu {r:?} em vez de erro");
+
+        // A raiz sendo a própria pasta continua valendo vazio: é o único caso
+        // em que `git add -- .` está certo.
+        assert_eq!(caminho_relativo(&raiz, &raiz).unwrap(), "");
+
+        let dentro = raiz.join("Estudos/diario");
+        std::fs::create_dir_all(&dentro).unwrap();
+        assert_eq!(
+            caminho_relativo(&raiz, &dentro).unwrap(),
+            "Estudos/diario",
+            "o separador tem de sair normalizado para o git"
+        );
+        let _ = std::fs::remove_dir_all(&base);
     }
 }
