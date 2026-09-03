@@ -546,7 +546,14 @@ export default function App() {
           )}
 
           {aba === "painel" && (
-            <Painel cursos={cursos} versao={versao} tema={tema} irPara={setAba} />
+            <Painel
+              cursos={cursos}
+              versao={versao}
+              tema={tema}
+              irPara={setAba}
+              onErro={setErro}
+              onMudou={mudou}
+            />
           )}
           {aba === "hoje" && (
             <Tempo cursos={cursos} versao={versao} tema={tema} onErro={setErro} onMudou={mudou} />

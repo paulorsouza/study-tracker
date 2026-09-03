@@ -32,6 +32,13 @@ pub struct Lancamento {
     /// Ícone da categoria, resolvido aqui para a lista não precisar de um
     /// segundo carregamento só para desenhar a linha.
     pub icone: Option<String>,
+    pub subject_id: Option<String>,
+    pub materia: Option<String>,
+    pub aula: Option<String>,
+    /// Etiqueta de estrutura: `pomodoro_focus`, `pomodoro_break` ou nada. Nunca
+    /// soma nada — só filtra (`docs/03-modelo-de-tempo.md`). É o que deixa o
+    /// Painel contar Pomodoros sem uma segunda consulta que possa discordar.
+    pub context: Option<String>,
     /// Este lançamento cobre um pedaço de tempo que outro também cobre.
     ///
     /// Sobreposição continua **permitida** — caminhar com os dogs durante a
@@ -138,10 +145,12 @@ pub fn listar_periodo(
         .prepare(
             "SELECT e.id, e.started_at, e.ended_at, e.activity_type_id, a.nome, a.cor,
                     a.cor_escura, a.conta_como_estudo, e.description, e.course_id,
-                    c.titulo, e.source, e.observacao, e.distancia_m, e.treino, a.icone
+                    c.titulo, e.source, e.observacao, e.distancia_m, e.treino, a.icone,
+                    e.subject_id, s.nome, e.aula, e.context
                FROM time_entries e
                JOIN activity_types a ON a.id = e.activity_type_id
                LEFT JOIN courses c ON c.id = e.course_id
+               LEFT JOIN subjects s ON s.id = e.subject_id
               WHERE e.deleted_at IS NULL
                 AND e.started_at < ?2
                 AND COALESCE(e.ended_at, ?2) > ?1
@@ -168,6 +177,10 @@ pub fn listar_periodo(
                 distancia_m: r.get(13)?,
                 treino: r.get(14)?,
                 icone: r.get(15)?,
+                subject_id: r.get(16)?,
+                materia: r.get(17)?,
+                aula: r.get(18)?,
+                context: r.get(19)?,
                 sobrepoe: false,
             })
         })
@@ -788,6 +801,10 @@ mod testes_sobreposicao {
             distancia_m: None,
             treino: None,
             icone: None,
+            subject_id: None,
+            materia: None,
+            aula: None,
+            context: None,
             sobrepoe: false,
         }
     }
@@ -928,7 +945,8 @@ pub fn buscar_lancamentos(
     let onde = cond.join(" AND ");
     let de = "FROM time_entries e
               JOIN activity_types a ON a.id = e.activity_type_id
-              LEFT JOIN courses c ON c.id = e.course_id";
+              LEFT JOIN courses c ON c.id = e.course_id
+              LEFT JOIN subjects s ON s.id = e.subject_id";
 
     let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
 
@@ -955,7 +973,8 @@ pub fn buscar_lancamentos(
         .prepare(&format!(
             "SELECT e.id, e.started_at, e.ended_at, e.activity_type_id, a.nome, a.cor,
                     a.cor_escura, a.conta_como_estudo, e.description, e.course_id,
-                    c.titulo, e.source, e.observacao, e.distancia_m, e.treino, a.icone
+                    c.titulo, e.source, e.observacao, e.distancia_m, e.treino, a.icone,
+                    e.subject_id, s.nome, e.aula, e.context
                {de} WHERE {onde}
               ORDER BY e.started_at DESC
               LIMIT {m_lim} OFFSET {m_off}"
@@ -981,6 +1000,10 @@ pub fn buscar_lancamentos(
                 distancia_m: r.get(13)?,
                 treino: r.get(14)?,
                 icone: r.get(15)?,
+                subject_id: r.get(16)?,
+                materia: r.get(17)?,
+                aula: r.get(18)?,
+                context: r.get(19)?,
                 sobrepoe: false,
             })
         })

@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. O Painel é o próximo.
+Em ordem acordada. A conta é a próxima.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -89,13 +89,13 @@ Em ordem acordada. O Painel é o próximo.
       já encerradas, na lista de ciclos
 - [x] Vincular a matéria e aula, não só curso e tarefa (D-035)
 
-### 6. Painel — §3.2
+### 6. Painel — §3.2 ✅
 
-- [ ] Próxima tarefa planejada
-- [ ] Botão de início rápido
-- [ ] Cursos recentes
-- [ ] Pomodoros concluídos
-- [ ] Aviso de conflito de sincronização na tela inicial, não só em Configurações
+- [x] Próxima tarefa planejada
+- [x] Botão de início rápido
+- [x] Cursos recentes
+- [x] Pomodoros concluídos
+- [x] Aviso de conflito de sincronização na tela inicial, não só em Configurações
 
 ### 7. Conta — §3.1
 

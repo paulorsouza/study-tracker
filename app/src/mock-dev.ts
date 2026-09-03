@@ -92,6 +92,7 @@ const monta = (
   course_id: curso,
   curso: curso ? CURSOS.find((c) => c.id === curso)!.titulo : null,
   source: "timer",
+  context: null as string | null,
   sobrepoe: false,
   subject_id: null as string | null,
   materia: null as string | null,
@@ -105,6 +106,12 @@ const monta = (
 const lancamentos = LANC.map(([id, ini, fim, tipo, desc, curso]) =>
   monta(id, ini, fim, tipo, desc, curso)
 );
+
+// Dois focos de Pomodoro hoje, para o contador do Painel ter o que contar.
+for (const id of ["e2", "e4"]) {
+  const l = lancamentos.find((x) => x.id === id);
+  if (l) l.context = "pomodoro_focus";
+}
 
 // Histórico dos últimos 45 dias, gerado com irregularidade proposital: dias
 // zerados, finais de semana fracos e um pico. Série lisa esconde o que o

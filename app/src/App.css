@@ -541,6 +541,10 @@ body {
 
 .aviso-erro { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
 .aviso-erro svg { color: var(--danger); }
+.aviso-atencao {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
+  align-items: center;
+}
 .aviso-atencao svg { color: var(--warn); }
 .aviso p { margin: 3px 0 0; color: var(--tx-2); }
 .aviso strong { font-weight: 620; }
@@ -1420,3 +1424,35 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
 .lanc:hover .reclassificar { border-color: var(--line-2); background: var(--surf-2); }
 .reclassificar:hover, .reclassificar:focus { color: var(--tx); border-color: var(--acc); }
+
+/* --- painel: começar de novo ---------------------------------------------- */
+
+.inicio-rapido {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip-inicio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: 99px;
+  background: var(--surf-2);
+  color: var(--tx-2);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  max-width: 240px;
+}
+
+.chip-inicio span:last-child,
+.chip-inicio { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-inicio:hover { border-color: var(--acc); color: var(--tx); background: var(--surf-3); }
+
+/* O aviso de conflito é o único bloco do painel que pede ação, e o botão dele
+   precisa ficar na ponta em vez de colado no texto. */
+.aviso .btn { margin-left: auto; flex: none; }

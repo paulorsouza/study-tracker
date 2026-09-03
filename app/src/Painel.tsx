@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Curso, durCurta } from "./App";
+import { Curso, Recente, durCurta } from "./App";
 import Metas from "./Metas";
 import * as I from "./icones";
 
@@ -15,7 +15,23 @@ type Lancamento = {
   conta_como_estudo: boolean;
   course_id: string | null;
   curso: string | null;
+  /// `pomodoro_focus` conta um Pomodoro; nada aqui soma tempo.
+  context: string | null;
 };
+
+type Tarefa = {
+  id: string;
+  titulo: string;
+  course_id: string | null;
+  curso: string | null;
+  duracao_estimada_min: number | null;
+  prioridade: number;
+  estado: string;
+  realizado_ms: number;
+  activity_type_id: string | null;
+};
+
+type Pendencias = { na_fila: number; conflitos: number };
 
 type Tema = "escuro" | "claro";
 
@@ -47,6 +63,14 @@ function porDiaLocal(itens: Lancamento[], dias: Date[]) {
   return dias.map((d) => ({ dia: d, ms: mapa.get(d.getTime()) ?? 0 }));
 }
 
+function quandoCurso(ms: number | null) {
+  if (!ms) return "";
+  const dias = Math.floor((Date.now() - ms) / DIA_MS);
+  if (dias === 0) return "hoje";
+  if (dias === 1) return "ontem";
+  return `há ${dias} dias`;
+}
+
 const PERIODOS = [
   { dias: 7, nome: "7 dias" },
   { dias: 14, nome: "14 dias" },
@@ -58,13 +82,20 @@ export default function Painel({
   versao,
   tema,
   irPara,
+  onErro,
+  onMudou,
 }: {
   cursos: Curso[];
   versao: number;
   tema: Tema;
-  irPara: (aba: "hoje" | "plano" | "cursos") => void;
+  irPara: (aba: "hoje" | "plano" | "cursos" | "foco" | "config") => void;
+  onErro: (e: string | null) => void;
+  onMudou: () => void;
 }) {
   const [itens, setItens] = useState<Lancamento[]>([]);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+  const [pend, setPend] = useState<Pendencias | null>(null);
+  const [recentes, setRecentes] = useState<Recente[]>([]);
   const [periodo, setPeriodo] = useState(14);
   const [foco, setFoco] = useState<number | null>(null);
 
@@ -77,6 +108,16 @@ export default function Painel({
     invoke<Lancamento[]>("listar_periodo", { inicio, fim })
       .then(setItens)
       .catch(() => {});
+
+    // A próxima tarefa e os avisos não saem da mesma consulta porque não são
+    // tempo: são o que ainda não aconteceu e o que precisa de atenção.
+    const hojeIso = new Date(inicioDoDia(new Date()).getTime() -
+      new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    invoke<Tarefa[]>("listar_tarefas", { dia: hojeIso, ate: hojeIso, modo: "intervalo" })
+      .then(setTarefas)
+      .catch(() => {});
+    invoke<Pendencias>("sync_pendencias").then(setPend).catch(() => {});
+    invoke<Recente[]>("listar_recentes", { limite: 4 }).then(setRecentes).catch(() => {});
   }, [versao]);
 
   const dados = useMemo(() => {
@@ -134,9 +175,19 @@ export default function Painel({
       porAtiv.set(l.activity_type_id, a);
     }
 
+    // Pomodoros concluídos hoje: fases de foco fechadas. A pausa não conta —
+    // um ciclo é um foco cumprido, não um par de linhas.
+    const pomodoros = itens.filter(
+      (l) =>
+        l.context === "pomodoro_focus" &&
+        l.ended_at !== null &&
+        l.started_at >= hoje0.getTime()
+    ).length;
+
     return {
       serie,
       seq,
+      pomodoros,
       hojeMs,
       semanaMs,
       totalPeriodo: serie.reduce((s, x) => s + x.ms, 0),
@@ -148,6 +199,27 @@ export default function Painel({
   const maxDia = Math.max(...dados.serie.map((s) => s.ms), 1);
   const maxCurso = Math.max(...dados.porCurso.map(([, ms]) => ms), 1);
   const melhor = dados.serie.reduce((a, b) => (b.ms > a.ms ? b : a), dados.serie[0]);
+
+  const comandar = (cmd: string, args: Record<string, unknown>) =>
+    invoke(cmd, args)
+      .then(() => {
+        onErro(null);
+        onMudou();
+      })
+      .catch((e) => onErro(String(e)));
+
+  // A próxima é a primeira ainda aberta na ordem que o usuário mesmo definiu
+  // arrastando no Planejamento — não a mais prioritária. Reordenar a lista lá e
+  // ver outra coisa aqui seria o painel discordando do plano.
+  const proxima = tarefas.find((t) => t.estado === "aberta") ?? null;
+
+  // Mesmo corte de "Cursos parados", do outro lado: acima de duas semanas o
+  // curso deixa de ser recente e vira parado. Sem isso o mesmo curso aparecia
+  // nas duas listas, e o painel se contradizia na mesma tela.
+  const recentesCursos = [...cursos]
+    .filter((c) => c.ultima_url_em && Date.now() - c.ultima_url_em <= 14 * DIA_MS)
+    .sort((a, b) => (b.ultima_url_em ?? 0) - (a.ultima_url_em ?? 0))
+    .slice(0, 4);
 
   // Curso sem lançamento no período todo, mas que já teve algum dia.
   const parados = cursos.filter(
@@ -162,6 +234,23 @@ export default function Painel({
         podem discordar entre si.
       </p>
 
+      {/* Conflito de sincronização aparece aqui, não só em Configurações
+          (§3.2). Dado que chegou e não foi aplicado é a única coisa neste app
+          que pode virar perda silenciosa — esconder isso numa aba interna seria
+          confiar que o usuário vá procurar. */}
+      {pend && pend.conflitos > 0 && (
+        <div className="aviso aviso-atencao" role="alert">
+          <I.Alerta />
+          <span>
+            {pend.conflitos} conflito{pend.conflitos === 1 ? "" : "s"} de
+            sincronização esperando decisão. Nada foi descartado.
+          </span>
+          <button className="btn" onClick={() => irPara("config")}>
+            Resolver
+          </button>
+        </div>
+      )}
+
       <div className="tiles">
         <Tile valor={durCurta(dados.hojeMs)} rotulo="estudo hoje" destaque />
         <Tile valor={durCurta(dados.semanaMs)} rotulo="esta semana" />
@@ -173,7 +262,90 @@ export default function Painel({
           valor={durCurta(dados.totalPeriodo / Math.max(periodo, 1))}
           rotulo="média por dia"
         />
+        <Tile
+          valor={String(dados.pomodoros)}
+          rotulo={dados.pomodoros === 1 ? "pomodoro hoje" : "pomodoros hoje"}
+        />
       </div>
+
+      <section className="card">
+        <div className="card-cab">
+          <h2>Agora</h2>
+          <button className="btn btn-fantasma" onClick={() => irPara("plano")}>
+            Ver planejamento
+          </button>
+        </div>
+
+        {proxima ? (
+          <div className="lanc">
+            {proxima.prioridade > 0 && (
+              <span
+                className="pri"
+                style={{
+                  background:
+                    proxima.prioridade === 2 ? "var(--danger)" : "var(--warn)",
+                }}
+              />
+            )}
+            <span className="lanc-texto" style={{ fontWeight: 500 }}>
+              {proxima.titulo}
+              {proxima.curso && <span className="lanc-curso"> · {proxima.curso}</span>}
+            </span>
+            {proxima.duracao_estimada_min ? (
+              <span className="lanc-dur num">
+                {durCurta(proxima.duracao_estimada_min * 60000)}
+              </span>
+            ) : null}
+            <button
+              className="btn btn-primario"
+              onClick={() =>
+                comandar("timer_start", {
+                  description: proxima.titulo,
+                  cursoId: proxima.course_id,
+                  tarefaId: proxima.id,
+                  activityTypeId: proxima.activity_type_id,
+                })
+              }
+            >
+              <I.Play /> Começar
+            </button>
+          </div>
+        ) : (
+          <div className="vazio">
+            {tarefas.length > 0
+              ? "Tudo do dia concluído."
+              : "Nada planejado para hoje."}
+          </div>
+        )}
+
+        {recentes.length > 0 && (
+          <>
+            <hr />
+            <div className="inicio-rapido">
+              <span className="nota" style={{ margin: 0 }}>Começar de novo</span>
+              {recentes.map((r, i) => (
+                <button
+                  key={`${r.activity_type_id}-${i}`}
+                  className="chip-inicio"
+                  onClick={() =>
+                    comandar("timer_start", {
+                      description: r.descricao ?? "",
+                      cursoId: r.course_id,
+                      tarefaId: null,
+                      activityTypeId: r.activity_type_id,
+                    })
+                  }
+                >
+                  <span style={{ color: r.cor, display: "flex" }}>
+                    <I.IconeCategoria nome={r.icone} size={13} />
+                  </span>
+                  {r.descricao || r.atividade}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
 
       <Metas itens={itens} tema={tema} versao={versao} />
 
@@ -312,6 +484,43 @@ export default function Painel({
           </p>
         </section>
       </div>
+
+      {recentesCursos.length > 0 && (
+        <section className="card">
+          <div className="card-cab">
+            <h2>Cursos recentes</h2>
+            <button className="btn btn-fantasma" onClick={() => irPara("cursos")}>
+              Ver todos
+            </button>
+          </div>
+          {recentesCursos.map((c) => (
+            <div key={c.id} className="lanc">
+              {c.favorito && (
+                <span style={{ color: "var(--warn)", display: "flex", flex: "none" }}>
+                  <I.Estrela cheia size={13} />
+                </span>
+              )}
+              <span className="lanc-texto">{c.titulo}</span>
+              <span className="lanc-curso" style={{ fontSize: 12.5 }}>
+                {quandoCurso(c.ultima_url_em)}
+              </span>
+              <button
+                className="btn"
+                onClick={() => {
+                  const alvo = c.ultima_url ?? c.url_principal;
+                  if (alvo) comandar("abrir_no_navegador", { url: alvo });
+                  else onErro(`"${c.titulo}" não tem rota salva.`);
+                }}
+              >
+                <I.Externo /> Continuar
+              </button>
+            </div>
+          ))}
+          <p className="nota">
+            Abre direto na última aula acessada, no seu navegador.
+          </p>
+        </section>
+      )}
 
       {parados.length > 0 && (
         <section className="card">

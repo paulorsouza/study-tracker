@@ -772,8 +772,6 @@ Descoberta ao refazer os gatilhos: `icone` **nunca esteve** em nenhum payload de
 sincronização. O ícone escolhido numa máquina nunca chegava na outra. Corrigido
 junto.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-035 — matéria virou tela; aula é texto livre
@@ -810,5 +808,43 @@ Comandos separados de propósito, pela terceira vez e pela mesma razão:
 `editar_lancamento` (horários), `salvar_detalhes` (observação, distância,
 treino) e `salvar_vinculos` (matéria, aula). Cada tela manda o que conhece, e
 nenhuma apaga o que não conhece.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-036 — a próxima tarefa é a próxima da lista, não a mais prioritária
+
+O Painel mostra como "Agora" a primeira tarefa **ainda aberta na ordem que o
+usuário definiu arrastando no Planejamento**. Ordenar por prioridade aqui
+pareceria mais esperto e seria pior: reordenar a lista lá e ver outra coisa aqui
+é o painel discordando do plano, e discordância é justamente o que a tela
+promete não fazer.
+
+"Cursos recentes" usa o **mesmo corte de catorze dias** que "Cursos parados",
+do outro lado. Sem isso o mesmo curso aparecia nas duas listas — recente e
+parado ao mesmo tempo, na mesma tela.
+
+O aviso de conflito de sincronização subiu para o topo do Painel. Dado que
+chegou e não foi aplicado é a única coisa neste app que pode virar perda
+silenciosa; deixá-lo só numa aba de Configurações seria apostar que o usuário
+vá procurar.
+
+Pomodoros concluídos são as **fases de foco fechadas**, não os pares
+foco+pausa: um ciclo é um foco cumprido. O número sai da mesma consulta que
+alimenta o resto da tela — `context` viajou junto com as linhas em vez de virar
+uma segunda consulta que pudesse discordar da primeira.
+
+### Um defeito que a verificação anterior deixou passar
+
+Ao ligar o Painel, apareceu que `Lancamento` **nunca chegou a devolver**
+`subject_id`, `materia` e `aula` (D-035): a edição do Rust falhou no meio de um
+script e só a parte do TypeScript foi aplicada. Compilava, e a prévia mostrava
+os campos porque o **mock** os tinha — os dois lados concordavam por acidente.
+
+A lição fica registrada: mock que acompanha a mudança do frontend, e não a do
+backend, transforma a verificação numa conversa do frontend com ele mesmo.
+Verificar contra o banco real, como foi feito com as migrações, é o que teria
+pego isto na hora.
 
 A ordem do que resta está em `04-pendencias.md`.
