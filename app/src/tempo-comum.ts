@@ -19,6 +19,9 @@ export type Lancamento = {
   observacao: string | null;
   distancia_m: number | null;
   treino: string | null;
+  subject_id: string | null;
+  materia: string | null;
+  aula: string | null;
   /** Ícone da categoria, resolvido na consulta. */
   icone?: string | null;
 };

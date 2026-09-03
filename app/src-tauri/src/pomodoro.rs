@@ -50,6 +50,10 @@ pub struct Config {
     pub auto_pausa: bool,
     pub auto_foco: bool,
     pub som: bool,
+    /// §3.4: "opção de iniciar a página do curso junto com o Pomodoro".
+    /// Desligada por padrão — abrir o navegador sem pedir é intrusivo, e quem
+    /// já está na aula não quer uma aba nova a cada ciclo.
+    pub abrir_curso: bool,
     /// Categoria usada nas pausas. Trocar aqui não desfaz o vínculo com o
     /// ciclo — `context` e `parent_id` continuam.
     pub tipo_pausa: String,
@@ -65,6 +69,7 @@ impl Default for Config {
             auto_pausa: false,
             auto_foco: false,
             som: true,
+            abrir_curso: false,
             tipo_pausa: "at-pausa".into(),
         }
     }
@@ -91,6 +96,8 @@ pub struct Sessao {
     pub aguardando: Option<Fase>,
     pub curso_id: Option<String>,
     pub tarefa_id: Option<String>,
+    pub materia_id: Option<String>,
+    pub aula: Option<String>,
     pub descricao: String,
     /// Fase congelada pela pausa. Fica fora de `fase` de propósito: o relógio
     /// que vigia o fim do ciclo lê `fase`, e uma fase pausada não deve vencer.
@@ -116,6 +123,9 @@ pub struct Estado {
     pub planejado_ms: i64,
     pub descricao: String,
     pub pausada: bool,
+    /// Categoria da fase que está correndo. A tela de Foco usa isto para
+    /// mostrar como a pausa está classificada agora.
+    pub activity_type_id: Option<String>,
 }
 
 // --- persistência da configuração e da sessão -------------------------------
@@ -210,6 +220,10 @@ fn abrir_fase(
             },
             curso_id: if fase == Fase::Foco { sess.curso_id.clone() } else { None },
             tarefa_id: if fase == Fase::Foco { sess.tarefa_id.clone() } else { None },
+            // A pausa não herda vínculo: ela é da sessão, não da aula. O laço
+            // com o Pomodoro vive em `parent_id`, que ela carrega igual.
+            materia_id: if fase == Fase::Foco { sess.materia_id.clone() } else { None },
+            aula: if fase == Fase::Foco { sess.aula.clone() } else { None },
             activity_type_id: if fase == Fase::Foco {
                 "at-estudo".into()
             } else {
@@ -229,12 +243,15 @@ fn abrir_fase(
 
 #[tauri::command]
 pub fn pomodoro_iniciar(
+    app: tauri::AppHandle,
     db: tauri::State<Db>,
     timer: tauri::State<TimerState>,
     pomo: tauri::State<PomodoroState>,
     descricao: String,
     curso_id: Option<String>,
     tarefa_id: Option<String>,
+    materia_id: Option<String>,
+    aula: Option<String>,
 ) -> Result<(), String> {
     let cfg = config_de(&db);
     let mut sess = pomo.0.lock().map_err(|_| "estado ocupado")?;
@@ -245,10 +262,36 @@ pub fn pomodoro_iniciar(
         descricao,
         curso_id,
         tarefa_id,
+        materia_id: materia_id.filter(|s| !s.is_empty()),
+        aula: aula.map(|a| a.trim().to_string()).filter(|a| !a.is_empty()),
         ..Default::default()
     };
     abrir_fase(&timer, &cfg, &mut sess, Fase::Foco)?;
     salvar_sessao(&db, &sess);
+
+    // A aba do curso abre junto, se o usuário pediu. Depois de a fase abrir:
+    // um erro ao achar a URL não pode impedir o Pomodoro de começar.
+    if cfg.abrir_curso {
+        if let Some(curso) = sess.curso_id.clone() {
+            let alvo: Option<String> = db
+                .conn
+                .lock()
+                .ok()
+                .and_then(|c| {
+                    c.query_row(
+                        "SELECT COALESCE(ultima_url, url_principal) FROM courses
+                          WHERE id = ?1 AND deleted_at IS NULL",
+                        rusqlite::params![curso],
+                        |r| r.get::<_, Option<String>>(0),
+                    )
+                    .ok()
+                })
+                .flatten();
+            if let Some(url) = alvo {
+                let _ = crate::library::abrir_no_navegador(app, url);
+            }
+        }
+    }
     Ok(())
 }
 
@@ -423,6 +466,7 @@ pub fn pomodoro_estado(
             .unwrap_or(0),
         descricao: sess.descricao,
         pausada: sess.pausada.is_some(),
+        activity_type_id: st.as_ref().map(|s| s.activity_type_id.clone()),
     }
 }
 
@@ -463,6 +507,10 @@ pub fn spawn_relogio(app: tauri::AppHandle) {
 /// o planejado (§3.4).
 #[derive(Serialize)]
 pub struct Ciclo {
+    /// Id da entrada. É o que permite reclassificar a pausa direto da lista,
+    /// sem sair da tela de Foco (§3.4).
+    pub id: String,
+    pub activity_type_id: String,
     pub rotulo: String,
     pub atividade: String,
     pub cor: String,
@@ -485,7 +533,7 @@ pub fn pomodoro_ciclos(
     let mut stmt = conn
         .prepare(
             "SELECT e.context, a.nome, a.cor, a.cor_escura, e.started_at, e.ended_at,
-                    e.planejado_ms
+                    e.planejado_ms, e.id, e.activity_type_id
                FROM time_entries e
                JOIN activity_types a ON a.id = e.activity_type_id
               WHERE e.parent_id = ?1 AND e.deleted_at IS NULL
@@ -499,6 +547,8 @@ pub fn pomodoro_ciclos(
             let inicio: i64 = r.get(4)?;
             let fim: Option<i64> = r.get(5)?;
             Ok(Ciclo {
+                id: r.get(7)?,
+                activity_type_id: r.get(8)?,
                 rotulo: if ctx == "pomodoro_focus" { "Foco" } else { "Pausa" }.into(),
                 atividade: r.get(1)?,
                 cor: r.get(2)?,

@@ -57,6 +57,9 @@ pub struct Inicio {
     pub description: String,
     pub curso_id: Option<String>,
     pub tarefa_id: Option<String>,
+    /// Matéria e aula: §3.4 pede os quatro vínculos, não só curso e tarefa.
+    pub materia_id: Option<String>,
+    pub aula: Option<String>,
     pub activity_type_id: String,
     pub context: Option<String>,
     pub parent_id: Option<String>,
@@ -80,6 +83,8 @@ impl Inicio {
             description,
             curso_id,
             tarefa_id,
+            materia_id: None,
+            aula: None,
             activity_type_id: activity_type_id
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "at-estudo".into()),
@@ -177,6 +182,9 @@ pub struct Status {
     pub pausado: bool,
     pub curso_id: Option<String>,
     pub tarefa_id: Option<String>,
+    pub materia_id: Option<String>,
+    pub aula: Option<String>,
+    pub activity_type_id: String,
     pub inicio_wall: i64,
 }
 
@@ -229,6 +237,9 @@ fn iniciar_com(state: &TimerState, inicio: Inicio, acumulado: i64) -> Result<Sta
     let entry_id = inicio.entry_id.clone();
     let curso_id = inicio.curso_id.clone();
     let tarefa_id = inicio.tarefa_id.clone();
+    let materia_id = inicio.materia_id.clone();
+    let aula = inicio.aula.clone();
+    let tipo = inicio.activity_type_id.clone();
     let acumulado_ms = acumulado;
     state.append(&Event::Start {
         session: session.clone(),
@@ -255,6 +266,9 @@ fn iniciar_com(state: &TimerState, inicio: Inicio, acumulado: i64) -> Result<Sta
         pausado: false,
         curso_id,
         tarefa_id,
+        materia_id,
+        aula,
+        activity_type_id: tipo,
         inicio_wall: wall,
     })
 }
@@ -296,6 +310,9 @@ pub fn status_de(state: &TimerState) -> Option<Status> {
             pausado: true,
             curso_id: p.inicio.curso_id.clone(),
             tarefa_id: p.inicio.tarefa_id.clone(),
+            materia_id: p.inicio.materia_id.clone(),
+            aula: p.inicio.aula.clone(),
+            activity_type_id: p.inicio.activity_type_id.clone(),
             inicio_wall: 0,
         });
     };
@@ -312,6 +329,9 @@ pub fn status_de(state: &TimerState) -> Option<Status> {
         pausado: false,
         curso_id: r.inicio.curso_id.clone(),
         tarefa_id: r.inicio.tarefa_id.clone(),
+        materia_id: r.inicio.materia_id.clone(),
+        aula: r.inicio.aula.clone(),
+        activity_type_id: r.inicio.activity_type_id.clone(),
         inicio_wall: r.started_wall,
     })
 }
@@ -353,9 +373,9 @@ pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, Strin
         let _ = conn.execute(
             "INSERT INTO time_entries
                (id, started_at, ended_at, activity_type_id, description, course_id,
-                task_id, context, parent_id, planejado_ms, source, device_id,
-                version, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'timer', ?11, 1, ?3, ?3)",
+                task_id, subject_id, aula, context, parent_id, planejado_ms, source,
+                device_id, version, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'timer', ?13, 1, ?3, ?3)",
             rusqlite::params![
                 i.entry_id,
                 r.started_wall,
@@ -364,6 +384,8 @@ pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, Strin
                 if i.description.is_empty() { None } else { Some(&i.description) },
                 i.curso_id,
                 i.tarefa_id,
+                i.materia_id,
+                i.aula,
                 i.context,
                 i.parent_id,
                 i.planejado_ms,
@@ -445,11 +467,22 @@ pub fn timer_editar(
     descricao: String,
     curso_id: Option<String>,
     tarefa_id: Option<String>,
+    materia_id: Option<String>,
+    aula: Option<String>,
+    activity_type_id: Option<String>,
 ) -> Result<Status, String> {
     let aplicar = |i: &mut Inicio| {
         i.description = descricao.trim().to_string();
         i.curso_id = curso_id.clone();
         i.tarefa_id = tarefa_id.clone();
+        i.materia_id = materia_id.clone().filter(|s| !s.is_empty());
+        i.aula = aula.clone().map(|a| a.trim().to_string()).filter(|a| !a.is_empty());
+        // A linha ainda não existe no banco: trocar a categoria aqui é
+        // reclassificar antes de gravar, e é o que resolve "caminhei durante a
+        // pausa" no instante em que acontece, e não depois.
+        if let Some(t) = activity_type_id.clone().filter(|s| !s.is_empty()) {
+            i.activity_type_id = t;
+        }
     };
 
     let mut running = state.running.lock().unwrap();
@@ -507,13 +540,21 @@ pub fn timer_continuar(
     db: tauri::State<crate::db::Db>,
     entry_id: String,
 ) -> Result<Status, String> {
-    let (descricao, curso, tarefa, tipo): (Option<String>, Option<String>, Option<String>, String) = {
+    type Anterior = (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+    );
+    let (descricao, curso, tarefa, tipo, materia, aula): Anterior = {
         let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
         conn.query_row(
-            "SELECT description, course_id, task_id, activity_type_id
+            "SELECT description, course_id, task_id, activity_type_id, subject_id, aula
                FROM time_entries WHERE id = ?1 AND deleted_at IS NULL",
             rusqlite::params![entry_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
         )
         .map_err(|_| "lançamento não encontrado".to_string())?
     };
@@ -525,6 +566,8 @@ pub fn timer_continuar(
             description: descricao.unwrap_or_default(),
             curso_id: curso,
             tarefa_id: tarefa,
+            materia_id: materia,
+            aula,
             activity_type_id: tipo,
             context: None,
             parent_id: None,
@@ -562,6 +605,8 @@ pub fn timer_favorito(
             description: descricao.unwrap_or_default(),
             curso_id: curso,
             tarefa_id: tarefa,
+            materia_id: None,
+            aula: None,
             activity_type_id: tipo,
             context: None,
             parent_id: None,

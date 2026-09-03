@@ -878,6 +878,7 @@ pub fn buscar_lancamentos(
     curso_id: Option<String>,
     tipo_id: Option<String>,
     tarefa_id: Option<String>,
+    materia_id: Option<String>,
     tag: Option<String>,
     limite: i64,
     deslocamento: i64,
@@ -910,6 +911,10 @@ pub fn buscar_lancamentos(
     if let Some(v) = tarefa_id.filter(|s| !s.is_empty()) {
         let m = marcador(&mut vals, v.into());
         cond.push(format!("e.task_id = {m}"));
+    }
+    if let Some(v) = materia_id.filter(|s| !s.is_empty()) {
+        let m = marcador(&mut vals, v.into());
+        cond.push(format!("e.subject_id = {m}"));
     }
     if let Some(v) = tag.filter(|s| !s.is_empty()) {
         // Lançamento não tem etiqueta própria: a etiqueta é do curso. Filtrar
@@ -1093,4 +1098,163 @@ pub fn recentes_de(db: &Db, limite: i64) -> Vec<Recente> {
 #[tauri::command]
 pub fn listar_recentes(db: tauri::State<Db>, limite: i64) -> Result<Vec<Recente>, String> {
     Ok(recentes_de(&db, limite.clamp(1, 20)))
+}
+
+// --- matérias (§3.4, §3.5) ---------------------------------------------------
+
+/// Matéria ou área de conhecimento. Existe ao lado do curso, não dentro dele:
+/// "Modelagem 3D" atravessa dois cursos, e amarrá-la a um só perderia metade
+/// do tempo na hora de somar.
+#[derive(Serialize)]
+pub struct Materia {
+    pub id: String,
+    pub nome: String,
+    pub cor: Option<String>,
+    /// Tempo já lançado nesta matéria. Sai da consulta e não de coluna
+    /// guardada — total guardado desatualiza na primeira edição.
+    pub total_ms: i64,
+}
+
+#[tauri::command]
+pub fn listar_materias(db: tauri::State<Db>) -> Result<Vec<Materia>, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT s.id, s.nome, s.cor,
+                    COALESCE((SELECT SUM(e.ended_at - e.started_at)
+                                FROM time_entries e
+                               WHERE e.subject_id = s.id AND e.deleted_at IS NULL
+                                 AND e.ended_at IS NOT NULL), 0)
+               FROM subjects s
+              WHERE s.deleted_at IS NULL
+              ORDER BY s.nome",
+        )
+        .map_err(|e| e.to_string())?;
+    let v = stmt
+        .query_map([], |r| {
+            Ok(Materia {
+                id: r.get(0)?,
+                nome: r.get(1)?,
+                cor: r.get(2)?,
+                total_ms: r.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(v)
+}
+
+#[tauri::command]
+pub fn criar_materia(
+    db: tauri::State<Db>,
+    nome: String,
+    cor: Option<String>,
+) -> Result<String, String> {
+    let nome = nome.trim().to_string();
+    if nome.is_empty() {
+        return Err("a matéria precisa de um nome".into());
+    }
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let agora = agora_ms();
+    conn.execute(
+        "INSERT INTO subjects (id, nome, cor, device_id, version, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5)",
+        params![id, nome, cor, db.device_id, agora],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn editar_materia(
+    db: tauri::State<Db>,
+    id: String,
+    nome: String,
+    cor: Option<String>,
+) -> Result<(), String> {
+    let nome = nome.trim().to_string();
+    if nome.is_empty() {
+        return Err("a matéria precisa de um nome".into());
+    }
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    conn.execute(
+        "UPDATE subjects SET nome = ?2, cor = ?3, updated_at = ?4, version = version + 1
+          WHERE id = ?1 AND deleted_at IS NULL",
+        params![id, nome, cor, agora_ms()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Exclusão lógica, e os lançamentos ficam. Apagar a matéria não pode apagar o
+/// tempo que foi gasto nela — só a etiqueta.
+#[tauri::command]
+pub fn excluir_materia(db: tauri::State<Db>, id: String) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    conn.execute(
+        "UPDATE subjects SET deleted_at = ?2, updated_at = ?2, version = version + 1
+          WHERE id = ?1",
+        params![id, agora_ms()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Troca só a categoria de um lançamento, preservando tudo o mais.
+///
+/// É o "trocar o tipo da pausa sem perder o vínculo com o Pomodoro" de §3.4.
+/// `editar_lancamento` exigiria início e fim, e passá-los de novo abriria
+/// espaço para o chamador reenviar valores velhos; aqui não há como errar,
+/// porque não há o que reenviar. `context` e `parent_id` nem são mencionados.
+#[tauri::command]
+pub fn reclassificar_lancamento(
+    db: tauri::State<Db>,
+    id: String,
+    activity_type_id: String,
+) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    registrar_revisao(&conn, &db.device_id, &id, "editar")?;
+    let n = conn
+        .execute(
+            "UPDATE time_entries SET activity_type_id = ?2, updated_at = ?3,
+                                     version = version + 1
+              WHERE id = ?1 AND deleted_at IS NULL",
+            params![id, activity_type_id, agora_ms()],
+        )
+        .map_err(|e| e.to_string())?;
+    if n == 0 {
+        return Err("lançamento não encontrado".into());
+    }
+    Ok(())
+}
+
+/// Grava matéria e aula de um lançamento já fechado.
+///
+/// Separado de `salvar_detalhes` pela mesma razão que aquele é separado de
+/// `editar_lancamento`: cada tela manda o que conhece, e nenhuma apaga o que
+/// não conhece.
+#[tauri::command]
+pub fn salvar_vinculos(
+    db: tauri::State<Db>,
+    id: String,
+    subject_id: Option<String>,
+    aula: Option<String>,
+) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    registrar_revisao(&conn, &db.device_id, &id, "editar")?;
+    conn.execute(
+        "UPDATE time_entries SET subject_id = ?2, aula = ?3, updated_at = ?4,
+                                 version = version + 1
+          WHERE id = ?1 AND deleted_at IS NULL",
+        params![
+            id,
+            subject_id.filter(|s| !s.is_empty()),
+            aula.map(|a| a.trim().to_string()).filter(|a| !a.is_empty()),
+            agora_ms()
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }

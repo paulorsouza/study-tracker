@@ -34,6 +34,9 @@ export type Status = {
   pausado: boolean;
   curso_id: string | null;
   tarefa_id: string | null;
+  materia_id: string | null;
+  aula: string | null;
+  activity_type_id: string;
   inicio_wall: number;
 };
 
@@ -219,6 +222,9 @@ export default function App() {
         descricao: dockDesc,
         cursoId: dockCurso || null,
         tarefaId: status?.tarefa_id ?? null,
+        materiaId: status?.materia_id ?? null,
+        aula: status?.aula ?? null,
+        activityTypeId: null,
       });
       // O ajuste de início é uma chamada à parte porque só faz sentido com o
       // relógio correndo — pausado, não há segmento aberto para deslocar.

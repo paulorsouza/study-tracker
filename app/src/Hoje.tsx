@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
 import { Lancamento, Tipo, corDe, hhmm } from "./tempo-comum";
+import { Materia } from "./Materias";
 import * as I from "./icones";
 
 function comHora(dia: Date, hm: string) {
@@ -342,6 +343,8 @@ export default function Hoje({
                     <span className="marca-extra">{(i.distancia_m / 1000).toFixed(1)} km</span>
                   )}
                   {i.treino && <span className="marca-extra">{i.treino}</span>}
+                  {i.materia && <span className="marca-extra">{i.materia}</span>}
+                  {i.aula && <span className="marca-extra">{i.aula}</span>}
                   {i.observacao && (
                     <span className="marca-extra" title={i.observacao}>
                       <I.Nota size={10} />
@@ -544,6 +547,13 @@ function Editor({
     item.distancia_m ? String(item.distancia_m / 1000) : ""
   );
   const [treino, setTreino] = useState(item.treino ?? "");
+  const [materia, setMateria] = useState(item.subject_id ?? "");
+  const [aula, setAula] = useState(item.aula ?? "");
+  const [materias, setMaterias] = useState<Materia[]>([]);
+
+  useEffect(() => {
+    invoke<Materia[]>("listar_materias").then(setMaterias).catch(() => {});
+  }, []);
 
   // O campo extra segue a categoria escolhida **agora**, não a que estava
   // gravada: reclassificar uma pausa como caminhada deve revelar a distância
@@ -567,6 +577,11 @@ function Editor({
         observacao: obs.trim() || null,
         distanciaM: extra === "distancia" && km.trim() ? Math.round(Number(km) * 1000) : null,
         treino: extra === "treino" ? treino.trim() || null : null,
+      });
+      await invoke("salvar_vinculos", {
+        id: item.id,
+        subjectId: materia || null,
+        aula: aula.trim() || null,
       });
       onErro(null);
       onSalvo();
@@ -639,6 +654,25 @@ function Editor({
             />
           </div>
         )}
+      </div>
+      <div className="grade" style={{ marginTop: 10 }}>
+        <div className="campo" style={{ width: 170 }}>
+          <label>Matéria</label>
+          <select value={materia} onChange={(e) => setMateria(e.target.value)}>
+            <option value="">— nenhuma —</option>
+            {materias.map((m) => (
+              <option key={m.id} value={m.id}>{m.nome}</option>
+            ))}
+          </select>
+        </div>
+        <div className="campo cresce">
+          <label>Aula</label>
+          <input
+            value={aula}
+            onChange={(e) => setAula(e.target.value)}
+            placeholder="Aula 13, módulo 2 — opcional"
+          />
+        </div>
       </div>
       <div className="grade" style={{ marginTop: 10 }}>
         <div className="campo cresce">

@@ -93,6 +93,9 @@ const monta = (
   curso: curso ? CURSOS.find((c) => c.id === curso)!.titulo : null,
   source: "timer",
   sobrepoe: false,
+  subject_id: null as string | null,
+  materia: null as string | null,
+  aula: null as string | null,
   observacao: null as string | null,
   distancia_m: null as number | null,
   treino: null as string | null,
@@ -230,11 +233,13 @@ let pomo = {
   inicio: Date.now() - 11 * 60000,
   planejado_ms: 25 * 60000,
   descricao: "Aula 13 — modificadores",
+  activity_type_id: "at-pausa",
 };
 
 const cfgPomo = {
   foco_min: 25, curta_min: 5, longa_min: 15, ciclos_ate_longa: 4,
-  auto_pausa: false, auto_foco: false, som: true, tipo_pausa: "at-pausa",
+  auto_pausa: false, auto_foco: false, som: true, abrir_curso: false,
+  tipo_pausa: "at-pausa",
 };
 
 const respostas: Record<string, (a: any) => unknown> = {
@@ -451,12 +456,15 @@ const respostas: Record<string, (a: any) => unknown> = {
     planejado_ms: pomo.fase ? pomo.planejado_ms : 0,
     descricao: pomo.descricao,
     pausada: false,
+    activity_type_id: pomo.activity_type_id,
   }),
   pomodoro_ciclos: () => {
     if (!pomo.ativo) return [];
     const t0 = pomo.inicio - 62 * 60000;
     const c = (rot: string, ativ: string, cor: string, escura: string,
                off: number, dur: number, plan: number | null, aberto = false) => ({
+      id: `c${off}`,
+      activity_type_id: rot === "Foco" ? "at-estudo" : ativ === "Caminhada com os dogs" ? "at-caminhada" : "at-pausa",
       rotulo: rot, atividade: ativ, cor, cor_escura: escura,
       inicio: t0 + off * 60000,
       fim: aberto ? null : t0 + (off + dur) * 60000,
@@ -590,6 +598,15 @@ const respostas: Record<string, (a: any) => unknown> = {
       course_id: null, curso: null, task_id: null },
   ],
   criar_favorito: () => "fv3",
+  listar_materias: () => [
+    { id: "m1", nome: "Modelagem 3D", cor: null, total_ms: 22 * 3600_000 },
+    { id: "m2", nome: "Renda variável", cor: null, total_ms: 9 * 3600_000 },
+  ],
+  criar_materia: () => "m3",
+  editar_materia: () => null,
+  excluir_materia: () => null,
+  salvar_vinculos: () => null,
+  reclassificar_lancamento: () => null,
   listar_recentes: () => [
     { activity_type_id: "at-caminhada", atividade: "Caminhada com os dogs",
       descricao: "Volta no parque com os dogs", course_id: null,
@@ -610,8 +627,11 @@ const respostas: Record<string, (a: any) => unknown> = {
   atalhos_salvar: () => null,
   pomodoro_pausar: () => { pomo.fase = null; return null; },
   pomodoro_retomar: () => null,
-  timer_editar: ({ descricao }: any) => {
+  timer_editar: ({ descricao, activityTypeId }: any) => {
     if (rodando) rodando.descricao = descricao;
+    // Reclassificar a fase precisa aparecer no estado seguinte, senão a tela
+    // parece não ter feito nada.
+    if (activityTypeId) pomo.activity_type_id = activityTypeId;
     return respostas.timer_status({});
   },
   timer_ajustar_inicio: ({ inicio }: any) => {
@@ -685,6 +705,13 @@ const respostas: Record<string, (a: any) => unknown> = {
     pausado = null;
     return {};
   },
+};
+
+// `listen()` cancela o ouvinte ao desmontar a tela, e a limpeza passa por
+// aqui. Sem este objeto ela estourava toda vez que a tela de Foco saía —
+// erro do mock, não do app, mas que polui o console e esconde os de verdade.
+(window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+  unregisterListener: () => {},
 };
 
 (window as any).__TAURI_INTERNALS__ = {

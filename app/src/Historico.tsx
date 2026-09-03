@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
 import { Lancamento, Tipo, corDe, hhmm } from "./tempo-comum";
+import { Materia } from "./Materias";
 import * as I from "./icones";
 
 type Tarefa = { id: string; titulo: string };
@@ -41,16 +42,19 @@ export default function Historico({
   const [tipo, setTipo] = useState("");
   const [tarefa, setTarefa] = useState("");
   const [tag, setTag] = useState("");
+  const [materia, setMateria] = useState("");
   const [pagina, setPagina] = useState(0);
 
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [materias, setMaterias] = useState<Materia[]>([]);
   const [res, setRes] = useState<Pagina | null>(null);
 
   useEffect(() => {
     invoke<Tipo[]>("listar_tipos").then(setTipos).catch(() => {});
     invoke<string[]>("listar_tags_curso").then(setTags).catch(() => {});
+    invoke<Materia[]>("listar_materias").then(setMaterias).catch(() => {});
     invoke<Tarefa[]>("listar_tarefas", { dia: null, ate: null, modo: "todas" })
       .then(setTarefas)
       .catch(() => {});
@@ -66,6 +70,7 @@ export default function Historico({
       cursoId: curso || null,
       tipoId: tipo || null,
       tarefaId: tarefa || null,
+      materiaId: materia || null,
       tag: tag || null,
       limite: POR_PAGINA,
       deslocamento: pagina * POR_PAGINA,
@@ -75,7 +80,7 @@ export default function Historico({
         onErro(null);
       })
       .catch((e) => onErro(String(e)));
-  }, [texto, periodo, curso, tipo, tarefa, tag, pagina, onErro]);
+  }, [texto, periodo, curso, tipo, tarefa, materia, tag, pagina, onErro]);
 
   // Um respiro antes de consultar: sem ele, cada tecla vira uma varredura de
   // todo o histórico, e é justamente com histórico grande que isso pesa.
@@ -86,9 +91,10 @@ export default function Historico({
 
   // Trocar um filtro volta para a primeira página: manter a 5ª página com um
   // filtro novo mostraria uma lista vazia sem explicar por quê.
-  useEffect(() => setPagina(0), [texto, periodo, curso, tipo, tarefa, tag]);
+  useEffect(() => setPagina(0), [texto, periodo, curso, tipo, tarefa, materia, tag]);
 
-  const filtrando = !!(texto.trim() || curso || tipo || tarefa || tag) || periodo !== "30";
+  const filtrando =
+    !!(texto.trim() || curso || tipo || tarefa || materia || tag) || periodo !== "30";
   const ultima = res ? Math.max(0, Math.ceil(res.total / POR_PAGINA) - 1) : 0;
 
   const limpar = () => {
@@ -97,6 +103,7 @@ export default function Historico({
     setCurso("");
     setTipo("");
     setTarefa("");
+    setMateria("");
     setTag("");
   };
 
@@ -147,6 +154,15 @@ export default function Historico({
             <option value="">todas</option>
             {tarefas.map((t) => (
               <option key={t.id} value={t.id}>{t.titulo}</option>
+            ))}
+          </select>
+        </div>
+        <div className="campo" style={{ width: 150 }}>
+          <label htmlFor="hm">Matéria</label>
+          <select id="hm" value={materia} onChange={(e) => setMateria(e.target.value)}>
+            <option value="">todas</option>
+            {materias.map((m) => (
+              <option key={m.id} value={m.id}>{m.nome}</option>
             ))}
           </select>
         </div>
@@ -229,6 +245,8 @@ export default function Historico({
                       <span className="marca-extra">{(l.distancia_m / 1000).toFixed(1)} km</span>
                     )}
                     {l.treino && <span className="marca-extra">{l.treino}</span>}
+                    {l.materia && <span className="marca-extra">{l.materia}</span>}
+                    {l.aula && <span className="marca-extra">{l.aula}</span>}
                   </span>
                   <span className="lanc-dur num">
                     {durCurta((l.ended_at ?? Date.now()) - l.started_at)}

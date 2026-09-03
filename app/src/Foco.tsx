@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Curso, dur, durCurta } from "./App";
+import { Materia } from "./Materias";
 import * as I from "./icones";
 
 type Fase = "foco" | "pausa_curta" | "pausa_longa";
@@ -18,6 +19,7 @@ type Estado = {
   planejado_ms: number;
   descricao: string;
   pausada: boolean;
+  activity_type_id: string | null;
 };
 
 type Config = {
@@ -28,10 +30,13 @@ type Config = {
   auto_pausa: boolean;
   auto_foco: boolean;
   som: boolean;
+  abrir_curso: boolean;
   tipo_pausa: string;
 };
 
 type Ciclo = {
+  id: string;
+  activity_type_id: string;
   rotulo: string;
   atividade: string;
   cor: string;
@@ -81,6 +86,9 @@ export default function Foco({
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [desc, setDesc] = useState("");
   const [curso, setCurso] = useState("");
+  const [materia, setMateria] = useState("");
+  const [aula, setAula] = useState("");
+  const [materias, setMaterias] = useState<Materia[]>([]);
   const [abrirCfg, setAbrirCfg] = useState(false);
   const somRef = useRef(true);
 
@@ -95,6 +103,7 @@ export default function Foco({
       somRef.current = c.som;
     });
     invoke<Tipo[]>("listar_tipos").then(setTipos).catch(() => {});
+    invoke<Materia[]>("listar_materias").then(setMaterias).catch(() => {});
     recarregar();
   }, [recarregar]);
 
@@ -132,6 +141,15 @@ export default function Foco({
 
   const R = 78;
   const circ = 2 * Math.PI * R;
+
+  const comecar = () =>
+    acao("pomodoro_iniciar", {
+      descricao: desc,
+      cursoId: curso || null,
+      tarefaId: null,
+      materiaId: materia || null,
+      aula: aula.trim() || null,
+    });
 
   return (
     <>
@@ -224,6 +242,41 @@ export default function Foco({
                 </button>
               </div>
 
+              {/* Reclassificar a pausa correndo (§3.4). A linha ainda não foi
+                  gravada, então isto não é editar histórico: é dizer o que a
+                  pausa está sendo, enquanto ela é. `context` e `parent_id` não
+                  são tocados, e o vínculo com o ciclo continua. */}
+              {est.fase !== "foco" && !est.aguardando && !est.pausada && (
+                <div className="linha" style={{ marginTop: 12, fontSize: 12.5 }}>
+                  <span className="nota" style={{ margin: 0 }}>
+                    A pausa está sendo
+                  </span>
+                  <select
+                    value={est.activity_type_id ?? ""}
+                    onChange={(e) =>
+                      invoke("timer_editar", {
+                        descricao: est.descricao,
+                        cursoId: null,
+                        tarefaId: null,
+                        materiaId: null,
+                        aula: null,
+                        activityTypeId: e.target.value,
+                      })
+                        .then(() => {
+                          onErro(null);
+                          onMudou();
+                        })
+                        .catch((x) => onErro(String(x)))
+                    }
+                    style={{ width: 190 }}
+                  >
+                    {tipos.map((t) => (
+                      <option key={t.id} value={t.id}>{t.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {est.pausada && (
                 <p className="nota">
                   O relógio parou onde estava. Retomar abre o que falta da fase,
@@ -252,15 +305,11 @@ export default function Foco({
                   placeholder="Aula 13 — modificadores"
                   onKeyDown={(e) =>
                     e.key === "Enter" &&
-                    acao("pomodoro_iniciar", {
-                      descricao: desc,
-                      cursoId: curso || null,
-                      tarefaId: null,
-                    })
+                    comecar()
                   }
                 />
               </div>
-              <div className="campo" style={{ width: 190 }}>
+              <div className="campo" style={{ width: 180 }}>
                 <label htmlFor="pc">Curso</label>
                 <select id="pc" value={curso} onChange={(e) => setCurso(e.target.value)}>
                   <option value="">— nenhum —</option>
@@ -269,22 +318,51 @@ export default function Foco({
                   ))}
                 </select>
               </div>
-              <button
-                className="btn btn-primario"
-                onClick={() =>
-                  acao("pomodoro_iniciar", {
-                    descricao: desc,
-                    cursoId: curso || null,
-                    tarefaId: null,
-                  })
-                }
-              >
+            </div>
+
+            <div className="grade" style={{ marginTop: 12 }}>
+              <div className="campo" style={{ width: 180 }}>
+                <label htmlFor="pm">Matéria</label>
+                <select id="pm" value={materia} onChange={(e) => setMateria(e.target.value)}>
+                  <option value="">— nenhuma —</option>
+                  {materias.map((m) => (
+                    <option key={m.id} value={m.id}>{m.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="campo cresce">
+                <label htmlFor="pa">Aula</label>
+                <input
+                  id="pa"
+                  value={aula}
+                  onChange={(e) => setAula(e.target.value)}
+                  placeholder="Aula 13, módulo 2 — opcional"
+                  onKeyDown={(e) => e.key === "Enter" && comecar()}
+                />
+              </div>
+              <button className="btn btn-primario" onClick={comecar}>
                 <I.Play /> Iniciar {cfg?.foco_min ?? 25} min
               </button>
             </div>
+
+            <label className="linha" style={{ marginTop: 12, fontSize: 12.5 }}>
+              <input
+                type="checkbox"
+                checked={cfg?.abrir_curso ?? false}
+                onChange={(e) =>
+                  cfg &&
+                  acao("pomodoro_salvar_config", {
+                    config: { ...cfg, abrir_curso: e.target.checked },
+                  })
+                }
+                style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
+              />
+              Abrir a página do curso ao começar
+            </label>
+
             <p className="nota">
               Também dá para iniciar um Pomodoro a partir de uma tarefa, no
-              Planejamento.
+              Planejamento. Nada além da duração é obrigatório.
             </p>
           </>
         )}
@@ -312,6 +390,28 @@ export default function Foco({
                   )}
                   {c.fim === null && <span className="lanc-curso"> · em andamento</span>}
                 </span>
+
+                {/* Pausa já encerrada também pode ser reclassificada: só se
+                    descobre que a caminhada foi longa depois que ela acaba.
+                    `context` e `parent_id` não são tocados, então o ciclo
+                    continua sendo o mesmo ciclo. */}
+                {c.rotulo === "Pausa" && c.fim !== null && (
+                  <select
+                    className="reclassificar"
+                    value={c.activity_type_id}
+                    onChange={(e) =>
+                      acao("reclassificar_lancamento", {
+                        id: c.id,
+                        activityTypeId: e.target.value,
+                      })
+                    }
+                    aria-label="Reclassificar esta pausa"
+                  >
+                    {tipos.map((t) => (
+                      <option key={t.id} value={t.id}>{t.nome}</option>
+                    ))}
+                  </select>
+                )}
                 <span className="lanc-dur num" style={{ minWidth: 104 }}>
                   <span style={{ color: excedeu ? "var(--warn)" : undefined }}>
                     {durCurta(c.efetivo_ms)}

@@ -102,6 +102,8 @@ fn iniciar_de(app: &AppHandle, id: &str) {
             description: r.descricao.unwrap_or_default(),
             curso_id: r.course_id,
             tarefa_id: None,
+            materia_id: None,
+            aula: None,
             activity_type_id: r.activity_type_id,
             context: None,
             parent_id: None,

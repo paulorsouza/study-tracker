@@ -25,7 +25,7 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. O Pomodoro é o próximo.
+Em ordem acordada. O Painel é o próximo.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -63,10 +63,8 @@ Em ordem acordada. O Pomodoro é o próximo.
 > uso real dirá se o formato serve. As quatro visões moram em **Tempo**, que
 > substituiu **Hoje** na navegação — são recortes de uma tabela só.
 >
-> **Matéria (`subjects`) ficou de fora do filtro.** A tabela existe desde a
-> migração 001 e nunca foi exposta em lugar nenhum do app: não há como criar
-> uma matéria, então filtrar por ela ofereceria uma lista sempre vazia. Volta
-> junto com a tela que a criar, se ela vier.
+> ~~**Matéria ficou de fora do filtro.**~~ Resolvido no item 5: a tela de
+> matérias existe, e o Histórico filtra por ela.
 >
 > Filtrar por **tag** filtra pela etiqueta do *curso* — lançamento não tem
 > etiqueta própria no modelo.
@@ -84,11 +82,12 @@ Em ordem acordada. O Pomodoro é o próximo.
 > não na prévia do navegador. Compila e linka; o menu, o clique e o ícone na
 > área de notificação ficam para o primeiro uso real.
 
-### 5. Pomodoro — §3.4
+### 5. Pomodoro — §3.4 ✅
 
-- [ ] Abrir a página do curso junto com o ciclo
-- [ ] Reclassificar a pausa na própria tela de Foco (o modelo já suporta)
-- [ ] Vincular a matéria e aula, não só curso e tarefa
+- [x] Abrir a página do curso junto com o ciclo — opção desligada por padrão
+- [x] Reclassificar a pausa na própria tela de Foco — a que está correndo e as
+      já encerradas, na lista de ciclos
+- [x] Vincular a matéria e aula, não só curso e tarefa (D-035)
 
 ### 6. Painel — §3.2
 

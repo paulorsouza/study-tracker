@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Categorias from "./Categorias";
 import Cronometro from "./Cronometro";
+import Materias from "./Materias";
 import Mcp from "./Mcp";
 import Obsidian from "./Obsidian";
 import Sincronizacao from "./Sincronizacao";
@@ -91,6 +92,8 @@ export default function Config({
         </div>
       </section>
       )}
+
+      {secao === "categorias" && <Materias onErro={onErro} onMudou={onMudou} />}
 
       {secao === "categorias" && (
         <Categorias tema={tema} onErro={onErro} onMudou={onMudou} />

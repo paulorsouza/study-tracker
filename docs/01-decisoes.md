@@ -735,8 +735,6 @@ Decisões dentro de cada uma:
 `subjects` continua sem tela e por isso ficou fora dos filtros — oferecer um
 seletor sempre vazio seria pior que não oferecer.
 
-A ordem do que resta está em `04-pendencias.md`.
-
 ---
 
 ## D-034 — o campo extra é da categoria, e a bandeja é uma lista curta
@@ -773,5 +771,44 @@ certa em vez de virar tempo de estudo.
 Descoberta ao refazer os gatilhos: `icone` **nunca esteve** em nenhum payload de
 sincronização. O ícone escolhido numa máquina nunca chegava na outra. Corrigido
 junto.
+
+A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-035 — matéria virou tela; aula é texto livre
+
+`subjects` estava no banco desde a migração 001, com `subject_id` em
+`time_entries` e em `tasks`, e **nunca teve tela**. O plano cita "matéria" em
+oito lugares — tarefas, Pomodoro, histórico, relatórios — e todos dependiam
+disto. Agora existe cadastro, seleção e filtro.
+
+A matéria fica **ao lado** do curso, não dentro dele: "Modelagem 3D" atravessa
+dois cursos, e amarrá-la a um só perderia metade do tempo na hora de somar.
+Excluir uma matéria não apaga o tempo gasto nela — só a etiqueta.
+
+**Aula é texto livre, e não tabela.** Modelar aulas exigiria decidir numeração,
+módulos, ordem e o que fazer quando a plataforma reorganiza o curso — decisões
+que o plano não toma e que o uso ainda não pediu. "Aula 13 — modificadores"
+resolve hoje; vira tabela no dia em que houver pergunta que texto não responde.
+
+Reclassificar a pausa acontece em dois momentos, porque são dois casos:
+
+- **Correndo**, pela tela de Foco. A linha ainda não foi gravada, então isto
+  não é editar histórico — é dizer o que a pausa está sendo enquanto ela é.
+- **Encerrada**, na lista de ciclos. Só se descobre que a caminhada foi longa
+  depois que ela acaba, e `reclassificar_lancamento` troca **apenas** a
+  categoria: `context` e `parent_id` nem são mencionados na consulta, então o
+  vínculo com o ciclo não tem como se perder.
+
+Abrir a página do curso junto com o Pomodoro fica **desligado por padrão**.
+Abrir o navegador sem pedir é intrusivo, e quem já está na aula não quer uma
+aba nova a cada ciclo. A abertura acontece depois de a fase começar: falhar ao
+achar a URL não pode impedir o Pomodoro de rodar.
+
+Comandos separados de propósito, pela terceira vez e pela mesma razão:
+`editar_lancamento` (horários), `salvar_detalhes` (observação, distância,
+treino) e `salvar_vinculos` (matéria, aula). Cada tela manda o que conhece, e
+nenhuma apaga o que não conhece.
 
 A ordem do que resta está em `04-pendencias.md`.
