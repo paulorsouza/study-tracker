@@ -10,3 +10,13 @@ target/
 *.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
+
+# Projeto Android gerado. `tauri android init` o recria a partir do
+# tauri.conf.json; versioná-lo criaria um segundo lugar onde o nome, o
+# identificador e os ícones do app vivem — e os dois divergiriam na primeira
+# alteração feita só num. Ver docs/07-android.md.
+app/src-tauri/gen/
+# Chave de assinatura do Android e o arquivo que aponta para ela: têm senha.
+*.jks
+*.keystore
+keystore.properties

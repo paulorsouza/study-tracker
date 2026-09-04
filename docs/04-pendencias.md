@@ -177,3 +177,6 @@ Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
 - [ ] MCP ligado no Claude Desktop de verdade
 - [ ] Redimensionar a janela pelas bordas, com a decoração desligada (D-028)
 - [ ] Linux, inteiro (D-003) — roteiro em `06-linux.md`
+- [ ] **Android, inteiro.** O APK monta e foi inspecionado, mas ninguém abriu o
+      app num aparelho: interface, toque, banco, notificações e sincronização
+      seguem sem prova. Ver `07-android.md`
