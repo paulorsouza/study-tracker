@@ -20,3 +20,5 @@ app/src-tauri/gen/
 *.jks
 *.keystore
 keystore.properties
+# APK gerado para teste — sai do build, não do repositório.
+*.apk

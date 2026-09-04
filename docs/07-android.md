@@ -80,14 +80,31 @@ parâmetro, o Tauri monta as quatro arquiteturas e demora quatro vezes mais.
 
 ### O que sai, e qual dos dois instala
 
-| build | arquivo | tamanho | instala? |
-|---|---|---|---|
-| `--apk --target aarch64` | `apk/universal/release/app-universal-release-unsigned.apk` | 23 MB | **não** |
-| `--apk --debug --target aarch64` | `apk/universal/debug/app-universal-debug.apk` | 199 MB | sim |
+| build | tamanho | instala? |
+|---|---|---|
+| release, como sai | 23 MB (arm64) · 37 MB (arm64+arm32) | **não**, sem assinatura |
+| depuração | 199 MB | sim |
+| release assinado à mão | 37 MB | sim — é o que se entrega |
 
 O de release sai **sem assinatura** e o Android recusa instalar. O de depuração
-é assinado com a chave padrão de depuração e entra no aparelho — é o que serve
-para testar. Os 199 MB são o Rust sem otimização; o release otimizado tem 23 MB.
+é assinado com a chave padrão e entra no aparelho, mas os 199 MB são o Rust sem
+otimização.
+
+O melhor dos dois é assinar o release à mão com a mesma chave de depuração:
+
+```bash
+BT="$ANDROID_HOME/build-tools/35.0.0"
+BASE=app/src-tauri/gen/android/app/build/outputs/apk/universal/release
+"$BT/zipalign" -p -f 4 "$BASE/app-universal-release-unsigned.apk" alinhado.apk
+"$BT/apksigner" sign --ks ~/.android/debug.keystore   --ks-pass pass:android --key-pass pass:android   --ks-key-alias androiddebugkey --out Estudos-0.0.1-arm.apk alinhado.apk
+```
+
+`~/.android/debug.keystore` e a senha `android` são **convenção pública** do
+Android SDK, criadas por qualquer build de depuração — não são segredo de
+ninguém. Servem para instalar no próprio aparelho e não servem para loja.
+
+Com `--target aarch64 --target armv7` o APK sai com as duas arquiteturas, 37 MB,
+e cobre celular novo e tablet antigo no mesmo arquivo.
 
 Para um APK pequeno e instalável é preciso uma chave sua:
 
