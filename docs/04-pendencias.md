@@ -1,6 +1,7 @@
 # Pendências
 
-Auditoria do `00-plano.md` contra o que existe, feita em 2026-09-02.
+Auditoria do `00-plano.md` contra o que existe, feita em 2026-09-02 e
+revisada em 2026-09-04, na versão 0.0.2.
 
 Três listas, e a primeira importa tanto quanto as outras: **o que foi
 descartado não é dívida.** Sem essa separação, cada retomada reabre discussão
@@ -16,7 +17,8 @@ já encerrada.
 | Recorrência de tarefas e modelos de rotina | §3.3 | D-011 — exige decidir materialização e não-duplicação na sync |
 | **Exportação CSV/JSON e a tela de Relatórios** | §3.11 | **D-030** |
 | Sincronização do vault pelo próprio app | — | D-021 — o git faz isso melhor |
-| Calendário externo, app móvel, gamificação | §16 | fora do MVP no próprio plano |
+| Calendário externo e gamificação | §16 | fora do MVP no próprio plano |
+| ~~App móvel~~ | §16 | **voltou** — como companheiro, não como o app inteiro; `07-android.md` |
 
 O que sobreviveu dessas seções já está pronto: "continuar estudando", cadastro
 por link, navegador dedicado.
@@ -25,7 +27,9 @@ por link, navegador dedicado.
 
 ## A fazer
 
-Em ordem acordada. O empacotamento é o próximo.
+Em ordem acordada. Os itens 1 a 8 estão fechados, o 9 foi adiado e o 10 é o
+que está aberto — nele, o que falta é atualização assinada e documentação
+de uso.
 
 ### 1. Detalhe do curso — §3.6 ✅
 
@@ -97,6 +101,10 @@ Em ordem acordada. O empacotamento é o próximo.
 - [x] Pomodoros concluídos
 - [x] Aviso de conflito de sincronização na tela inicial, não só em Configurações
 
+> O Painel **deixou de ser a tela inicial** em D-039, e no celular sai da
+> navegação. O aviso de conflito acompanhou: quem abre o app cai no
+> Planejamento, e é lá que ele aparece.
+
 ### 7. Conta — §3.1 ✅ (com dois limites de desenho)
 
 - [x] Recuperação de senha — link por e-mail, mais troca de senha estando logado
@@ -152,6 +160,7 @@ lista, só saiu da fila de agora.
 
 - [x] Instaladores Windows e Linux — gerados e baixados; ver
       `05-empacotamento.md`
+- [x] APK do Android, assinado e instalável — ver `07-android.md`
 - [ ] Atualização assinada e rollback
 - [ ] Documentação de uso
 
@@ -159,8 +168,9 @@ lista, só saiu da fila de agora.
 > Tauri não faz cross-compile, porque o webview é do sistema. Quem monta é o
 > CI, em `ubuntu-22.04`.
 >
-> Nenhum dos dois foi **executado** ainda — só produzido. É a diferença entre
-> "compila" e "funciona", e é o que a lista abaixo separa.
+> Só o **Android** foi instalado e aberto de verdade. O instalador do Windows e
+> os pacotes do Linux foram produzidos e baixados, não executados — e "compila"
+> não é "funciona". É o que a lista abaixo separa.
 
 ---
 
@@ -175,8 +185,12 @@ Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
 - [ ] Conta: recuperar senha, trocar senha, encerrar as outras sessões e apagar
       os dados do servidor (tudo depende do Supabase real; D-037)
 - [ ] MCP ligado no Claude Desktop de verdade
+- [ ] Instalar pelo instalador do Windows, numa máquina que não seja a de
+      desenvolvimento — o que roda aqui é o `tauri dev`
 - [ ] Redimensionar a janela pelas bordas, com a decoração desligada (D-028)
 - [ ] Linux, inteiro (D-003) — roteiro em `06-linux.md`
-- [ ] **Android, inteiro.** O APK monta e foi inspecionado, mas ninguém abriu o
-      app num aparelho: interface, toque, banco, notificações e sincronização
-      seguem sem prova. Ver `07-android.md`
+- [x] ~~**Android, inteiro.**~~ **Parcial.** A 0.0.2 foi instalada e usada num
+      celular: o app sobe, a interface funciona e o toque responde — e foi esse
+      uso que produziu o D-039. Continuam sem prova o **tablet** (a faixa entre
+      760px e 900px), onde o banco nasce, a notificação do Pomodoro em segundo
+      plano e a sincronização. Ver `07-android.md`

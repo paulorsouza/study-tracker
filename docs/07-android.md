@@ -97,9 +97,13 @@ O melhor dos dois é assinar o release à mão com a mesma chave de depuração:
 
 ```bash
 BT="$ANDROID_HOME/build-tools/35.0.0"
+VERSAO=$(node -p "require('./app/package.json').version")
 BASE=app/src-tauri/gen/android/app/build/outputs/apk/universal/release
 "$BT/zipalign" -p -f 4 "$BASE/app-universal-release-unsigned.apk" alinhado.apk
-"$BT/apksigner" sign --ks ~/.android/debug.keystore   --ks-pass pass:android --key-pass pass:android   --ks-key-alias androiddebugkey --out Estudos-0.0.1-arm.apk alinhado.apk
+"$BT/apksigner" sign --ks ~/.android/debug.keystore \
+  --ks-pass pass:android --key-pass pass:android \
+  --ks-key-alias androiddebugkey \
+  --out "Estudos-$VERSAO-arm.apk" alinhado.apk
 ```
 
 `~/.android/debug.keystore` e a senha `android` são **convenção pública** do
@@ -119,6 +123,21 @@ keytool -genkey -v -keystore ~/estudos.jks \
 Depois, `app/src-tauri/gen/android/keystore.properties` apontando para ela. Esse
 arquivo tem senha e **não entra no repositório** — nem ele nem o `.jks`. Como
 `gen/` é gerado, isso é passo por máquina.
+
+### Subir a versão
+
+O número vive em **três** arquivos e eles têm de concordar: `app/package.json`,
+`app/src-tauri/Cargo.toml` e `app/src-tauri/tauri.conf.json`. O Android deriva
+o `versionCode` daí, e **recusa instalar por cima** um APK com código igual ou
+menor — subir a versão é o que permite atualizar sem desinstalar e sem perder o
+banco.
+
+Semver de três partes, porque é o que o Cargo e o npm aceitam. Confira o que
+saiu antes de mandar para o aparelho:
+
+```bash
+"$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Estudos-*.apk | head -2
+```
 
 ### Instalar no aparelho
 
@@ -149,10 +168,22 @@ A exceção seria configuração de assinatura, que ainda não existe.
 - **Assinatura.** O APK sai assinado com a chave de depuração, que serve para
   instalar no próprio aparelho e não serve para distribuir.
 - **Ponte para o Keystore**, para o login sobreviver ao fechamento.
-- **Nada foi exercitado num aparelho.** Montar não é funcionar, e aqui a
-  distinção é grande: o APK foi produzido e inspecionado — identificador,
-  `MainActivity`, permissões de internet e de notificação, biblioteca nativa
-  `arm64-v8a` — mas ninguém abriu o app. Se a interface embutida sobe, se a
-  barra de baixo funciona no toque, se o banco nasce no diretório certo e se a
-  sincronização fala com o Supabase: tudo em aberto. A lista está em
-  `04-pendencias.md`.
+- **Tablet.** O 0.0.2 foi instalado e usado num **celular**; o layout de tablet
+  — a faixa entre 760px e 900px, onde a lateral cabe mas a linha do lançamento
+  já não — não passou por aparelho nenhum.
+- **O resto do caminho.** Abrir e navegar é o que está provado. Onde o banco
+  nasce, se as notificações do Pomodoro chegam com o app em segundo plano e se
+  a sincronização fala com o Supabase seguem em aberto — e a sincronização, no
+  Android, ainda pede login a cada abertura por falta do Keystore. A lista está
+  em `04-pendencias.md`.
+
+## O que o primeiro uso mudou
+
+Montar não é funcionar, e o primeiro uso real provou a diferença: o app subiu,
+a interface embutida funcionou e o toque respondeu — e ainda assim havia coisa
+errada, nada disso visível na inspeção do APK.
+
+Sobrara no celular o que pressupõe apontador (atalhos de teclado, dividir e
+unir lançamento), e o app abria no Painel: um resumo do que já passou, na tela
+que se olha no ônibus. Viraram D-039 e valem também no desktop, porque a
+diferença entre as versões é o que **cabe**, não o que importa.

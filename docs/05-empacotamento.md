@@ -59,6 +59,12 @@ sucesso. Estão na lista de não verificado de `04-pendencias.md`:
 - **Notificações.** Vão pelo `notify-send`/D-Bus. Ambiente sem daemon de
   notificação engole o aviso de fim do Pomodoro.
 
+## Android
+
+Fica em **`07-android.md`**, porque quase nada se aproveita daqui: outra cadeia
+de ferramentas (SDK, NDK, JDK), outro formato, e um APK de release que sai **sem
+assinatura** e por isso não instala. O CI também não o monta — é passo à mão.
+
 ## O que saiu na primeira montagem (v0.0.1)
 
 | sistema | arquivo | tamanho |
@@ -81,8 +87,9 @@ instalaria e subiria sem ícone nenhum — e ninguém saberia por quê.
 
 ## CI
 
-`.github/workflows/build.yml` monta os dois sistemas na mesma execução, em tag
-`v*` ou à mão pelo `workflow_dispatch`.
+`.github/workflows/build.yml` monta Windows e Linux na mesma execução, em tag
+`v*` ou à mão pelo `workflow_dispatch`. O Android fica de fora: exige SDK, NDK e
+uma chave de assinatura, e a de depuração não teria sentido num servidor.
 
 Em tag, publica um **rascunho** de release, e não uma pública: ninguém quer
 descobrir um instalador quebrado depois de ele já estar no ar. Revise, baixe,
