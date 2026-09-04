@@ -936,3 +936,36 @@ período olhasse o fim da sessão. Ele olha o **início**, como o resto do app �
 mudar isso faria o pacote discordar da folha da semana e do Painel.
 
 A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-039 — a tela de entrada é o planejamento, não o painel
+
+Depois do primeiro uso no celular: abrir num resumo do que já passou é abrir
+olhando para trás. Quem liga o app quer saber **o que fazer agora**, e isso é a
+lista do dia.
+
+Vale nas duas versões. A diferença entre desktop e celular é o que **cabe**, não
+o que importa — e uma tela inicial diferente em cada uma seria mais uma coisa
+para lembrar. O Painel desce na navegação, e no celular sai dela: um resumo do
+mês não é o que se abre no ônibus.
+
+A ordem da navegação passou a ser de uso, não de importância: planejar, ver o
+tempo, focar, o curso, as notas.
+
+### O que saiu do celular por ser gesto de mesa
+
+Também do primeiro uso: sobrou no Android coisa que só faz sentido com teclado e
+mouse.
+
+- **Atalhos de teclado**, na configuração do cronômetro. Uma lista de
+  combinações que ninguém consegue apertar num celular.
+- **Dividir e unir lançamento**, e a caixa de seleção que serve à união.
+  Escolher o minuto exato de um corte e marcar várias linhas pede precisão que o
+  dedo não tem. Continuar, editar e excluir ficam — são o que se faz com o
+  aparelho na mão.
+
+Nada disso saiu do desktop. O critério não é "simplificar o produto", é **tirar
+do celular o que pressupõe um apontador**.
+
+A ordem do que resta está em `04-pendencias.md`.

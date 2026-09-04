@@ -1577,6 +1577,13 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   .conteudo { padding: 16px 14px 10px; }
   .titulo-pagina { font-size: 21px; }
 
+  /* A faixa de abas rola em vez de quebrar. Quebrando, a última aba descia
+     para uma segunda linha sem borda e parecia outra coisa — "Concluídas"
+     sumia de vista sem nada indicando que existia. */
+  .abas { flex-wrap: nowrap; width: 100%; scrollbar-width: none; }
+  .abas::-webkit-scrollbar { display: none; }
+  .aba { white-space: nowrap; flex: none; }
+
   /* Duas colunas em 360px não são duas colunas, são duas colunas ilegíveis. */
   .tiles, .totais { grid-template-columns: repeat(2, 1fr); }
   .grade > .campo { flex: 1 1 100%; }

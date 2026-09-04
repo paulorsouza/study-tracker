@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
 import { Lancamento, Tipo, corDe, hhmm } from "./tempo-comum";
 import { Materia } from "./Materias";
+import { useCompacto } from "./dispositivo";
 import * as I from "./icones";
 
 function comHora(dia: Date, hm: string) {
@@ -48,6 +49,10 @@ export default function Hoje({
   }, [diaInicial]);
   const [itens, setItens] = useState<Lancamento[]>([]);
   const [selecao, setSelecao] = useState<string[]>([]);
+  // Dividir e unir são correções finas: escolher o minuto do corte e marcar
+  // várias linhas pede precisão que o dedo não tem. Continuar, editar e excluir
+  // ficam — são o que se faz com o aparelho na mão.
+  const compacto = useCompacto();
   const [cortando, setCortando] = useState<string | null>(null);
   const [corte, setCorte] = useState("");
   const [tipos, setTipos] = useState<Tipo[]>([]);
@@ -309,6 +314,7 @@ export default function Hoje({
                 key={i.id}
                 className={`lanc${i.sobrepoe ? " lanc-sobreposto" : ""}`}
               >
+                {!compacto && (
                 <input
                   type="checkbox"
                   className="lanc-marca"
@@ -321,6 +327,7 @@ export default function Hoje({
                   }
                   aria-label={`Selecionar ${i.description || i.atividade}`}
                 />
+                )}
                 <span className="lanc-cor" style={{ background: corDe(i, tema) }} />
                 <span
                   style={{ color: corDe(i, tema), display: "flex", flex: "none" }}
@@ -363,24 +370,28 @@ export default function Hoje({
                   >
                     <I.Play size={14} />
                   </button>
-                  <button
-                    className="btn btn-fantasma btn-icone"
-                    onClick={() => acao("duplicar_lancamento", { id: i.id })}
-                    disabled={!i.ended_at}
-                    aria-label="Duplicar lançamento"
-                    title="Duplicar"
-                  >
-                    <I.Copia />
-                  </button>
-                  <button
-                    className="btn btn-fantasma btn-icone"
-                    onClick={() => abrirCorte(i)}
-                    disabled={!i.ended_at}
-                    aria-label="Dividir lançamento em dois"
-                    title="Dividir"
-                  >
-                    <I.Tesoura />
-                  </button>
+                  {!compacto && (
+                    <>
+                      <button
+                        className="btn btn-fantasma btn-icone"
+                        onClick={() => acao("duplicar_lancamento", { id: i.id })}
+                        disabled={!i.ended_at}
+                        aria-label="Duplicar lançamento"
+                        title="Duplicar"
+                      >
+                        <I.Copia />
+                      </button>
+                      <button
+                        className="btn btn-fantasma btn-icone"
+                        onClick={() => abrirCorte(i)}
+                        disabled={!i.ended_at}
+                        aria-label="Dividir lançamento em dois"
+                        title="Dividir"
+                      >
+                        <I.Tesoura />
+                      </button>
+                    </>
+                  )}
                   <button
                     className="btn btn-fantasma btn-icone"
                     onClick={() => setEditando(i.id)}

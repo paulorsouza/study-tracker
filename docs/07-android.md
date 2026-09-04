@@ -16,6 +16,9 @@ declarar a ausência.
 | servidor MCP | é processo de desktop, ligado ao Claude Desktop |
 | exportação para o Obsidian | grava numa pasta escolhida, e o armazenamento do Android tem escopo |
 | calendário | criar, mover e esticar bloco só existem por arrasto |
+| atalhos de teclado | combinações que ninguém aperta num celular |
+| dividir e unir lançamento | escolher o minuto do corte pede precisão que o dedo não tem |
+| painel | resumo do que já passou não é o que se abre no ônibus |
 
 Os seis primeiros **nem são compilados** — os módulos saem por `#[cfg(desktop)]`
 e as caixas `tray-icon`, `keyring` e `tiny_http` são dependências só de

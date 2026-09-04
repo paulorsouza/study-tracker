@@ -107,7 +107,11 @@ function deHoraLocal(hhmm: string): number | null {
 }
 
 export default function App() {
-  const [aba, setAba] = useState<Aba>("painel");
+  // O planejamento é a tela de entrada, e não o painel. Abrir num resumo do
+  // que já passou é abrir olhando para trás; quem liga o app quer saber o que
+  // fazer agora. Vale nas duas versões — a diferença entre elas é o que cabe,
+  // não o que importa.
+  const [aba, setAba] = useState<Aba>("plano");
   const [status, setStatus] = useState<Status | null>(null);
   const [recovery, setRecovery] = useState<Recovery | null>(null);
   const [descricao, setDescricao] = useState("");
@@ -302,15 +306,25 @@ export default function App() {
   // `curto` é o rótulo da barra de baixo, onde sete destinos dividem a largura
   // de um celular. O nome inteiro continua no `aria-label`: encurtar o texto
   // visível não pode encurtar o que o leitor de tela anuncia.
-  const itens: { id: Aba; nome: string; curto?: string; Icone: typeof I.Relogio }[] = [
-    { id: "painel", nome: "Painel", Icone: I.Painel },
-    { id: "hoje", nome: "Tempo", Icone: I.Calendario },
+  // Ordem de uso, não de importância: planejar, ver o tempo, focar, e o curso
+  // que está sendo estudado. O Painel desce porque é tela de revisão — e no
+  // celular sai de vez: um resumo do mês não é o que se abre no ônibus.
+  type ItemNav = {
+    id: Aba;
+    nome: string;
+    curto?: string;
+    soDesktop?: boolean;
+    Icone: typeof I.Relogio;
+  };
+  const itens: ItemNav[] = ([
     { id: "plano", nome: "Planejamento", curto: "Plano", Icone: I.Lista },
+    { id: "hoje", nome: "Tempo", Icone: I.Calendario },
     { id: "foco", nome: "Foco", Icone: I.Alvo },
-    { id: "notas", nome: "Notas", Icone: I.Nota },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
+    { id: "notas", nome: "Notas", Icone: I.Nota },
+    { id: "painel", nome: "Painel", soDesktop: true, Icone: I.Painel },
     { id: "config", nome: "Configurações", curto: "Ajustes", Icone: I.Engrenagem },
-  ];
+  ] as ItemNav[]).filter((x) => !(x.soDesktop && compacto));
 
   return (
     <div className="app-raiz">

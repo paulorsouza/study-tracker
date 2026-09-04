@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, Favorito } from "./App";
+import { ehMovel } from "./dispositivo";
 import * as I from "./icones";
 
 type Tipo = { id: string; nome: string; cor: string };
@@ -200,6 +201,9 @@ export default function Cronometro({
         )}
       </section>
 
+      {/* Atalho de teclado é conceito de computador com teclado. No celular a
+          seção seria uma lista de combinações que ninguém consegue apertar. */}
+      {!ehMovel && (
       <section className="card">
         <h2>Atalhos de teclado</h2>
         <p className="legenda" style={{ marginBottom: 14 }}>
@@ -241,6 +245,7 @@ export default function Cronometro({
           </tbody>
         </table>
       </section>
+      )}
     </>
   );
 }
