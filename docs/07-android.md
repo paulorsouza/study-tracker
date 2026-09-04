@@ -92,7 +92,8 @@ para testar. Os 199 MB são o Rust sem otimização; o release otimizado tem 23 
 Para um APK pequeno e instalável é preciso uma chave sua:
 
 ```bash
-keytool -genkey -v -keystore ~/estudos.jks -keyalg RSA \n        -keysize 2048 -validity 10000 -alias estudos
+keytool -genkey -v -keystore ~/estudos.jks \
+        -keyalg RSA -keysize 2048 -validity 10000 -alias estudos
 ```
 
 Depois, `app/src-tauri/gen/android/keystore.properties` apontando para ela. Esse
