@@ -6,13 +6,20 @@ import * as I from "./icones";
 
 const DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 
+type Linha = {
+  nome: string;
+  cor: string;
+  cor_escura: string | null;
+  icone: string | null;
+  estudo: boolean;
+  dias: number[];
+};
+
 /**
- * Folha de horas: categorias nas linhas, dias nas colunas.
- *
- * "Sem obrigação de preenchimento" (§3.5) é o ponto inteiro — célula vazia fica
- * vazia, não vira zero. Um zero afirma que nada aconteceu; o vazio só diz que
- * nada foi registrado, e as duas coisas são diferentes num app que o usuário
- * pode simplesmente esquecer de ligar.
+ * A semana em sete cartões, um por dia: o estudo do dia em destaque, o
+ * registrado ao todo, e as categorias que apareceram. "Sem obrigação de
+ * preenchimento" (§3.5) continua valendo — dia sem registro é um cartão
+ * vazio, não um zero.
  */
 export default function Semana({
   versao,
@@ -44,17 +51,7 @@ export default function Semana({
     // Uma sessão que atravessa a meia-noite conta inteira no dia em que
     // começou: reparti-la entre dois dias faria a folha divergir da lista de
     // Hoje, que é onde o usuário confere.
-    const linhas = new Map<
-      string,
-      {
-        nome: string;
-        cor: string;
-        cor_escura: string | null;
-        icone: string | null;
-        estudo: boolean;
-        dias: number[];
-      }
-    >();
+    const linhas = new Map<string, Linha>();
     for (const l of itens) {
       const i = Math.floor((l.started_at - seg.getTime()) / DIA);
       if (i < 0 || i > 6) continue;
@@ -91,6 +88,7 @@ export default function Semana({
   const totalSemana = grade.porDia.reduce((a, b) => a + b, 0);
   const estudoSemana = grade.estudoPorDia.reduce((a, b) => a + b, 0);
   const pico = Math.max(...grade.estudoPorDia, 1);
+  const diasComEstudo = grade.estudoPorDia.filter((x) => x > 0).length;
 
   const mover = (n: number) => {
     const d = new Date(seg);
@@ -117,110 +115,69 @@ export default function Semana({
         <span className="periodo-rotulo">{rotulo}</span>
       </div>
 
-      <section className="card">
-        <div className="totais" style={{ marginBottom: 18 }}>
-          <div>
-            <div className="total-valor tile-destaque">{durCurta(estudoSemana)}</div>
-            <div className="total-rotulo">estudo na semana</div>
-          </div>
-          <div>
-            <div className="total-valor">{durCurta(totalSemana)}</div>
-            <div className="total-rotulo">registrado ao todo</div>
-          </div>
-          <div>
-            <div className="total-valor">
-              {grade.estudoPorDia.filter((x) => x > 0).length}
-            </div>
-            <div className="total-rotulo">
-              dia{grade.estudoPorDia.filter((x) => x > 0).length === 1 ? "" : "s"} com estudo
-            </div>
-          </div>
+      <div className="tiles">
+        <div className="tile">
+          <div className="tile-valor tile-destaque">{durCurta(estudoSemana)}</div>
+          <div className="tile-rotulo">estudo na semana</div>
         </div>
+        <div className="tile">
+          <div className="tile-valor">{durCurta(totalSemana)}</div>
+          <div className="tile-rotulo">registrado ao todo</div>
+        </div>
+        <div className="tile">
+          <div className="tile-valor">{diasComEstudo}</div>
+          <div className="tile-rotulo">dia{diasComEstudo === 1 ? "" : "s"} com estudo</div>
+        </div>
+      </div>
 
-        <div className="folha-rolagem">
-          <table className="folha">
-            <thead>
-              <tr>
-                <th scope="col">Categoria</th>
-                {DIAS.map((d, i) => {
-                  const data = new Date(seg.getTime() + i * DIA);
-                  const ehHoje = data.getTime() === hoje.getTime();
-                  return (
-                    <th
-                      key={d}
-                      scope="col"
-                      className={ehHoje ? "folha-hoje" : undefined}
-                      aria-current={ehHoje ? "date" : undefined}
-                    >
-                      <button className="folha-dia" onClick={() => onAbrirDia(data)}>
-                        <span>{d}</span>
-                        <span className="num">{data.getDate()}</span>
-                      </button>
-                    </th>
-                  );
-                })}
-                <th scope="col">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grade.linhas.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="vazio" style={{ borderBottom: 0 }}>
-                    Nada registrado nesta semana.
-                  </td>
-                </tr>
+      <div className="semana-grade">
+        {DIAS.map((d, i) => {
+          const data = new Date(seg.getTime() + i * DIA);
+          const ehHoje = data.getTime() === hoje.getTime();
+          const futuro = data.getTime() > hoje.getTime();
+          const estudo = grade.estudoPorDia[i];
+          const total = grade.porDia[i];
+          const cats = grade.linhas.filter((r) => r.dias[i] > 0);
+          return (
+            <button
+              key={d}
+              className={`dia-card${ehHoje ? " hoje" : ""}${futuro ? " futuro" : ""}`}
+              onClick={() => onAbrirDia(data)}
+              title="Abrir o dia"
+            >
+              <div className="dia-card-cab">
+                <span>{d}</span>
+                <span className="num dia-card-num">{data.getDate()}</span>
+              </div>
+              {total === 0 ? (
+                <div className="dia-card-vazio">{futuro ? "" : "·"}</div>
               ) : (
-                grade.linhas.map((r) => (
-                  <tr key={r.nome}>
-                    <th scope="row">
-                      <span style={{ color: corDe(r, tema), display: "flex" }}>
-                        <I.IconeCategoria nome={r.icone} size={15} />
-                      </span>
-                      {r.nome}
-                    </th>
-                    {r.dias.map((ms, i) => (
-                      <td key={i} className="num">
-                        {ms > 0 ? durCurta(ms) : <span className="folha-vazia">·</span>}
-                      </td>
+                <>
+                  <div className="dia-card-estudo num">{estudo > 0 ? durCurta(estudo) : "—"}</div>
+                  <div className="dia-card-total num">{durCurta(total)} ao todo</div>
+                  <div className="dia-card-barra" aria-hidden>
+                    <span style={{ width: `${(estudo / pico) * 100}%` }} />
+                  </div>
+                  <div className="dia-card-cats">
+                    {cats.map((r) => (
+                      <div key={r.nome} className="dia-card-cat" title={r.nome}>
+                        <span className="chip-cor" style={{ background: corDe(r, tema) }} />
+                        <span className="dia-card-cat-nome">{r.nome}</span>
+                        <span className="num">{durCurta(r.dias[i])}</span>
+                      </div>
                     ))}
-                    <td className="num folha-total">
-                      {durCurta(r.dias.reduce((a, b) => a + b, 0))}
-                    </td>
-                  </tr>
-                ))
+                  </div>
+                </>
               )}
-            </tbody>
-            {grade.linhas.length > 0 && (
-              <tfoot>
-                <tr>
-                  <th scope="row">Estudo</th>
-                  {grade.estudoPorDia.map((ms, i) => (
-                    <td key={i} className="num">
-                      {ms > 0 ? (
-                        <>
-                          {durCurta(ms)}
-                          <span
-                            className="folha-barra"
-                            style={{ width: `${(ms / pico) * 100}%` }}
-                          />
-                        </>
-                      ) : (
-                        <span className="folha-vazia">·</span>
-                      )}
-                    </td>
-                  ))}
-                  <td className="num folha-total">{durCurta(estudoSemana)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
+            </button>
+          );
+        })}
+      </div>
 
-        <p className="nota">
-          Célula vazia é dia sem registro, não dia zerado — a folha não cobra
-          preenchimento. Clique no dia para abrir a lista dele.
-        </p>
-      </section>
+      <p className="nota">
+        Cartão vazio é dia sem registro, não dia zerado — a semana não cobra
+        preenchimento. Clique no dia para abrir a lista dele.
+      </p>
     </>
   );
 }

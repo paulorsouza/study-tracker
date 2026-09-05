@@ -131,49 +131,43 @@ export default function Notas({
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 18 }}>
-        <div style={{ flex: 1 }}>
+      <div className="pagina-cab">
+        <div>
           <h1 className="titulo-pagina">Notas</h1>
-          <p className="legenda" style={{ margin: 0 }}>
+          <p className="legenda">
             O que ficou da sessão. Uma nota pode se amarrar ao curso, à tarefa e
             ao instante em que foi escrita.
           </p>
         </div>
-        <button className="btn btn-primario" onClick={() => setAberta("nova")}>
-          <I.Mais /> Nova nota
-        </button>
+        <div className="pagina-acoes">
+          <button className="btn btn-primario" onClick={() => setAberta("nova")}>
+            <I.Mais /> Nova nota
+          </button>
+        </div>
       </div>
 
-      <div className="grade" style={{ marginBottom: 16 }}>
-        <div className="campo cresce">
-          <label htmlFor="q">Buscar no texto</label>
-          <input
-            id="q"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="retopologia, ordem a mercado…"
-          />
-        </div>
-        <div className="campo" style={{ width: 150 }}>
-          <label htmlFor="ft">Tag</label>
-          <select id="ft" value={tag} onChange={(e) => setTag(e.target.value)}>
-            <option value="">todas</option>
-            {tags.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <div className="campo" style={{ width: 170 }}>
-          <label htmlFor="fc">Curso</label>
-          <select id="fc" value={curso} onChange={(e) => setCurso(e.target.value)}>
-            <option value="">todos</option>
-            {cursos.map((c) => (
-              <option key={c.id} value={c.id}>{c.titulo}</option>
-            ))}
-          </select>
-        </div>
+      <div className="filtros">
+        <input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar no texto"
+          aria-label="Buscar no texto"
+          style={{ flex: 1 }}
+        />
+        <select value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Tag" style={{ width: 150 }}>
+          <option value="">todas as tags</option>
+          {tags.map((t) => (
+            <option key={t} value={t}>#{t}</option>
+          ))}
+        </select>
+        <select value={curso} onChange={(e) => setCurso(e.target.value)} aria-label="Curso" style={{ width: 180 }}>
+          <option value="">todos os cursos</option>
+          {cursos.map((c) => (
+            <option key={c.id} value={c.id}>{c.titulo}</option>
+          ))}
+        </select>
         <button
-          className={`btn${aRevisar ? " btn-primario" : ""}`}
+          className={`btn${aRevisar ? " btn-suave" : ""}`}
           onClick={() => setARevisar((v) => !v)}
           aria-pressed={aRevisar}
         >
@@ -188,7 +182,8 @@ export default function Notas({
             : "Nenhuma nota ainda. Com o cronômetro rodando, o botão Nota na lateral já amarra o que você escrever àquela sessão."}
         </div>
       ) : (
-        notas.map((n) => (
+        <div className="notas-grade">
+        {notas.map((n) => (
           <button
             key={n.id}
             className="nota-card"
@@ -215,7 +210,8 @@ export default function Notas({
               )}
             </div>
           </button>
-        ))
+        ))}
+        </div>
       )}
     </>
   );
@@ -278,13 +274,15 @@ function Editor({
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <button className="btn btn-icone" onClick={onFechar} aria-label="Voltar">
+      <div className="pagina-cab" style={{ alignItems: "center" }}>
+        <button className="btn btn-fantasma btn-icone" onClick={onFechar} aria-label="Voltar">
           <I.Seta />
         </button>
-        <h1 className="titulo-pagina" style={{ margin: 0, flex: 1 }}>
-          {nota ? "Editar nota" : "Nova nota"}
-        </h1>
+        <div>
+          <h1 className="titulo-pagina" style={{ margin: 0 }}>
+            {nota ? "Editar nota" : "Nova nota"}
+          </h1>
+        </div>
         {nota && (
           <>
             <button

@@ -359,7 +359,7 @@ export default function App() {
         {!compacto && !ehMovel && (
           <button
             className="btn btn-fantasma"
-            style={{ marginTop: "auto", width: "100%", justifyContent: "flex-start", gap: 11 }}
+            style={{ marginTop: "auto", marginBottom: 8, width: "100%", justifyContent: "flex-start", gap: 11, paddingLeft: 12 }}
             onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}
           >
             <I.Janelinha /> Modo compacto
@@ -592,6 +592,7 @@ export default function App() {
               cursos={cursos}
               versao={versao}
               tema={tema}
+              tarefaRodando={status?.tarefa_id ?? null}
               onErro={setErro}
               onMudou={mudou}
             />

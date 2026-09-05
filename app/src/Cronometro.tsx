@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, Favorito } from "./App";
 import { ehMovel } from "./dispositivo";
+import Modal from "./Modal";
 import * as I from "./icones";
 
 type Tipo = { id: string; nome: string; cor: string };
@@ -113,77 +114,26 @@ export default function Cronometro({
       <section className="card">
         <div className="card-cab">
           <h2>Combinações favoritas</h2>
-          {!novo && (
-            <button className="btn" onClick={() => setNovo(true)}>
-              <I.Mais /> Nova
-            </button>
-          )}
+          <button className="btn" onClick={() => setNovo(true)}>
+            <I.Mais /> Nova
+          </button>
         </div>
         <p className="legenda" style={{ marginBottom: 14 }}>
           Atalhos para o que você começa sempre igual. Aparecem no cronômetro da
           barra lateral, ordenados pelo que você mais aciona.
         </p>
 
-        {novo && (
-          <>
-            <div className="grade">
-              <div className="campo" style={{ width: 190 }}>
-                <label htmlFor="fr">Nome</label>
-                <input
-                  id="fr"
-                  value={rotulo}
-                  onChange={(e) => setRotulo(e.target.value)}
-                  placeholder="Blender de manhã"
-                  autoFocus
-                />
-              </div>
-              <div className="campo cresce">
-                <label htmlFor="fd">Descrição do lançamento</label>
-                <input
-                  id="fd"
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  placeholder="usa o nome, se vazio"
-                />
-              </div>
-            </div>
-            <div className="grade" style={{ marginTop: 12 }}>
-              <div className="campo" style={{ width: 170 }}>
-                <label htmlFor="ft">Categoria</label>
-                <select id="ft" value={tipo} onChange={(e) => setTipo(e.target.value)}>
-                  {tipos.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="campo cresce">
-                <label htmlFor="fc">Curso</label>
-                <select id="fc" value={curso} onChange={(e) => setCurso(e.target.value)}>
-                  <option value="">— nenhum —</option>
-                  {cursos.map((c) => (
-                    <option key={c.id} value={c.id}>{c.titulo}</option>
-                  ))}
-                </select>
-              </div>
-              <button className="btn btn-primario" onClick={criar}>Salvar</button>
-              <button className="btn btn-fantasma" onClick={() => setNovo(false)}>
-                Cancelar
-              </button>
-            </div>
-          </>
-        )}
-
         {favoritos.length === 0 ? (
           <div className="vazio">Nenhuma combinação favorita ainda.</div>
         ) : (
-          <div style={{ marginTop: novo ? 18 : 0 }}>
-            {favoritos.map((f) => (
-              <div key={f.id} className="lanc">
-                <span className="lanc-cor" style={{ background: f.cor }} />
-                <span className="lanc-texto" style={{ fontWeight: 500 }}>{f.rotulo}</span>
-                <span className="lanc-curso">
-                  {[f.descricao, f.curso, f.atividade].filter(Boolean).join(" · ")}
-                </span>
+          favoritos.map((f) => (
+            <div key={f.id} className="lanc">
+              <span className="lanc-cor" style={{ background: f.cor }} />
+              <span className="lanc-texto" style={{ fontWeight: 500 }}>{f.rotulo}</span>
+              <span className="lanc-curso">
+                {[f.descricao, f.curso, f.atividade].filter(Boolean).join(" · ")}
+              </span>
+              <span className="lanc-acoes">
                 <button
                   className="btn btn-fantasma btn-icone btn-perigo"
                   onClick={() =>
@@ -192,14 +142,65 @@ export default function Cronometro({
                       .catch((e) => onErro(String(e)))
                   }
                   aria-label={`Excluir ${f.rotulo}`}
+                  title="Excluir"
                 >
                   <I.Lixeira />
                 </button>
-              </div>
-            ))}
-          </div>
+              </span>
+            </div>
+          ))
         )}
       </section>
+
+      <Modal
+        titulo="Nova combinação favorita"
+        aberto={novo}
+        onFechar={() => setNovo(false)}
+        pe={
+          <>
+            <button className="btn btn-fantasma" onClick={() => setNovo(false)}>Cancelar</button>
+            <button className="btn btn-primario" onClick={criar}>Salvar</button>
+          </>
+        }
+      >
+        <div className="campos" onKeyDown={(e) => e.key === "Enter" && criar()}>
+          <div className="campo campo-largo">
+            <label htmlFor="fr">Nome</label>
+            <input
+              id="fr"
+              value={rotulo}
+              onChange={(e) => setRotulo(e.target.value)}
+              placeholder="Blender de manhã"
+            />
+          </div>
+          <div className="campo campo-largo">
+            <label htmlFor="fd">Descrição do lançamento</label>
+            <input
+              id="fd"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="usa o nome, se vazio"
+            />
+          </div>
+          <div className="campo">
+            <label htmlFor="ft">Categoria</label>
+            <select id="ft" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+              {tipos.map((t) => (
+                <option key={t.id} value={t.id}>{t.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div className="campo">
+            <label htmlFor="fc">Curso</label>
+            <select id="fc" value={curso} onChange={(e) => setCurso(e.target.value)}>
+              <option value="">— nenhum —</option>
+              {cursos.map((c) => (
+                <option key={c.id} value={c.id}>{c.titulo}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
 
       {/* Atalho de teclado é conceito de computador com teclado. No celular a
           seção seria uma lista de combinações que ninguém consegue apertar. */}

@@ -4,6 +4,9 @@ import { Curso, durCurta } from "./App";
 import { Lancamento, Tipo, corDe, hhmm } from "./tempo-comum";
 import { Materia } from "./Materias";
 import { useCompacto } from "./dispositivo";
+import LancamentoCard from "./LancamentoCard";
+import Modal from "./Modal";
+import Menu from "./Menu";
 import * as I from "./icones";
 
 function comHora(dia: Date, hm: string) {
@@ -25,6 +28,9 @@ const agoraHhmm = () => {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
+
+/** O que o formulário está fazendo. Nulo é fechado. */
+type Form = { modo: "novo" } | { modo: "editar"; item: Lancamento } | null;
 
 export default function Hoje({
   cursos,
@@ -48,24 +54,18 @@ export default function Hoje({
     if (diaInicial) setDia(diaInicial);
   }, [diaInicial]);
   const [itens, setItens] = useState<Lancamento[]>([]);
+  // Unir é um modo, não uma coluna de caixas: as caixas só aparecem quando o
+  // usuário diz que vai unir. Fora disso a lista é só a lista.
+  const [selecionando, setSelecionando] = useState(false);
   const [selecao, setSelecao] = useState<string[]>([]);
   // Dividir e unir são correções finas: escolher o minuto do corte e marcar
-  // várias linhas pede precisão que o dedo não tem. Continuar, editar e excluir
-  // ficam — são o que se faz com o aparelho na mão.
+  // várias linhas pede precisão que o dedo não tem.
   const compacto = useCompacto();
   const [cortando, setCortando] = useState<string | null>(null);
   const [corte, setCorte] = useState("");
   const [tipos, setTipos] = useState<Tipo[]>([]);
-  const [editando, setEditando] = useState<string | null>(null);
+  const [form, setForm] = useState<Form>(null);
   const [desfazer, setDesfazer] = useState<string | null>(null);
-  const [formAberto, setFormAberto] = useState(false);
-
-  const [fInicio, setFInicio] = useState(agoraHhmm);
-  const [fFim, setFFim] = useState("");
-  const [fDuracao, setFDuracao] = useState("");
-  const [fTipo, setFTipo] = useState("at-estudo");
-  const [fDesc, setFDesc] = useState("");
-  const [fCurso, setFCurso] = useState("");
 
   const [ini, fim] = useMemo(() => limitesDoDia(dia), [dia]);
 
@@ -111,34 +111,9 @@ export default function Hoje({
     const d = new Date(dia);
     d.setDate(d.getDate() + delta);
     setDia(d);
-    setEditando(null);
-  };
-
-  const limpar = () => {
-    setFDesc("");
-    setFDuracao("");
-    setFFim("");
-    setFInicio(agoraHhmm());
-  };
-
-  const adicionar = () => {
-    if (!fInicio) return onErro("informe a hora de início");
-    if (!fFim && !fDuracao.trim()) return onErro("informe o fim ou a duração");
-    invoke("criar_lancamento", {
-      inicio: comHora(dia, fInicio),
-      fim: fFim ? comHora(dia, fFim) : null,
-      duracao: fDuracao.trim() || null,
-      activityTypeId: fTipo,
-      descricao: fDesc.trim() || null,
-      cursoId: fCurso || null,
-    })
-      .then(() => {
-        limpar();
-        onErro(null);
-        onMudou();
-        recarregar();
-      })
-      .catch((e) => onErro(String(e)));
+    setForm(null);
+    setSelecionando(false);
+    setSelecao([]);
   };
 
   const acao = (cmd: string, args: Record<string, unknown>) =>
@@ -146,12 +121,13 @@ export default function Hoje({
       .then(() => {
         onErro(null);
         setSelecao([]);
+        setSelecionando(false);
         recarregar();
         onMudou();
       })
       .catch((e) => onErro(String(e)));
 
-  /// Abre o corte na própria linha, com o meio só como sugestão.
+  /// Abre o corte no próprio cartão, com o meio só como sugestão.
   ///
   /// Cortar no meio automaticamente seria quase sempre errado: quem divide sabe
   /// a hora em que a sessão mudou de assunto, e é essa hora que importa.
@@ -181,8 +157,8 @@ export default function Hoje({
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 22 }}>
-        <div style={{ flex: 1 }}>
+      <div className="pagina-cab">
+        <div>
           <h1 className="titulo-pagina">
             {ehHoje
               ? "Hoje"
@@ -192,11 +168,9 @@ export default function Hoje({
                   month: "long",
                 })}
           </h1>
-          <p className="legenda" style={{ margin: 0 }}>
-            {dia.toLocaleDateString("pt-BR", { dateStyle: "full" })}
-          </p>
+          <p className="legenda">{dia.toLocaleDateString("pt-BR", { dateStyle: "full" })}</p>
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="pagina-acoes">
           <button className="btn btn-icone" onClick={() => mudarDia(-1)} aria-label="Dia anterior">
             <I.Seta />
           </button>
@@ -205,6 +179,9 @@ export default function Hoje({
           </button>
           <button className="btn btn-icone" onClick={() => mudarDia(1)} aria-label="Próximo dia">
             <I.Seta dir="dir" />
+          </button>
+          <button className="btn btn-primario" onClick={() => setForm({ modo: "novo" })}>
+            <I.Mais /> Lançar
           </button>
         </div>
       </div>
@@ -234,19 +211,17 @@ export default function Hoje({
         </div>
       )}
 
-      <section className="card">
-        <div className="totais">
-          <div>
-            <div className="total-valor">{durCurta(totais.estudo)}</div>
+      <section className="card resumo-dia">
+        <div className="resumo-numeros">
+          <div className="resumo-tile">
+            <div className="total-valor tile-destaque">{durCurta(totais.estudo)}</div>
             <div className="total-rotulo">estudo efetivo</div>
           </div>
-          <div>
-            <div className="total-valor" style={{ color: "var(--tx-2)" }}>
-              {durCurta(totais.total)}
-            </div>
-            <div className="total-rotulo">tempo registrado no dia</div>
+          <div className="resumo-tile">
+            <div className="total-valor">{durCurta(totais.total)}</div>
+            <div className="total-rotulo">registrado no dia</div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
+          <div className="resumo-chips">
             {totais.por.map((a) => (
               <span key={a.nome} className="chip">
                 <span className="chip-cor" style={{ background: a.cor }} />
@@ -285,262 +260,170 @@ export default function Hoje({
         <div className="faixa-horas" aria-hidden>
           <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>24h</span>
         </div>
-
-        {itens.length === 0 ? (
-          <div className="vazio">
-            Nada registrado neste dia.
-            <br />
-            Use o cronômetro na lateral, a extensão do Chrome, ou lance à mão.
-          </div>
-        ) : (
-          itens.map((i) =>
-            editando === i.id ? (
-              <Editor
-                key={i.id}
-                item={i}
-                dia={dia}
-                tipos={tipos}
-                cursos={cursos}
-                onFechar={() => setEditando(null)}
-                onSalvo={() => {
-                  setEditando(null);
-                  recarregar();
-                  onMudou();
-                }}
-                onErro={onErro}
-              />
-            ) : (
-              <div
-                key={i.id}
-                className={`lanc${i.sobrepoe ? " lanc-sobreposto" : ""}`}
-              >
-                {!compacto && (
-                <input
-                  type="checkbox"
-                  className="lanc-marca"
-                  checked={selecao.includes(i.id)}
-                  disabled={!i.ended_at}
-                  onChange={(e) =>
-                    setSelecao((s) =>
-                      e.target.checked ? [...s, i.id] : s.filter((x) => x !== i.id)
-                    )
-                  }
-                  aria-label={`Selecionar ${i.description || i.atividade}`}
-                />
-                )}
-                <span className="lanc-cor" style={{ background: corDe(i, tema) }} />
-                <span
-                  style={{ color: corDe(i, tema), display: "flex", flex: "none" }}
-                  title={i.atividade}
-                >
-                  <I.IconeCategoria nome={i.icone} size={14} />
-                </span>
-                <span className="lanc-hora num">
-                  {hhmm(i.started_at)} – {i.ended_at ? hhmm(i.ended_at) : "agora"}
-                </span>
-                <span className="lanc-texto">
-                  {i.description || <span style={{ color: "var(--tx-2)" }}>{i.atividade}</span>}
-                  {i.curso && <span className="lanc-curso"> · {i.curso}</span>}
-                  {i.sobrepoe && (
-                    <span className="marca-aviso" title="Divide relógio com outro lançamento">
-                      sobreposto
-                    </span>
-                  )}
-                  {i.distancia_m != null && (
-                    <span className="marca-extra">{(i.distancia_m / 1000).toFixed(1)} km</span>
-                  )}
-                  {i.treino && <span className="marca-extra">{i.treino}</span>}
-                  {i.materia && <span className="marca-extra">{i.materia}</span>}
-                  {i.aula && <span className="marca-extra">{i.aula}</span>}
-                  {i.observacao && (
-                    <span className="marca-extra" title={i.observacao}>
-                      <I.Nota size={10} />
-                    </span>
-                  )}
-                </span>
-                <span className="lanc-dur num">
-                  {durCurta((i.ended_at ?? Date.now()) - i.started_at)}
-                </span>
-                <span className="lanc-acoes">
-                  <button
-                    className="btn btn-fantasma btn-icone"
-                    onClick={() => acao("timer_continuar", { entryId: i.id })}
-                    aria-label="Continuar este lançamento agora"
-                    title="Continuar agora"
-                  >
-                    <I.Play size={14} />
-                  </button>
-                  {!compacto && (
-                    <>
-                      <button
-                        className="btn btn-fantasma btn-icone"
-                        onClick={() => acao("duplicar_lancamento", { id: i.id })}
-                        disabled={!i.ended_at}
-                        aria-label="Duplicar lançamento"
-                        title="Duplicar"
-                      >
-                        <I.Copia />
-                      </button>
-                      <button
-                        className="btn btn-fantasma btn-icone"
-                        onClick={() => abrirCorte(i)}
-                        disabled={!i.ended_at}
-                        aria-label="Dividir lançamento em dois"
-                        title="Dividir"
-                      >
-                        <I.Tesoura />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    className="btn btn-fantasma btn-icone"
-                    onClick={() => setEditando(i.id)}
-                    disabled={!i.ended_at}
-                    aria-label="Editar lançamento"
-                  >
-                    <I.Lapis />
-                  </button>
-                  <button
-                    className="btn btn-fantasma btn-icone btn-perigo"
-                    onClick={() => excluir(i.id)}
-                    disabled={!i.ended_at}
-                    aria-label="Excluir lançamento"
-                  >
-                    <I.Lixeira />
-                  </button>
-                </span>
-                {cortando === i.id && (
-                  <div className="lanc-corte">
-                    <label htmlFor={`corte-${i.id}`}>cortar às</label>
-                    <input
-                      id={`corte-${i.id}`}
-                      value={corte}
-                      onChange={(e) => setCorte(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && confirmarCorte(i.id)}
-                      placeholder="HH:MM"
-                      autoFocus
-                    />
-                    <button className="btn btn-primario" onClick={() => confirmarCorte(i.id)}>
-                      Cortar
-                    </button>
-                    <button className="btn btn-fantasma" onClick={() => setCortando(null)}>
-                      Cancelar
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          )
-        )}
-
-        {selecao.length > 0 && (
-          <div className="barra-selecao" role="status">
-            <span>
-              {selecao.length} selecionado{selecao.length === 1 ? "" : "s"}
-            </span>
-            <button
-              className="btn"
-              disabled={selecao.length < 2}
-              onClick={() => acao("unir_lancamentos", { ids: selecao })}
-              title="Vira um lançamento só, do início do primeiro ao fim do último"
-            >
-              <I.Juntar /> Unir
-            </button>
-            <button className="btn btn-fantasma" onClick={() => setSelecao([])}>
-              Limpar
-            </button>
-          </div>
-        )}
       </section>
 
-      <section className="card">
-        <div className="card-cab">
-          <h2>Lançar à mão</h2>
-          {!formAberto && (
-            <button className="btn" onClick={() => setFormAberto(true)}>
-              <I.Mais /> Novo lançamento
-            </button>
-          )}
+      {itens.length === 0 ? (
+        <div className="vazio">
+          Nada registrado neste dia.
+          <br />
+          Use o cronômetro na lateral, a extensão do Chrome, ou o botão Lançar.
         </div>
+      ) : (
+        <>
+          <div className="secao-cab">
+            <h2>Lançamentos</h2>
+            {!compacto && itens.some((i) => i.ended_at) && (
+              <button
+                className={`btn btn-fantasma btn-pequeno${selecionando ? " ativo" : ""}`}
+                onClick={() => {
+                  setSelecionando((v) => !v);
+                  setSelecao([]);
+                }}
+                aria-pressed={selecionando}
+                title="Escolher lançamentos seguidos para unir num só"
+              >
+                <I.Juntar size={14} /> {selecionando ? "Cancelar" : "Unir"}
+              </button>
+            )}
+          </div>
 
-        {formAberto ? (
-          <>
-            <div className="grade">
-              <div className="campo" style={{ width: 108 }}>
-                <label htmlFor="ini">Início</label>
-                <input id="ini" type="time" value={fInicio} onChange={(e) => setFInicio(e.target.value)} />
-              </div>
-              <div className="campo" style={{ width: 108 }}>
-                <label htmlFor="fim">Fim</label>
-                <input id="fim" type="time" value={fFim} onChange={(e) => setFFim(e.target.value)} />
-              </div>
-              <div className="campo" style={{ width: 132 }}>
-                <label htmlFor="durac">ou duração</label>
-                <input
-                  id="durac"
-                  placeholder="45m · 1h30 · 1:30"
-                  value={fDuracao}
-                  onChange={(e) => setFDuracao(e.target.value)}
-                />
-              </div>
-              <div className="campo" style={{ width: 150 }}>
-                <label htmlFor="tipo">Atividade</label>
-                <select id="tipo" value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
-                  {tipos.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nome}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="linha-tempo">
+            {itens.map((i) => (
+              <LancamentoCard
+                key={i.id}
+                l={i}
+                tema={tema}
+                selecionavel={selecionando}
+                selecionado={selecao.includes(i.id)}
+                onSelecionar={(v) =>
+                  setSelecao((s) => (v ? [...s, i.id] : s.filter((x) => x !== i.id)))
+                }
+                acoes={
+                  <>
+                    <button
+                      className="btn btn-fantasma btn-icone"
+                      onClick={() => acao("timer_continuar", { entryId: i.id })}
+                      aria-label="Continuar este lançamento agora"
+                      title="Continuar agora"
+                    >
+                      <I.Play size={14} />
+                    </button>
+                    <Menu
+                      itens={[
+                        {
+                          rotulo: "Editar",
+                          icone: <I.Lapis />,
+                          desativado: !i.ended_at,
+                          onClick: () => setForm({ modo: "editar", item: i }),
+                        },
+                        ...(compacto
+                          ? []
+                          : [
+                              {
+                                rotulo: "Duplicar",
+                                icone: <I.Copia />,
+                                desativado: !i.ended_at,
+                                onClick: () => acao("duplicar_lancamento", { id: i.id }),
+                              },
+                              {
+                                rotulo: "Dividir em dois",
+                                icone: <I.Tesoura />,
+                                desativado: !i.ended_at,
+                                onClick: () => abrirCorte(i),
+                              },
+                            ]),
+                        {
+                          rotulo: "Excluir",
+                          icone: <I.Lixeira />,
+                          perigo: true,
+                          desativado: !i.ended_at,
+                          onClick: () => excluir(i.id),
+                        },
+                      ]}
+                    />
+                  </>
+                }
+                rodape={
+                  cortando === i.id ? (
+                    <div className="lanc-corte">
+                      <label htmlFor={`corte-${i.id}`}>cortar às</label>
+                      <input
+                        id={`corte-${i.id}`}
+                        value={corte}
+                        onChange={(e) => setCorte(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && confirmarCorte(i.id)}
+                        placeholder="HH:MM"
+                        autoFocus
+                      />
+                      <button className="btn btn-primario btn-pequeno" onClick={() => confirmarCorte(i.id)}>
+                        Cortar
+                      </button>
+                      <button className="btn btn-fantasma btn-pequeno" onClick={() => setCortando(null)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : null
+                }
+              />
+            ))}
+          </div>
 
-            <div className="grade" style={{ marginTop: 12 }}>
-              <div className="campo cresce">
-                <label htmlFor="desc">O que foi feito</label>
-                <input
-                  id="desc"
-                  value={fDesc}
-                  onChange={(e) => setFDesc(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && adicionar()}
-                />
-              </div>
-              <div className="campo" style={{ width: 180 }}>
-                <label htmlFor="curso">Curso</label>
-                <select id="curso" value={fCurso} onChange={(e) => setFCurso(e.target.value)}>
-                  <option value="">— nenhum —</option>
-                  {cursos.map((c) => (
-                    <option key={c.id} value={c.id}>{c.titulo}</option>
-                  ))}
-                </select>
-              </div>
-              <button className="btn btn-primario" onClick={adicionar}>Lançar</button>
+          {selecionando && (
+            <div className="barra-flutuante" role="status">
+              <span>
+                {selecao.length === 0
+                  ? "Marque dois ou mais lançamentos seguidos"
+                  : `${selecao.length} selecionado${selecao.length === 1 ? "" : "s"}`}
+              </span>
+              <button
+                className="btn btn-primario"
+                disabled={selecao.length < 2}
+                onClick={() => acao("unir_lancamentos", { ids: selecao })}
+                title="Vira um lançamento só, do início do primeiro ao fim do último"
+              >
+                <I.Juntar /> Unir
+              </button>
               <button
                 className="btn btn-fantasma"
-                onClick={() => { setFormAberto(false); limpar(); }}
+                onClick={() => {
+                  setSelecionando(false);
+                  setSelecao([]);
+                }}
               >
                 Cancelar
               </button>
             </div>
+          )}
+        </>
+      )}
 
-            <p className="nota">
-              Informe o fim ou a duração — se vierem os dois, o fim ganha. Fora o
-              tempo, nenhum campo é obrigatório.
-            </p>
-          </>
-        ) : (
-          <p className="nota" style={{ margin: 0 }}>
-            Esqueceu de ligar o cronômetro? Dá para registrar depois, em qualquer
-            data.
-          </p>
-        )}
-      </section>
+      <FormLancamento
+        key={form ? (form.modo === "editar" ? form.item.id : "novo") : "fechado"}
+        form={form}
+        dia={dia}
+        tipos={tipos}
+        cursos={cursos}
+        onFechar={() => setForm(null)}
+        onSalvo={() => {
+          setForm(null);
+          recarregar();
+          onMudou();
+        }}
+        onErro={onErro}
+      />
     </>
   );
 }
 
-function Editor({
-  item, dia, tipos, cursos, onFechar, onSalvo, onErro,
+/**
+ * Lançar à mão e editar no mesmo formulário. Quem lança depois costuma
+ * lembrar de tudo de uma vez — matéria, aula, o que foi feito — e um segundo
+ * formulário para os "detalhes" só espalharia a mesma informação.
+ */
+function FormLancamento({
+  form, dia, tipos, cursos, onFechar, onSalvo, onErro,
 }: {
-  item: Lancamento;
+  form: Form;
   dia: Date;
   tipos: Tipo[];
   cursos: Curso[];
@@ -548,23 +431,24 @@ function Editor({
   onSalvo: () => void;
   onErro: (e: string | null) => void;
 }) {
-  const [inicio, setInicio] = useState(hhmm(item.started_at));
-  const [fim, setFim] = useState(hhmm(item.ended_at ?? item.started_at));
-  const [tipo, setTipo] = useState(item.activity_type_id);
-  const [desc, setDesc] = useState(item.description ?? "");
-  const [curso, setCurso] = useState(item.course_id ?? "");
-  const [obs, setObs] = useState(item.observacao ?? "");
-  const [km, setKm] = useState(
-    item.distancia_m ? String(item.distancia_m / 1000) : ""
-  );
-  const [treino, setTreino] = useState(item.treino ?? "");
-  const [materia, setMateria] = useState(item.subject_id ?? "");
-  const [aula, setAula] = useState(item.aula ?? "");
+  const item = form?.modo === "editar" ? form.item : null;
+  const [inicio, setInicio] = useState(item ? hhmm(item.started_at) : agoraHhmm());
+  const [fim, setFim] = useState(item ? hhmm(item.ended_at ?? item.started_at) : "");
+  const [duracao, setDuracao] = useState("");
+  const [tipo, setTipo] = useState(item?.activity_type_id ?? "at-estudo");
+  const [desc, setDesc] = useState(item?.description ?? "");
+  const [curso, setCurso] = useState(item?.course_id ?? "");
+  const [obs, setObs] = useState(item?.observacao ?? "");
+  const [km, setKm] = useState(item?.distancia_m ? String(item.distancia_m / 1000) : "");
+  const [treino, setTreino] = useState(item?.treino ?? "");
+  const [materia, setMateria] = useState(item?.subject_id ?? "");
+  const [aula, setAula] = useState(item?.aula ?? "");
   const [materias, setMaterias] = useState<Materia[]>([]);
 
   useEffect(() => {
+    if (!form) return;
     invoke<Materia[]>("listar_materias").then(setMaterias).catch(() => {});
-  }, []);
+  }, [form]);
 
   // O campo extra segue a categoria escolhida **agora**, não a que estava
   // gravada: reclassificar uma pausa como caminhada deve revelar a distância
@@ -572,25 +456,39 @@ function Editor({
   const extra = tipos.find((t) => t.id === tipo)?.campos_extra ?? null;
 
   const salvar = async () => {
+    if (!inicio) return onErro("informe a hora de início");
     try {
-      await invoke("editar_lancamento", {
-        id: item.id,
-        inicio: comHora(dia, inicio),
-        fim: comHora(dia, fim),
-        activityTypeId: tipo,
-        descricao: desc.trim() || null,
-        cursoId: curso || null,
-      });
-      // Chamada separada de propósito: o calendário edita horários sem saber
+      let id = item?.id;
+      if (item) {
+        await invoke("editar_lancamento", {
+          id: item.id,
+          inicio: comHora(dia, inicio),
+          fim: comHora(dia, fim),
+          activityTypeId: tipo,
+          descricao: desc.trim() || null,
+          cursoId: curso || null,
+        });
+      } else {
+        if (!fim && !duracao.trim()) return onErro("informe o fim ou a duração");
+        id = await invoke<string>("criar_lancamento", {
+          inicio: comHora(dia, inicio),
+          fim: fim ? comHora(dia, fim) : null,
+          duracao: duracao.trim() || null,
+          activityTypeId: tipo,
+          descricao: desc.trim() || null,
+          cursoId: curso || null,
+        });
+      }
+      // Chamadas separadas de propósito: o calendário edita horários sem saber
       // destes campos, e juntá-los faria mover um bloco apagar a distância.
       await invoke("salvar_detalhes", {
-        id: item.id,
+        id,
         observacao: obs.trim() || null,
         distanciaM: extra === "distancia" && km.trim() ? Math.round(Number(km) * 1000) : null,
         treino: extra === "treino" ? treino.trim() || null : null,
       });
       await invoke("salvar_vinculos", {
-        id: item.id,
+        id,
         subjectId: materia || null,
         aula: aula.trim() || null,
       });
@@ -602,51 +500,84 @@ function Editor({
   };
 
   return (
-    <div
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onFechar();
-        if (e.key === "Enter") salvar();
-      }}
-      style={{
-        border: "1px solid var(--acc)",
-        borderRadius: "var(--r-sm)",
-        padding: 12,
-        margin: "6px -10px",
-        background: "var(--surf-2)",
-      }}
+    <Modal
+      titulo={item ? "Editar lançamento" : "Novo lançamento"}
+      aberto={!!form}
+      onFechar={onFechar}
+      larga
+      pe={
+        <>
+          <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>
+          <button className="btn btn-primario" onClick={salvar}>
+            {item ? "Salvar" : "Lançar"}
+          </button>
+        </>
+      }
     >
-      <div className="grade">
-        <div className="campo" style={{ width: 104 }}>
-          <label>Início</label>
-          <input type="time" value={inicio} onChange={(e) => setInicio(e.target.value)} autoFocus />
+      <div className="campos" onKeyDown={(e) => e.key === "Enter" && salvar()}>
+        <div className="campo">
+          <label htmlFor="fl-ini">Início</label>
+          <input id="fl-ini" type="time" value={inicio} onChange={(e) => setInicio(e.target.value)} />
         </div>
-        <div className="campo" style={{ width: 104 }}>
-          <label>Fim</label>
-          <input type="time" value={fim} onChange={(e) => setFim(e.target.value)} />
+        <div className="campo">
+          <label htmlFor="fl-fim">Fim</label>
+          <input id="fl-fim" type="time" value={fim} onChange={(e) => setFim(e.target.value)} />
         </div>
-        <div className="campo" style={{ width: 140 }}>
-          <label>Atividade</label>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            {tipos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+        {!item && (
+          <div className="campo">
+            <label htmlFor="fl-dur">ou duração</label>
+            <input
+              id="fl-dur"
+              placeholder="45m · 1h30 · 1:30"
+              value={duracao}
+              onChange={(e) => setDuracao(e.target.value)}
+            />
+          </div>
+        )}
+        <div className="campo">
+          <label htmlFor="fl-tipo">Atividade</label>
+          <select id="fl-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            {tipos.map((t) => (
+              <option key={t.id} value={t.id}>{t.nome}</option>
+            ))}
           </select>
         </div>
-        <div className="campo" style={{ width: 160 }}>
-          <label>Curso</label>
-          <select value={curso} onChange={(e) => setCurso(e.target.value)}>
+        <div className="campo campo-largo">
+          <label htmlFor="fl-desc">O que foi feito</label>
+          <input id="fl-desc" value={desc} onChange={(e) => setDesc(e.target.value)} />
+        </div>
+        <div className="campo">
+          <label htmlFor="fl-curso">Curso</label>
+          <select id="fl-curso" value={curso} onChange={(e) => setCurso(e.target.value)}>
             <option value="">— nenhum —</option>
-            {cursos.map((c) => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+            {cursos.map((c) => (
+              <option key={c.id} value={c.id}>{c.titulo}</option>
+            ))}
           </select>
         </div>
-      </div>
-      <div className="grade" style={{ marginTop: 10 }}>
-        <div className="campo cresce">
-          <label>Descrição</label>
-          <input value={desc} onChange={(e) => setDesc(e.target.value)} />
+        <div className="campo">
+          <label htmlFor="fl-mat">Matéria</label>
+          <select id="fl-mat" value={materia} onChange={(e) => setMateria(e.target.value)}>
+            <option value="">— nenhuma —</option>
+            {materias.map((m) => (
+              <option key={m.id} value={m.id}>{m.nome}</option>
+            ))}
+          </select>
+        </div>
+        <div className="campo campo-largo">
+          <label htmlFor="fl-aula">Aula</label>
+          <input
+            id="fl-aula"
+            value={aula}
+            onChange={(e) => setAula(e.target.value)}
+            placeholder="Aula 13, módulo 2 — opcional"
+          />
         </div>
         {extra === "distancia" && (
-          <div className="campo" style={{ width: 110 }}>
-            <label>Distância (km)</label>
+          <div className="campo">
+            <label htmlFor="fl-km">Distância (km)</label>
             <input
+              id="fl-km"
               type="number"
               min={0}
               step="0.1"
@@ -656,50 +587,26 @@ function Editor({
           </div>
         )}
         {extra === "treino" && (
-          <div className="campo" style={{ width: 170 }}>
-            <label>Treino</label>
+          <div className="campo">
+            <label htmlFor="fl-treino">Treino</label>
             <input
+              id="fl-treino"
               value={treino}
               onChange={(e) => setTreino(e.target.value)}
               placeholder="Treino B, peito e tríceps"
             />
           </div>
         )}
-      </div>
-      <div className="grade" style={{ marginTop: 10 }}>
-        <div className="campo" style={{ width: 170 }}>
-          <label>Matéria</label>
-          <select value={materia} onChange={(e) => setMateria(e.target.value)}>
-            <option value="">— nenhuma —</option>
-            {materias.map((m) => (
-              <option key={m.id} value={m.id}>{m.nome}</option>
-            ))}
-          </select>
-        </div>
-        <div className="campo cresce">
-          <label>Aula</label>
-          <input
-            value={aula}
-            onChange={(e) => setAula(e.target.value)}
-            placeholder="Aula 13, módulo 2 — opcional"
-          />
+        <div className="campo campo-largo">
+          <label htmlFor="fl-obs">Observação</label>
+          <input id="fl-obs" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="opcional" />
         </div>
       </div>
-      <div className="grade" style={{ marginTop: 10 }}>
-        <div className="campo cresce">
-          <label>Observação</label>
-          <input
-            value={obs}
-            onChange={(e) => setObs(e.target.value)}
-            placeholder="opcional"
-          />
-        </div>
-        <button className="btn btn-primario" onClick={salvar}>Salvar</button>
-        <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>
-      </div>
-      <p className="nota" style={{ marginTop: 8 }}>
-        Enter salva, Esc cancela. A versão anterior fica guardada no histórico.
+      <p className="nota">
+        {item
+          ? "A versão anterior fica guardada no histórico."
+          : "Informe o fim ou a duração; se vierem os dois, o fim ganha. Fora o tempo, nada é obrigatório."}
       </p>
-    </div>
+    </Modal>
   );
 }

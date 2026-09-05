@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import Modal from "./Modal";
+import Menu from "./Menu";
 import * as I from "./icones";
 
 export type Tipo = {
@@ -40,6 +42,8 @@ const paraMin = (h: string) => {
 const paraHoras = (m: number | null) =>
   m == null ? "" : String(Math.round((m / 60) * 100) / 100);
 
+type Form = { modo: "nova" } | { modo: "editar"; t: Tipo } | null;
+
 export default function Categorias({
   tema,
   onErro,
@@ -52,8 +56,8 @@ export default function Categorias({
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [metas, setMetas] = useState<Meta[]>([]);
   const [paleta, setPaleta] = useState<Cor[]>([]);
-  const [editando, setEditando] = useState<string | null>(null);
-  const [novo, setNovo] = useState(false);
+  const [form, setForm] = useState<Form>(null);
+  const [metaDeTipo, setMetaDeTipo] = useState<Tipo | null>(null);
   const arrastando = useRef<string | null>(null);
 
   const recarregar = useCallback(() => {
@@ -98,111 +102,95 @@ export default function Categorias({
       <section className="card">
         <div className="card-cab">
           <h2>Categorias de atividade</h2>
-          {!novo && (
-            <button className="btn" onClick={() => setNovo(true)}>
-              <I.Mais /> Nova categoria
-            </button>
-          )}
+          <button className="btn" onClick={() => setForm({ modo: "nova" })}>
+            <I.Mais /> Nova categoria
+          </button>
         </div>
 
-        {novo && (
-          <Editor
-            paleta={paleta}
-            tema={tema}
-            onCancelar={() => setNovo(false)}
-            onSalvar={(d) =>
-              acao("criar_tipo", d).then(() => setNovo(false))
-            }
-          />
-        )}
-
-        {tipos.map((t) =>
-          editando === t.id ? (
-            <Editor
-              key={t.id}
-              inicial={t}
-              paleta={paleta}
-              tema={tema}
-              onCancelar={() => setEditando(null)}
-              onSalvar={(d) =>
-                acao("editar_tipo", { id: t.id, ...d }).then(() => setEditando(null))
-              }
-            />
-          ) : (
-            <div
-              key={t.id}
-              className="lanc tarefa"
-              draggable
-              onDragStart={() => (arrastando.current = t.id)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => soltar(t)}
+        {tipos.map((t) => (
+          <div
+            key={t.id}
+            className="lanc tarefa"
+            draggable
+            onDragStart={() => (arrastando.current = t.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => soltar(t)}
+          >
+            <span className="chip-cor" style={{ background: corDe(t, tema) }} />
+            <span style={{ color: corDe(t, tema), display: "flex" }}>
+              <I.IconeCategoria nome={t.icone} size={16} />
+            </span>
+            <span className="lanc-texto">
+              {t.nome}
+              {t.conta_como_estudo && (
+                <span className="lanc-curso"> · conta como estudo</span>
+              )}
+            </span>
+            {/* A meta é a própria etiqueta: clicar nela abre o ajuste. Um
+                cartão inteiro de campos por categoria virava planilha. */}
+            <button
+              className={`btn btn-pequeno${metaDe(t.id) ? " btn-suave" : " btn-fantasma"}`}
+              onClick={() => setMetaDeTipo(t)}
+              title="Ajustar a meta de tempo"
             >
-              <span className="chip-cor" style={{ background: corDe(t, tema) }} />
-              <span style={{ color: corDe(t, tema), display: "flex" }}>
-                <I.IconeCategoria nome={t.icone} size={16} />
-              </span>
-              <span className="lanc-texto">
-                {t.nome}
-                {t.conta_como_estudo && (
-                  <span className="lanc-curso"> · conta como estudo</span>
-                )}
-              </span>
-              <span className="nota" style={{ margin: 0, minWidth: 130, textAlign: "right" }}>
-                {resumoMeta(metaDe(t.id))}
-              </span>
-              <span className="lanc-acoes">
-                <button
-                  className="btn btn-fantasma btn-icone"
-                  onClick={() => setEditando(t.id)}
-                  aria-label={`Editar ${t.nome}`}
-                >
-                  <I.Lapis />
-                </button>
-                <button
-                  className="btn btn-fantasma btn-icone btn-perigo"
-                  onClick={() => acao("excluir_tipo", { id: t.id })}
-                  aria-label={`Excluir ${t.nome}`}
-                >
-                  <I.Lixeira />
-                </button>
-              </span>
-            </div>
-          )
-        )}
+              <I.Alvo size={13} /> {resumoMeta(metaDe(t.id))}
+            </button>
+            <span className="lanc-acoes">
+              <Menu
+                itens={[
+                  { rotulo: "Editar", icone: <I.Lapis />, onClick: () => setForm({ modo: "editar", t }) },
+                  { rotulo: "Meta de tempo", icone: <I.Alvo />, onClick: () => setMetaDeTipo(t) },
+                  {
+                    rotulo: "Excluir",
+                    icone: <I.Lixeira />,
+                    perigo: true,
+                    onClick: () => acao("excluir_tipo", { id: t.id }),
+                  },
+                ]}
+              />
+            </span>
+          </div>
+        ))}
 
         <p className="nota">
           Arraste para reordenar. A ordem não é cosmética: as cores foram
           validadas para daltonismo <b>por pares vizinhos</b>, então quem fica ao
-          lado de quem faz parte da acessibilidade.
+          lado de quem faz parte da acessibilidade. Clique na meta para ajustar
+          piso e teto.
         </p>
       </section>
 
-      <section className="card">
-        <h2>Metas por categoria</h2>
-        <p className="nota" style={{ marginTop: 0, marginBottom: 14 }}>
-          Piso, teto, ou os dois. Estudo costuma querer piso; lazer, teto;
-          academia, os dois — treinar de menos e treinar de mais são problemas
-          diferentes.
-        </p>
+      <FormTipo
+        key={form ? (form.modo === "editar" ? form.t.id : "nova") : "tipo-fechado"}
+        form={form}
+        paleta={paleta}
+        tema={tema}
+        onFechar={() => setForm(null)}
+        onSalvar={(d) =>
+          acao(
+            form?.modo === "editar" ? "editar_tipo" : "criar_tipo",
+            form?.modo === "editar" ? { id: form.t.id, ...d } : d
+          ).then(() => setForm(null))
+        }
+      />
 
-        {tipos.map((t) => (
-          <LinhaMeta
-            key={t.id}
-            tipo={t}
-            tema={tema}
-            meta={metaDe(t.id)}
-            onSalvar={(periodo, min, max) =>
-              acao("salvar_meta", {
-                activityTypeId: t.id,
-                periodo,
-                minMinutos: min,
-                maxMinutos: max,
-              })
-            }
-            onExcluir={(id) => acao("excluir_meta", { id })}
-          />
-        ))}
-      </section>
+      <FormMeta
+        key={metaDeTipo ? `meta-${metaDeTipo.id}` : "meta-fechado"}
+        tipo={metaDeTipo}
+        meta={metaDeTipo ? metaDe(metaDeTipo.id) : undefined}
+        tema={tema}
+        onFechar={() => setMetaDeTipo(null)}
+        onSalvar={(periodo, min, max) =>
+          metaDeTipo &&
+          acao("salvar_meta", {
+            activityTypeId: metaDeTipo.id,
+            periodo,
+            minMinutos: min,
+            maxMinutos: max,
+          }).then(() => setMetaDeTipo(null))
+        }
+        onExcluir={(id) => acao("excluir_meta", { id }).then(() => setMetaDeTipo(null))}
+      />
     </>
   );
 }
@@ -219,17 +207,17 @@ function resumoMeta(m?: Meta) {
   return `máx ${h(m.max_minutos!)}${p}`;
 }
 
-function Editor({
-  inicial,
+function FormTipo({
+  form,
   paleta,
   tema,
-  onCancelar,
+  onFechar,
   onSalvar,
 }: {
-  inicial?: Tipo;
+  form: Form;
   paleta: Cor[];
   tema: string;
-  onCancelar: () => void;
+  onFechar: () => void;
   onSalvar: (d: {
     nome: string;
     cor: string;
@@ -239,27 +227,54 @@ function Editor({
     camposExtra: string | null;
   }) => void;
 }) {
+  const inicial = form?.modo === "editar" ? form.t : undefined;
   const [nome, setNome] = useState(inicial?.nome ?? "");
   const [cor, setCor] = useState(inicial?.cor ?? paleta[0]?.clara ?? "");
   const [estudo, setEstudo] = useState(inicial?.conta_como_estudo ?? false);
   const [icone, setIcone] = useState(inicial?.icone ?? "circulo");
   const [extra, setExtra] = useState(inicial?.campos_extra ?? "");
 
+  // A paleta pode chegar depois do primeiro render do formulário novo.
+  useEffect(() => {
+    if (!cor && paleta[0]) setCor(paleta[0].clara);
+  }, [paleta, cor]);
+
   const escolhida = paleta.find((p) => p.clara === cor) ?? paleta[0];
 
+  const salvar = () =>
+    escolhida &&
+    onSalvar({
+      nome,
+      cor: escolhida.clara,
+      corEscura: escolhida.escura,
+      contaComoEstudo: estudo,
+      icone,
+      camposExtra: extra || null,
+    });
+
   return (
-    <div className="editor" onKeyDown={(e) => e.key === "Escape" && onCancelar()}>
-      <div className="grade">
-        <div className="campo cresce">
-          <label>Nome</label>
+    <Modal
+      titulo={inicial ? "Editar categoria" : "Nova categoria"}
+      aberto={!!form}
+      onFechar={onFechar}
+      pe={
+        <>
+          <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>
+          <button className="btn btn-primario" onClick={salvar}>Salvar</button>
+        </>
+      }
+    >
+      <div className="campos" onKeyDown={(e) => e.key === "Enter" && salvar()}>
+        <div className="campo campo-largo">
+          <label htmlFor="cat-nome">Nome</label>
           <input
+            id="cat-nome"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            autoFocus
             placeholder="Lazer"
           />
         </div>
-        <div className="campo">
+        <div className="campo campo-largo">
           <label>Cor</label>
           <div className="paleta">
             {paleta.map((p) => (
@@ -276,10 +291,7 @@ function Editor({
             ))}
           </div>
         </div>
-      </div>
-
-      <div className="grade" style={{ marginTop: 12 }}>
-        <div className="campo cresce">
+        <div className="campo campo-largo">
           <label>Ícone</label>
           <div className="paleta">
             {Object.keys(I.CATEGORIA).map((n) => (
@@ -297,72 +309,45 @@ function Editor({
             ))}
           </div>
         </div>
-        <div className="campo" style={{ width: 190 }}>
-          <label>Campo extra no lançamento</label>
-          <select value={extra} onChange={(e) => setExtra(e.target.value)}>
+        <div className="campo">
+          <label htmlFor="cat-extra">Campo extra no lançamento</label>
+          <select id="cat-extra" value={extra} onChange={(e) => setExtra(e.target.value)}>
             <option value="">nenhum</option>
             <option value="distancia">distância</option>
             <option value="treino">treino</option>
           </select>
         </div>
+        <label className="campo" style={{ justifyContent: "flex-end", flexDirection: "row", alignItems: "center", gap: 9, paddingTop: 22 }}>
+          <input
+            type="checkbox"
+            checked={estudo}
+            onChange={(e) => setEstudo(e.target.checked)}
+            style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
+          />
+          Conta como tempo de estudo
+        </label>
       </div>
-
-      <label style={{ display: "flex", gap: 9, alignItems: "center", marginTop: 12 }}>
-        <input
-          type="checkbox"
-          checked={estudo}
-          onChange={(e) => setEstudo(e.target.checked)}
-          style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
-        />
-        Conta como tempo de estudo nos totais
-      </label>
-
-      <p className="nota">
-        O campo extra aparece só nos lançamentos desta categoria, e continua
-        opcional — nada além do tempo é obrigatório.
-      </p>
-
-      <div className="linha" style={{ marginTop: 14 }}>
-        <button
-          className="btn btn-primario"
-          onClick={() =>
-            escolhida &&
-            onSalvar({
-              nome,
-              cor: escolhida.clara,
-              corEscura: escolhida.escura,
-              contaComoEstudo: estudo,
-              icone,
-              camposExtra: extra || null,
-            })
-          }
-        >
-          Salvar
-        </button>
-        <button className="btn btn-fantasma" onClick={onCancelar}>
-          Cancelar
-        </button>
-      </div>
-
       <p className="nota">
         A cor sai de uma paleta fechada de oito, validada para daltonismo nos
-        dois temas. Um seletor livre deixaria escolher tons que ninguém
-        distingue num gráfico.
+        dois temas. O campo extra aparece só nos lançamentos desta categoria, e
+        continua opcional.
       </p>
-    </div>
+    </Modal>
   );
 }
 
-function LinhaMeta({
+function FormMeta({
   tipo,
-  tema,
   meta,
+  tema,
+  onFechar,
   onSalvar,
   onExcluir,
 }: {
-  tipo: Tipo;
-  tema: string;
+  tipo: Tipo | null;
   meta?: Meta;
+  tema: string;
+  onFechar: () => void;
   onSalvar: (p: string, min: number | null, max: number | null) => void;
   onExcluir: (id: string) => void;
 }) {
@@ -370,75 +355,67 @@ function LinhaMeta({
   const [min, setMin] = useState(paraHoras(meta?.min_minutos ?? null));
   const [max, setMax] = useState(paraHoras(meta?.max_minutos ?? null));
 
-  useEffect(() => {
-    setPeriodo(meta?.periodo ?? "semana");
-    setMin(paraHoras(meta?.min_minutos ?? null));
-    setMax(paraHoras(meta?.max_minutos ?? null));
-  }, [meta]);
-
-  const mudou =
-    (meta?.periodo ?? "semana") !== periodo ||
-    paraHoras(meta?.min_minutos ?? null) !== min ||
-    paraHoras(meta?.max_minutos ?? null) !== max;
+  const salvar = () => onSalvar(periodo, paraMin(min), paraMin(max));
 
   return (
-    <div className="linha meta-linha">
-      <span className="chip-cor" style={{ background: corDe(tipo, tema) }} />
-      {/* Largura fixa em vez de `flex: 1`: com o nome elástico, a linha sem
-          meta (que não tem o botão de remover) desalinhava os campos das
-          outras. Coluna fixa faz tudo cair no mesmo lugar. */}
-      <span className="meta-nome">{tipo.nome}</span>
-
-      <div className="campo" style={{ width: 86 }}>
-        <label htmlFor={`min-${tipo.id}`}>mín (h)</label>
-        <input
-          id={`min-${tipo.id}`}
-          inputMode="decimal"
-          value={min}
-          onChange={(e) => setMin(e.target.value)}
-          placeholder="—"
-        />
-      </div>
-      <div className="campo" style={{ width: 86 }}>
-        <label htmlFor={`max-${tipo.id}`}>máx (h)</label>
-        <input
-          id={`max-${tipo.id}`}
-          inputMode="decimal"
-          value={max}
-          onChange={(e) => setMax(e.target.value)}
-          placeholder="—"
-        />
-      </div>
-      <div className="campo" style={{ width: 104 }}>
-        <label htmlFor={`per-${tipo.id}`}>por</label>
-        <select
-          id={`per-${tipo.id}`}
-          value={periodo}
-          onChange={(e) => setPeriodo(e.target.value)}
-        >
-          <option value="semana">semana</option>
-          <option value="dia">dia</option>
-        </select>
-      </div>
-
-      <button
-        className="btn"
-        disabled={!mudou}
-        onClick={() => onSalvar(periodo, paraMin(min), paraMin(max))}
-      >
-        Salvar
-      </button>
-      {meta ? (
-        <button
-          className="btn btn-fantasma btn-icone btn-perigo"
-          onClick={() => onExcluir(meta.id)}
-          aria-label={`Remover meta de ${tipo.nome}`}
-        >
-          <I.Lixeira />
-        </button>
-      ) : (
-        <span className="btn-vago" aria-hidden />
+    <Modal
+      titulo={tipo ? `Meta de ${tipo.nome}` : "Meta"}
+      aberto={!!tipo}
+      onFechar={onFechar}
+      pe={
+        <>
+          {meta && (
+            <button className="btn btn-fantasma btn-perigo esquerda" onClick={() => onExcluir(meta.id)}>
+              <I.Lixeira /> Remover meta
+            </button>
+          )}
+          <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>
+          <button className="btn btn-primario" onClick={salvar}>Salvar</button>
+        </>
+      }
+    >
+      {tipo && (
+        <div className="linha" style={{ marginBottom: 0 }}>
+          <span className="chip-cor" style={{ background: corDe(tipo, tema) }} />
+          <span className="nota" style={{ margin: 0 }}>
+            Piso, teto, ou os dois. Estudo costuma querer piso; lazer, teto;
+            academia, os dois.
+          </span>
+        </div>
       )}
-    </div>
+      <div className="campos" onKeyDown={(e) => e.key === "Enter" && salvar()}>
+        <div className="campo">
+          <label htmlFor="meta-min">Mínimo (horas)</label>
+          <input
+            id="meta-min"
+            inputMode="decimal"
+            value={min}
+            onChange={(e) => setMin(e.target.value)}
+            placeholder="—"
+          />
+        </div>
+        <div className="campo">
+          <label htmlFor="meta-max">Máximo (horas)</label>
+          <input
+            id="meta-max"
+            inputMode="decimal"
+            value={max}
+            onChange={(e) => setMax(e.target.value)}
+            placeholder="—"
+          />
+        </div>
+        <div className="campo campo-largo">
+          <label htmlFor="meta-per">Por</label>
+          <select id="meta-per" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+            <option value="semana">semana</option>
+            <option value="dia">dia</option>
+          </select>
+        </div>
+      </div>
+      <p className="nota">
+        Piso e teto são referência, não cobrança. Semana é o padrão: dia é
+        rígido demais para rotina real.
+      </p>
+    </Modal>
   );
 }

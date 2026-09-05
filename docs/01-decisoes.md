@@ -969,3 +969,72 @@ Nada disso saiu do desktop. O critério não é "simplificar o produto", é **ti
 do celular o que pressupõe um apontador**.
 
 A ordem do que resta está em `04-pendencias.md`.
+
+---
+
+## D-040 — formulário em modal, lista com menu, e uma fonte só
+
+**2026-09-05 · primeiro uso no Linux**
+
+A interface tinha cara de formulário antigo: campos enfileirados dentro dos
+cartões, cinco ícones por linha, e a fonte do sistema, que no Linux não é a
+Segoe UI para a qual o desenho foi conferido. Três mudanças, todas de
+estrutura:
+
+1. **Criar e editar acontecem num modal**, não num cartão aberto no meio da
+   tela. Tarefa, lançamento, curso, categoria, meta e combinação favorita usam
+   o mesmo componente (`Modal.tsx`): Esc e clique fora fecham, o foco vai para
+   o primeiro campo. O formulário de lançamento passou a ter todos os campos
+   de uma vez — matéria, aula, observação — em vez de "editar" e "detalhes"
+   separados. Os comandos continuam separados no Rust; o que mudou é a tela.
+2. **A linha mostra o que é; o que se faz com ela fica num menu** (`Menu.tsx`).
+   Ficam à vista só o play da tarefa, que é a ação que o D-011 quer fácil, e o
+   continuar do lançamento. Editar, duplicar, dividir e excluir esperam o
+   clique nos três pontos. A meta de tempo virou a própria etiqueta da
+   categoria: clicar nela abre o ajuste, e o cartão de metas com um formulário
+   por categoria deixou de existir.
+3. **Cursos viraram cartões**, com estado, última aula e o botão de continuar.
+   A capa da lista é a inicial do título: mandar a imagem em cada listagem
+   custaria centenas de kilobytes a cada cinco segundos.
+4. **O dia do Planejamento é um quadro em três etapas**: a fazer, em andamento,
+   concluído. As etapas não existem no banco — saem do estado da tarefa e do
+   tempo lançado nela, e "em andamento" é a tarefa que já tem tempo ou a que o
+   cronômetro conta agora. Arrastar para "em andamento" liga o cronômetro;
+   para "concluído", conclui; de volta, reabre. Voltar de "em andamento" para
+   "a fazer" não existe, porque tempo lançado não se desfaz arrastando. A
+   lista de linhas com caixa de seleção saiu: cada tarefa é um cartão com
+   curso, título, barra de planejado contra realizado, o círculo de concluir e
+   o play.
+5. **O mesmo tratamento nas outras telas.** O Dia e o Histórico mostram os
+   lançamentos numa linha do tempo de cartões, com a hora à esquerda e a cor
+   da categoria na borda (`LancamentoCard.tsx`, uma peça só para as duas
+   telas). Unir virou um modo: as caixas de seleção só aparecem depois de
+   pedir. A Semana são sete cartões de dia, um por coluna, no lugar da folha
+   de horas. O Foco tem o anel no centro e os mesmos botões redondos da
+   janela compacta; a configuração do ciclo fica num modal. As notas ficam em
+   grade, os detalhes do curso viraram uma ficha de rótulo e valor, e a
+   sincronização mostra só o passo seguinte — projeto, entrar, sincronizar —
+   com os formulários em modais.
+
+A fonte é a **DM Sans**, embutida em `public/fonts` porque o app é offline e a
+CSP só aceita origem própria. Os números grandes deixaram a fonte mono: a
+DM Sans com dígitos tabulares alinha igual, e fica uma família só na tela.
+
+**Janela compacta sem barra.** No Linux a barra de título própria parecia uma
+segunda decoração, e o cartão arredondado dentro de uma janela retangular
+deixava os cantos brancos. A janela inteira é área de arrasto, os quatro
+controles ficam discretos no canto, e as duas ações da vez são botões redondos
+de 52px — a primeira versão sem barra tinha botões pequenos demais para uma
+janela que se aciona de relance. Cresceu para 440×132, e o fundo é opaco: sem
+transparência de janela não há canto arredondado que se sustente nos três
+sistemas.
+
+No caminho, um defeito de data: o prazo do curso era gravado por
+`new Date("AAAA-MM-DD")`, que o JavaScript lê como UTC, e exibido em hora
+local. No Brasil o prazo aparecia um dia antes. Agora a data é montada por
+partes, à meia-noite local, como o Planejamento já fazia.
+
+**Verificado no Linux (Ubuntu 26.04, GNOME, Wayland):** compila, os 35 testes
+passam, o banco nasce com as doze migrações, a ponte responde e a bandeja
+registra no GNOME Shell. Notificação e redimensionar a janela sem decoração
+seguem por conferir a olho.

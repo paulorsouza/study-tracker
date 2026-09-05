@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso, durCurta } from "./App";
+import Modal from "./Modal";
 import * as I from "./icones";
 
 type Plataforma = { id: string; nome: string; url_base: string | null };
@@ -66,8 +67,23 @@ function quando(ms: number | null) {
   return `parado há ${m} ${m === 1 ? "mês" : "meses"}`;
 }
 
-const iso = (ms: number | null) =>
-  ms ? new Date(ms).toISOString().slice(0, 10) : "";
+const p2 = (n: number) => String(n).padStart(2, "0");
+
+/** Data local em AAAA-MM-DD, para o campo de data. */
+const isoLocal = (ms: number | null) => {
+  if (!ms) return "";
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+};
+
+/** O inverso, à meia-noite local. `new Date("AAAA-MM-DD")` seria UTC e
+ *  mostraria o dia anterior no Brasil. */
+const deIsoLocal = (s: string) => {
+  const [a, m, d] = s.split("-").map(Number);
+  return new Date(a, m - 1, d).getTime();
+};
+
+const inicial = (titulo: string) => (titulo.trim()[0] ?? "?").toUpperCase();
 
 export default function Cursos({
   cursos,
@@ -81,9 +97,9 @@ export default function Cursos({
   const [aberto, setAberto] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [novo, setNovo] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [url, setUrl] = useState("");
-  const [novo, setNovo] = useState(false);
 
   const acao = (cmd: string, args: Record<string, unknown>) =>
     invoke(cmd, args)
@@ -102,6 +118,19 @@ export default function Cursos({
     );
   }, [cursos, busca, filtro]);
 
+  const abrirNoNavegador = (c: Curso) => {
+    const alvo = c.ultima_url ?? c.url_principal;
+    if (alvo) acao("abrir_no_navegador", { url: alvo });
+    else onErro(`"${c.titulo}" não tem rota salva.`);
+  };
+
+  const criar = () =>
+    acao("criar_curso", { titulo, url: url.trim() || null }).then(() => {
+      setTitulo("");
+      setUrl("");
+      setNovo(false);
+    });
+
   if (aberto) {
     return (
       <Pagina
@@ -115,108 +144,123 @@ export default function Cursos({
 
   return (
     <>
-      <h1 className="titulo-pagina">Cursos</h1>
-      <p className="legenda">
-        Cada curso guarda a rota da última aula. Abrir leva direto para lá, no
-        seu navegador.
-      </p>
-
-      <div className="grade" style={{ marginBottom: 16 }}>
-        <div className="campo cresce">
-          <label htmlFor="bc">Buscar</label>
-          <input
-            id="bc"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="nome do curso"
-          />
+      <div className="pagina-cab">
+        <div>
+          <h1 className="titulo-pagina">Cursos</h1>
+          <p className="legenda">
+            Cada curso guarda a rota da última aula. Abrir leva direto para lá, no
+            seu navegador.
+          </p>
         </div>
-        <div className="campo" style={{ width: 170 }}>
-          <label htmlFor="fe">Estado</label>
-          <select id="fe" value={filtro} onChange={(e) => setFiltro(e.target.value)}>
-            <option value="">todos</option>
-            {ESTADOS.map((e) => (
-              <option key={e.id} value={e.id}>{e.nome}</option>
-            ))}
-          </select>
-        </div>
-        {!novo && (
-          <button className="btn" onClick={() => setNovo(true)}>
+        <div className="pagina-acoes">
+          <button className="btn btn-primario" onClick={() => setNovo(true)}>
             <I.Mais /> Adicionar
           </button>
-        )}
+        </div>
       </div>
 
-      <section className="card">
-        {novo && (
-          <div className="grade" style={{ marginBottom: visiveis.length ? 18 : 0 }}>
-            <div className="campo" style={{ width: 220 }}>
-              <label htmlFor="ct">Nome</label>
-              <input id="ct" value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
-            </div>
-            <div className="campo cresce">
-              <label htmlFor="cu">URL (opcional)</label>
-              <input id="cu" placeholder="https://…" value={url} onChange={(e) => setUrl(e.target.value)} />
-            </div>
-            <button
-              className="btn btn-primario"
-              onClick={() =>
-                acao("criar_curso", { titulo, url: url.trim() || null }).then(() => {
-                  setTitulo("");
-                  setUrl("");
-                  setNovo(false);
-                })
-              }
-            >
-              Salvar
-            </button>
-            <button className="btn btn-fantasma" onClick={() => setNovo(false)}>
-              Cancelar
-            </button>
-          </div>
-        )}
+      <div className="filtros">
+        <input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar curso"
+          aria-label="Buscar curso"
+          style={{ maxWidth: 280 }}
+        />
+        <select
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          aria-label="Filtrar por estado"
+          style={{ width: 170 }}
+        >
+          <option value="">todos os estados</option>
+          {ESTADOS.map((e) => (
+            <option key={e.id} value={e.id}>{e.nome}</option>
+          ))}
+        </select>
+      </div>
 
-        {visiveis.length === 0 ? (
-          <div className="vazio">
-            {cursos.length === 0
-              ? "Nenhum curso ainda. Estando na aula no Chrome, use a extensão para salvar a rota."
-              : "Nada com esses filtros."}
-          </div>
-        ) : (
-          visiveis.map((c) => (
-            <div key={c.id} className="lanc">
-              <span
-                className="lanc-cor"
-                style={{ background: c.favorito ? "var(--warn)" : "var(--line-2)" }}
-              />
-              <button
-                className="lanc-texto"
-                onClick={() => setAberto(c.id)}
-                style={{
-                  background: "none", border: 0, color: "inherit", font: "inherit",
-                  textAlign: "left", cursor: "pointer", fontWeight: 500, padding: 0,
-                }}
-              >
-                {c.titulo}
-              </button>
-              <span className="nota" style={{ margin: 0 }}>{nomeEstado(c.estado)}</span>
-              <span className="lanc-curso" style={{ fontSize: 12.5, minWidth: 128, textAlign: "right" }}>
-                {quando(c.ultima_url_em)}
-              </span>
-              <button
-                className="btn"
-                onClick={() => {
-                  const alvo = c.ultima_url ?? c.url_principal;
-                  if (alvo) acao("abrir_no_navegador", { url: alvo });
-                  else onErro(`"${c.titulo}" não tem rota salva.`);
-                }}
-              >
-                <I.Externo /> Abrir
-              </button>
+      {visiveis.length === 0 ? (
+        <div className="vazio">
+          {cursos.length === 0
+            ? "Nenhum curso ainda. Estando na aula no Chrome, use a extensão para salvar a rota — ou adicione aqui."
+            : "Nada com esses filtros."}
+        </div>
+      ) : (
+        <div className="cursos-grade">
+          {visiveis.map((c) => (
+            <div
+              key={c.id}
+              className="curso-card"
+              role="button"
+              tabIndex={0}
+              onClick={() => setAberto(c.id)}
+              onKeyDown={(e) => e.key === "Enter" && setAberto(c.id)}
+            >
+              <div className="curso-capa">
+                <span className="curso-inicial" aria-hidden>{inicial(c.titulo)}</span>
+                {c.favorito && (
+                  <span className="curso-estrela" title="Favorito">
+                    <I.Estrela cheia size={15} />
+                  </span>
+                )}
+              </div>
+              <div className="curso-corpo">
+                <div className="curso-titulo">{c.titulo}</div>
+                <div className="curso-meta">
+                  <span className={`pill${c.estado === "ativo" ? " pill-acc" : ""}`}>
+                    {nomeEstado(c.estado)}
+                  </span>
+                  <span>{quando(c.ultima_url_em)}</span>
+                </div>
+                <div className="curso-pe">
+                  <button
+                    className="btn btn-suave btn-pequeno"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      abrirNoNavegador(c);
+                    }}
+                  >
+                    <I.Externo /> Continuar
+                  </button>
+                </div>
+              </div>
             </div>
-          ))
-        )}
-      </section>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        titulo="Novo curso"
+        aberto={novo}
+        onFechar={() => setNovo(false)}
+        pe={
+          <>
+            <button className="btn btn-fantasma" onClick={() => setNovo(false)}>Cancelar</button>
+            <button className="btn btn-primario" onClick={criar}>Salvar</button>
+          </>
+        }
+      >
+        <div className="campos" onKeyDown={(e) => e.key === "Enter" && criar()}>
+          <div className="campo campo-largo">
+            <label htmlFor="nc-titulo">Nome</label>
+            <input id="nc-titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          </div>
+          <div className="campo campo-largo">
+            <label htmlFor="nc-url">URL (opcional)</label>
+            <input
+              id="nc-url"
+              placeholder="https://…"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </div>
+        </div>
+        <p className="nota">
+          O resto — professor, plataforma, capa, meta — entra depois, na página
+          do curso.
+        </p>
+      </Modal>
     </>
   );
 }
@@ -236,8 +280,6 @@ function Pagina({
   const [d, setD] = useState<Detalhe | null>(null);
   const [plataformas, setPlataformas] = useState<Plataforma[]>([]);
   const [editando, setEditando] = useState(false);
-  const [f, setF] = useState<Partial<Detalhe> & { tagsTxt?: string }>({});
-  const [novaCapa, setNovaCapa] = useState("");
 
   const carregar = useCallback(() => {
     // Os recortes de tempo saem daqui: o JavaScript é quem sabe o fuso, e no
@@ -252,10 +294,7 @@ function Pagina({
       recenteDesde: hoje.getTime() - 30 * DIA,
       semanaZero: seg.getTime(),
     })
-      .then((x) => {
-        setD(x);
-        setF({ ...x, tagsTxt: x.tags.join(", ") });
-      })
+      .then(setD)
       .catch((e) => onErro(String(e)));
     invoke<Plataforma[]>("listar_plataformas").then(setPlataformas).catch(() => {});
   }, [id, onErro]);
@@ -266,67 +305,49 @@ function Pagina({
     return <p className="nota">carregando…</p>;
   }
 
-  const salvar = () =>
-    invoke("salvar_curso", {
-      id,
-      titulo: f.titulo ?? d.titulo,
-      platformId: f.platform_id || null,
-      professor: f.professor?.trim() || null,
-      categoria: f.categoria?.trim() || null,
-      estado: f.estado ?? d.estado,
-      prioridade: Number(f.prioridade ?? 0),
-      progresso: Number(f.progresso ?? 0),
-      metaMinutos: f.meta_minutos ? Number(f.meta_minutos) : null,
-      estimadoMin: f.estimado_min ? Number(f.estimado_min) : null,
-      prazo: f.prazo ?? null,
-      urlPrincipal: f.url_principal?.trim() || null,
-      capaUrl: d.capa_url,
-      tags: (f.tagsTxt ?? "").split(",").map((t) => t.trim()).filter(Boolean),
-    })
-      .then(() => {
-        setEditando(false);
-        onErro(null);
-        carregar();
-        onMudou();
-      })
-      .catch((e) => onErro(String(e)));
-
   const maxSemana = Math.max(...d.semanas, 1);
   const alvo = d.ultima_url ?? d.url_principal;
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-        <button className="btn btn-icone" onClick={onFechar} aria-label="Voltar">
+      <div className="pagina-cab" style={{ alignItems: "center" }}>
+        <button className="btn btn-fantasma btn-icone" onClick={onFechar} aria-label="Voltar">
           <I.Seta />
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 className="titulo-pagina" style={{ margin: 0 }}>{d.titulo}</h1>
-          <p className="legenda" style={{ margin: 0 }}>
+        <div>
+          <h1 className="titulo-pagina">{d.titulo}</h1>
+          <p className="legenda">
             {[d.plataforma, d.professor, nomeEstado(d.estado)].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <button
-          className="btn btn-fantasma btn-icone"
-          onClick={() =>
-            invoke("favoritar_curso", { id, favorito: !d.favorito })
-              .then(() => { carregar(); onMudou(); })
-              .catch((e) => onErro(String(e)))
-          }
-          aria-label={d.favorito ? "Desfavoritar" : "Favoritar"}
-        >
-          <I.Estrela cheia={d.favorito} />
-        </button>
-        {alvo && (
+        <div className="pagina-acoes" style={{ paddingTop: 0 }}>
           <button
-            className="btn btn-primario"
+            className="btn btn-fantasma btn-icone"
             onClick={() =>
-              invoke("abrir_no_navegador", { url: alvo }).catch((e) => onErro(String(e)))
+              invoke("favoritar_curso", { id, favorito: !d.favorito })
+                .then(() => { carregar(); onMudou(); })
+                .catch((e) => onErro(String(e)))
             }
+            aria-label={d.favorito ? "Desfavoritar" : "Favoritar"}
+            title={d.favorito ? "Desfavoritar" : "Favoritar"}
+            style={d.favorito ? { color: "var(--warn)" } : undefined}
           >
-            <I.Externo /> Abrir
+            <I.Estrela cheia={d.favorito} />
           </button>
-        )}
+          <button className="btn" onClick={() => setEditando(true)}>
+            <I.Lapis /> Editar
+          </button>
+          {alvo && (
+            <button
+              className="btn btn-primario"
+              onClick={() =>
+                invoke("abrir_no_navegador", { url: alvo }).catch((e) => onErro(String(e)))
+              }
+            >
+              <I.Externo /> Continuar
+            </button>
+          )}
+        </div>
       </div>
 
       <section className="card">
@@ -412,163 +433,26 @@ function Pagina({
       </section>
 
       <section className="card">
-        <div className="card-cab">
-          <h2>Detalhes</h2>
-          {!editando && (
-            <button className="btn" onClick={() => setEditando(true)}>
-              <I.Lapis /> Editar
-            </button>
-          )}
+        <h2>Detalhes</h2>
+        <div className="ficha-grade">
+          {(
+            [
+              ["plataforma", d.plataforma ?? "—"],
+              ["professor", d.professor ?? "—"],
+              ["categoria", d.categoria ?? "—"],
+              ["prioridade", ["normal", "alta", "urgente"][d.prioridade] ?? "normal"],
+              ["meta", d.meta_minutos ? durCurta(d.meta_minutos * 60000) : "—"],
+              ["estimado", d.estimado_min ? durCurta(d.estimado_min * 60000) : "—"],
+              ["prazo", d.prazo ? new Date(d.prazo).toLocaleDateString("pt-BR") : "—"],
+              ["última aula", quando(d.ultima_url_em)],
+            ] as [string, string][]
+          ).map(([rotulo, valor]) => (
+            <div key={rotulo} className="ficha-item">
+              <div className="ficha-rotulo">{rotulo}</div>
+              <div className="ficha-valor">{valor}</div>
+            </div>
+          ))}
         </div>
-
-        {editando ? (
-          <>
-            <div className="grade">
-              <div className="campo cresce">
-                <label>Título</label>
-                <input value={f.titulo ?? ""} onChange={(e) => setF({ ...f, titulo: e.target.value })} />
-              </div>
-              <div className="campo" style={{ width: 170 }}>
-                <label>Plataforma</label>
-                <select
-                  value={f.platform_id ?? ""}
-                  onChange={(e) => setF({ ...f, platform_id: e.target.value })}
-                >
-                  <option value="">— nenhuma —</option>
-                  {plataformas.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="campo" style={{ width: 160 }}>
-                <label>Estado</label>
-                <select value={f.estado ?? ""} onChange={(e) => setF({ ...f, estado: e.target.value })}>
-                  {ESTADOS.map((e) => (
-                    <option key={e.id} value={e.id}>{e.nome}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grade" style={{ marginTop: 12 }}>
-              <div className="campo cresce">
-                <label>Professor</label>
-                <input
-                  value={f.professor ?? ""}
-                  onChange={(e) => setF({ ...f, professor: e.target.value })}
-                />
-              </div>
-              <div className="campo cresce">
-                <label>Categoria</label>
-                <input
-                  value={f.categoria ?? ""}
-                  onChange={(e) => setF({ ...f, categoria: e.target.value })}
-                />
-              </div>
-              <div className="campo cresce">
-                <label>Tags</label>
-                <input
-                  value={f.tagsTxt ?? ""}
-                  onChange={(e) => setF({ ...f, tagsTxt: e.target.value })}
-                  placeholder="separadas por vírgula"
-                />
-              </div>
-            </div>
-
-            <div className="grade" style={{ marginTop: 12 }}>
-              <div className="campo" style={{ width: 100 }}>
-                <label>Progresso %</label>
-                <input
-                  type="number" min={0} max={100}
-                  value={f.progresso ?? 0}
-                  onChange={(e) => setF({ ...f, progresso: Number(e.target.value) })}
-                />
-              </div>
-              <div className="campo" style={{ width: 110 }}>
-                <label>Meta (min)</label>
-                <input
-                  type="number" min={0}
-                  value={f.meta_minutos ?? ""}
-                  onChange={(e) => setF({ ...f, meta_minutos: Number(e.target.value) || null })}
-                />
-              </div>
-              <div className="campo" style={{ width: 120 }}>
-                <label>Estimado (min)</label>
-                <input
-                  type="number" min={0}
-                  value={f.estimado_min ?? ""}
-                  onChange={(e) => setF({ ...f, estimado_min: Number(e.target.value) || null })}
-                />
-              </div>
-              <div className="campo" style={{ width: 110 }}>
-                <label>Prioridade</label>
-                <select
-                  value={f.prioridade ?? 0}
-                  onChange={(e) => setF({ ...f, prioridade: Number(e.target.value) })}
-                >
-                  <option value={0}>normal</option>
-                  <option value={1}>alta</option>
-                  <option value={2}>urgente</option>
-                </select>
-              </div>
-              <div className="campo" style={{ width: 150 }}>
-                <label>Prazo</label>
-                <input
-                  type="date"
-                  value={iso(f.prazo ?? null)}
-                  onChange={(e) =>
-                    setF({ ...f, prazo: e.target.value ? new Date(e.target.value).getTime() : null })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grade" style={{ marginTop: 12 }}>
-              <div className="campo cresce">
-                <label>URL principal</label>
-                <input
-                  value={f.url_principal ?? ""}
-                  onChange={(e) => setF({ ...f, url_principal: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="linha" style={{ marginTop: 16 }}>
-              <button className="btn btn-primario" onClick={salvar}>Salvar</button>
-              <button
-                className="btn btn-fantasma"
-                onClick={() => {
-                  setEditando(false);
-                  setF({ ...d, tagsTxt: d.tags.join(", ") });
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </>
-        ) : (
-          <table className="medidas">
-            <tbody>
-              <tr><td>plataforma</td><td>{d.plataforma ?? "—"}</td></tr>
-              <tr><td>professor</td><td>{d.professor ?? "—"}</td></tr>
-              <tr><td>categoria</td><td>{d.categoria ?? "—"}</td></tr>
-              <tr><td>prioridade</td><td>{["normal", "alta", "urgente"][d.prioridade] ?? "normal"}</td></tr>
-              <tr>
-                <td>meta</td>
-                <td>{d.meta_minutos ? durCurta(d.meta_minutos * 60000) : "—"}</td>
-              </tr>
-              <tr>
-                <td>estimado</td>
-                <td>{d.estimado_min ? durCurta(d.estimado_min * 60000) : "—"}</td>
-              </tr>
-              <tr>
-                <td>prazo</td>
-                <td>{d.prazo ? new Date(d.prazo).toLocaleDateString("pt-BR") : "—"}</td>
-              </tr>
-              <tr><td>última aula</td><td>{quando(d.ultima_url_em)}</td></tr>
-            </tbody>
-          </table>
-        )}
       </section>
 
       <Ligados
@@ -590,40 +474,210 @@ function Pagina({
         direita={(l) => (l.em ? new Date(l.em).toLocaleDateString("pt-BR") : "")}
       />
 
-      <section className="card">
-        <h2>Capa</h2>
-        <div className="grade">
-          <div className="campo cresce">
-            <label htmlFor="cap">Endereço da imagem</label>
-            <input
-              id="cap"
-              value={novaCapa}
-              onChange={(e) => setNovaCapa(e.target.value)}
-              placeholder={d.capa_url ?? "https://…"}
-            />
-          </div>
-          <button
-            className="btn"
-            onClick={() =>
-              invoke("baixar_capa", { id, url: novaCapa })
-                .then(() => {
-                  setNovaCapa("");
-                  onErro(null);
-                  carregar();
-                })
-                .catch((e) => onErro(String(e)))
-            }
-          >
-            Baixar
-          </button>
-        </div>
-        <p className="nota">
-          A imagem é baixada uma vez e guardada dentro do app. Nada é buscado na
-          internet quando esta tela abre — e o endereço, não a imagem, é o que
-          viaja na sincronização.
-        </p>
-      </section>
+      <FormCurso
+        key={editando ? d.id : "fechado"}
+        aberto={editando}
+        d={d}
+        plataformas={plataformas}
+        onFechar={() => setEditando(false)}
+        onSalvo={() => {
+          setEditando(false);
+          carregar();
+          onMudou();
+        }}
+        onErro={onErro}
+      />
     </>
+  );
+}
+
+/** Edição do curso, num formulário só — inclusive a capa. */
+function FormCurso({
+  aberto, d, plataformas, onFechar, onSalvo, onErro,
+}: {
+  aberto: boolean;
+  d: Detalhe;
+  plataformas: Plataforma[];
+  onFechar: () => void;
+  onSalvo: () => void;
+  onErro: (e: string | null) => void;
+}) {
+  const [f, setF] = useState<Partial<Detalhe>>({ ...d });
+  const [tagsTxt, setTagsTxt] = useState(d.tags.join(", "));
+  const [capaUrl, setCapaUrl] = useState(d.capa_url ?? "");
+  const [baixando, setBaixando] = useState(false);
+  const [capaMsg, setCapaMsg] = useState<string | null>(null);
+
+  const salvar = () =>
+    invoke("salvar_curso", {
+      id: d.id,
+      titulo: f.titulo ?? d.titulo,
+      platformId: f.platform_id || null,
+      professor: f.professor?.trim() || null,
+      categoria: f.categoria?.trim() || null,
+      estado: f.estado ?? d.estado,
+      prioridade: Number(f.prioridade ?? 0),
+      progresso: Number(f.progresso ?? 0),
+      metaMinutos: f.meta_minutos ? Number(f.meta_minutos) : null,
+      estimadoMin: f.estimado_min ? Number(f.estimado_min) : null,
+      prazo: f.prazo ?? null,
+      urlPrincipal: f.url_principal?.trim() || null,
+      capaUrl: capaUrl.trim() || null,
+      tags: tagsTxt.split(",").map((t) => t.trim()).filter(Boolean),
+    })
+      .then(() => {
+        onErro(null);
+        onSalvo();
+      })
+      .catch((e) => onErro(String(e)));
+
+  const baixarCapa = () => {
+    setBaixando(true);
+    setCapaMsg(null);
+    invoke("baixar_capa", { id: d.id, url: capaUrl })
+      .then(() => setCapaMsg("Capa baixada e guardada no app."))
+      .catch((e) => setCapaMsg(String(e)))
+      .finally(() => setBaixando(false));
+  };
+
+  const campo = (k: keyof Detalhe, valor: string) => setF({ ...f, [k]: valor });
+
+  return (
+    <Modal
+      titulo="Editar curso"
+      aberto={aberto}
+      onFechar={onFechar}
+      larga
+      pe={
+        <>
+          <button className="btn btn-fantasma" onClick={onFechar}>Cancelar</button>
+          <button className="btn btn-primario" onClick={salvar}>Salvar</button>
+        </>
+      }
+    >
+      <div className="campos">
+        <div className="campo campo-largo">
+          <label htmlFor="fc-titulo">Título</label>
+          <input id="fc-titulo" value={f.titulo ?? ""} onChange={(e) => campo("titulo", e.target.value)} />
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-plat">Plataforma</label>
+          <select
+            id="fc-plat"
+            value={f.platform_id ?? ""}
+            onChange={(e) => campo("platform_id", e.target.value)}
+          >
+            <option value="">— nenhuma —</option>
+            {plataformas.map((p) => (
+              <option key={p.id} value={p.id}>{p.nome}</option>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-estado">Estado</label>
+          <select id="fc-estado" value={f.estado ?? ""} onChange={(e) => campo("estado", e.target.value)}>
+            {ESTADOS.map((e) => (
+              <option key={e.id} value={e.id}>{e.nome}</option>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-prof">Professor</label>
+          <input id="fc-prof" value={f.professor ?? ""} onChange={(e) => campo("professor", e.target.value)} />
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-cat">Categoria</label>
+          <input id="fc-cat" value={f.categoria ?? ""} onChange={(e) => campo("categoria", e.target.value)} />
+        </div>
+        <div className="campo campo-largo">
+          <label htmlFor="fc-tags">Tags</label>
+          <input
+            id="fc-tags"
+            value={tagsTxt}
+            onChange={(e) => setTagsTxt(e.target.value)}
+            placeholder="separadas por vírgula"
+          />
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-prog">Progresso (%)</label>
+          <input
+            id="fc-prog"
+            type="number" min={0} max={100}
+            value={f.progresso ?? 0}
+            onChange={(e) => setF({ ...f, progresso: Number(e.target.value) })}
+          />
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-pri">Prioridade</label>
+          <select
+            id="fc-pri"
+            value={f.prioridade ?? 0}
+            onChange={(e) => setF({ ...f, prioridade: Number(e.target.value) })}
+          >
+            <option value={0}>normal</option>
+            <option value={1}>alta</option>
+            <option value={2}>urgente</option>
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-meta">Meta (min)</label>
+          <input
+            id="fc-meta"
+            type="number" min={0}
+            value={f.meta_minutos ?? ""}
+            onChange={(e) => setF({ ...f, meta_minutos: Number(e.target.value) || null })}
+          />
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-est">Estimado (min)</label>
+          <input
+            id="fc-est"
+            type="number" min={0}
+            value={f.estimado_min ?? ""}
+            onChange={(e) => setF({ ...f, estimado_min: Number(e.target.value) || null })}
+          />
+        </div>
+        <div className="campo">
+          <label htmlFor="fc-prazo">Prazo</label>
+          <input
+            id="fc-prazo"
+            type="date"
+            value={isoLocal(f.prazo ?? null)}
+            onChange={(e) =>
+              setF({ ...f, prazo: e.target.value ? deIsoLocal(e.target.value) : null })
+            }
+          />
+        </div>
+        <div className="campo campo-largo">
+          <label htmlFor="fc-url">URL principal</label>
+          <input
+            id="fc-url"
+            value={f.url_principal ?? ""}
+            onChange={(e) => campo("url_principal", e.target.value)}
+            placeholder="https://…"
+          />
+        </div>
+        <div className="campo campo-largo">
+          <label htmlFor="fc-capa">Capa (endereço da imagem)</label>
+          <div className="linha" style={{ marginBottom: 0 }}>
+            <input
+              id="fc-capa"
+              value={capaUrl}
+              onChange={(e) => setCapaUrl(e.target.value)}
+              placeholder="https://…"
+            />
+            <button className="btn" onClick={baixarCapa} disabled={baixando || !capaUrl.trim()}>
+              {baixando ? "Baixando…" : "Baixar"}
+            </button>
+          </div>
+          {capaMsg && <span className="nota" style={{ margin: 0 }}>{capaMsg}</span>}
+        </div>
+      </div>
+      <p className="nota">
+        A capa é baixada uma vez e guardada dentro do app; o endereço, não a
+        imagem, é o que viaja na sincronização.
+      </p>
+    </Modal>
   );
 }
 
