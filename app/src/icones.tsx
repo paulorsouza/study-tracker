@@ -254,6 +254,27 @@ export const Circulo = ({ size = 15 }: P) => (
 );
 
 /** Nomes gravados no banco. Acrescentar aqui é acrescentar na tela de escolha. */
+export const Reticencias = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const Check = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </svg>
+);
+
+export const Pular = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M5 5l9 7-9 7z" fill="currentColor" stroke="none" />
+    <path d="M18 5v14" />
+  </svg>
+);
+
 export const CATEGORIA = {
   livro: Livro,
   halter: Halter,

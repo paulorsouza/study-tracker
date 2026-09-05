@@ -34,7 +34,6 @@ const raiz = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 if (rotulo === "mini") {
   document.documentElement.dataset.tema =
     localStorage.getItem("tema") ?? "escuro";
-  document.body.style.background = "transparent";
   raiz.render(
     <React.StrictMode>
       <Mini />

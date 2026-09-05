@@ -2,7 +2,9 @@
 //!
 //! Com o estudo acontecendo no Chrome (D-007), a janela principal passa a maior
 //! parte do tempo escondida. A compacta é a que faz sentido ficar por cima: só
-//! relógio e Pomodoro, sem decoração do sistema, arrastável pela própria barra.
+//! relógio e Pomodoro, sem decoração do sistema e sem barra própria — a janela
+//! inteira é a área de arrasto (D-040). As medidas daqui e as de `Mini.tsx`
+//! precisam concordar: quem cresce para o menu de cursos é a interface.
 //!
 //! Os comandos são `async` pelo mesmo motivo de A-003: Tauri roda comando
 //! síncrono na thread principal e `build()` bloqueia esperando essa mesma
@@ -62,11 +64,11 @@ pub async fn abrir_mini(app: tauri::AppHandle) -> Result<(), String> {
 
     WebviewWindowBuilder::new(&app, ROTULO, WebviewUrl::App("index.html".into()))
         .title("Estudos")
-        .inner_size(390.0, 112.0)
-        .min_inner_size(330.0, 96.0)
+        .inner_size(440.0, 132.0)
+        .min_inner_size(380.0, 120.0)
         .resizable(true)
-        // Sem decoração do sistema: a barra de título própria cabe melhor numa
-        // janela desta altura, e é ela que serve de área de arrasto.
+        // Sem decoração do sistema: a janela inteira serve de área de arrasto,
+        // e os controles ficam no canto da própria interface.
         .decorations(false)
         .transparent(false)
         .always_on_top(true)
@@ -91,8 +93,8 @@ pub async fn abrir_mini(app: tauri::AppHandle) -> Result<(), String> {
                 let t = mon.size().to_logical::<f64>(escala);
                 let p = mon.position().to_logical::<f64>(escala);
                 let _ = mini.set_position(LogicalPosition::new(
-                    p.x + t.width - 390.0 - 24.0,
-                    p.y + t.height - 112.0 - 72.0,
+                    p.x + t.width - 440.0 - 24.0,
+                    p.y + t.height - 132.0 - 72.0,
                 ));
             }
         }
@@ -117,8 +119,8 @@ pub async fn mini_altura(app: tauri::AppHandle, altura: f64) -> Result<(), Strin
             .inner_size()
             .ok()
             .map(|s| s.to_logical::<f64>(j.scale_factor().unwrap_or(1.0)).width)
-            .unwrap_or(390.0);
-        j.set_size(LogicalSize::new(largura, altura.clamp(96.0, 520.0)))
+            .unwrap_or(440.0);
+        j.set_size(LogicalSize::new(largura, altura.clamp(120.0, 560.0)))
             .map_err(|e| e.to_string())?;
     }
     Ok(())
