@@ -1038,3 +1038,42 @@ partes, à meia-noite local, como o Planejamento já fazia.
 passam, o banco nasce com as doze migrações, a ponte responde e a bandeja
 registra no GNOME Shell. Notificação e redimensionar a janela sem decoração
 seguem por conferir a olho.
+
+---
+
+## D-041 — correções da análise de 05/09, e o que cada uma decide
+
+**2026-09-05**
+
+A análise do primeiro dia no Linux listou defeitos. Ficam registradas as escolhas que não
+são óbvias em cada correção.
+
+- **Parar o cronômetro não perde tempo.** A linha em `time_entries` é gravada antes de o
+  log receber o `stop`; se a gravação falha, o relógio volta a correr e o erro chega a quem
+  pediu. Antes o erro do INSERT era descartado e o tempo ficava só no log.
+- **Tags entram antes do UPDATE.** O gatilho de sincronização monta o payload no UPDATE com
+  `json_group_array` das tags; gravá-las depois mandava as tags anteriores para a outra
+  máquina. Na criação, um UPDATE só de versão depois das tags enfileira o payload completo:
+  dois payloads por nota nova com tag, e a outra máquina aplica pela versão maior.
+- **Operação que não aplica vai para a área de recuperação, e a leitura segue.** Coluna que
+  esta versão não tem, chave estrangeira para registro que ainda não chegou. Antes o erro
+  subia antes de o cursor avançar, e a mesma página voltava a cada sincronização.
+- **A ponte relê os dois tokens a cada pedido**, e o da extensão ganhou revogação em
+  Configurações. A auditoria grava `ok` ou `erro` com o resultado real da ação, não no
+  momento em que a permissão passa; a recusa continua auditada na hora.
+- **`param` decodifica percent-encoding.** Busca com acento vinda do MCP não casava nada.
+- **`dialog:allow-save` na capability.** Exportar dados e o pacote do NotebookLM chamam
+  `save()`; o mock do navegador stubava o diálogo e escondia a recusa. Permissão do Tauri só
+  se prova no app nativo.
+- **Bordas de redimensionar na janela sem decoração** (`BordasRedimensionar.tsx`): faixas
+  invisíveis de 5px chamam `startResizeDragging`. É a resposta ao ponto em aberto de D-028
+  no Wayland, que não dá borda a janela sem decoração. Somem com a janela maximizada.
+- **`/estado` devolve o total da sessão** (`acumulado_ms + wall_ms`), com o segmento em
+  `segmento_ms`; a extensão mostrava só o trecho desde a última retomada.
+- Miúdos: lançamento que termina depois da meia-noite entra pelo formulário (fim menor que
+  início soma um dia); `baixar_capa` tem tempo limite de 20 s e recusa pelo `Content-Length`
+  antes de baixar; o trecho do Claude Desktop mostra o caminho no formato do sistema.
+
+Fora, de propósito: o Painel fatia a sessão que cruza a meia-noite entre os dois dias
+(`porDiaLocal`), e a Semana e o pacote do NotebookLM contam pelo início (D-033). São duas
+perguntas diferentes, e ficam como estão.

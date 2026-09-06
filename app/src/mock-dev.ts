@@ -705,6 +705,7 @@ const respostas: Record<string, (a: any) => unknown> = {
   },
   timer_recover: () => null,
   ponte_info: () => ({ porta: 47823, token: "mockmockmockmockmockmockmockmock" }),
+  ponte_revogar: () => "novomocknovomocknovomocknovomock",
   timer_status: () =>
     rodando
       ? {

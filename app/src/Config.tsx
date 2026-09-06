@@ -50,6 +50,7 @@ export default function Config({
   const [ponte, setPonte] = useState<Ponte | null>(null);
   const [mostrar, setMostrar] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [confirmandoRevoga, setConfirmandoRevoga] = useState(false);
 
   useEffect(() => {
     invoke<Ponte>("ponte_info").then(setPonte).catch(() => {});
@@ -156,6 +157,38 @@ export default function Config({
               máquina, nunca na rede. O token autoriza a extensão; trocá-lo
               desconecta ela na hora.
             </p>
+
+            <div className="linha" style={{ marginTop: 6 }}>
+              {confirmandoRevoga ? (
+                <>
+                  <button
+                    className="btn btn-perigo"
+                    onClick={() =>
+                      invoke<string>("ponte_revogar")
+                        .then((novo) => {
+                          setPonte({ ...ponte, token: novo });
+                          setMostrar(false);
+                          setConfirmandoRevoga(false);
+                          onErro(null);
+                        })
+                        .catch((e) => onErro(String(e)))
+                    }
+                  >
+                    Confirmar revogação
+                  </button>
+                  <button className="btn btn-fantasma" onClick={() => setConfirmandoRevoga(false)}>
+                    Cancelar
+                  </button>
+                  <span className="nota" style={{ margin: 0 }}>
+                    A extensão para de funcionar até você colar o token novo.
+                  </span>
+                </>
+              ) : (
+                <button className="btn btn-fantasma btn-perigo" onClick={() => setConfirmandoRevoga(true)}>
+                  Revogar token
+                </button>
+              )}
+            </div>
 
             <hr />
 

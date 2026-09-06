@@ -362,41 +362,55 @@ pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, Strin
     let wall_ms = fim - r.started_wall;
     let mono_ms = r.started_mono.elapsed().as_millis() as i64;
 
+    // A linha é gravada antes de o log receber o `stop`. Se a gravação falha,
+    // o relógio volta a correr e o erro chega a quem pediu: tempo estudado que
+    // sumisse em silêncio seria o pior defeito deste módulo.
+    let gravacao = {
+        let i = &r.inicio;
+        db.conn
+            .lock()
+            .map_err(|_| "banco ocupado".to_string())
+            .and_then(|conn| {
+                conn.execute(
+                    "INSERT INTO time_entries
+                       (id, started_at, ended_at, activity_type_id, description, course_id,
+                        task_id, subject_id, aula, context, parent_id, planejado_ms, source,
+                        device_id, version, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'timer', ?13, 1, ?3, ?3)",
+                    rusqlite::params![
+                        i.entry_id,
+                        r.started_wall,
+                        fim,
+                        i.activity_type_id,
+                        if i.description.is_empty() { None } else { Some(&i.description) },
+                        i.curso_id,
+                        i.tarefa_id,
+                        i.materia_id,
+                        i.aula,
+                        i.context,
+                        i.parent_id,
+                        i.planejado_ms,
+                        db.device_id,
+                    ],
+                )
+                .map(|_| ())
+                .map_err(|e| format!("não consegui gravar o lançamento: {e}"))
+            })
+    };
+    if let Err(e) = gravacao {
+        *running = Some(r);
+        return Err(e);
+    }
+
     state.append(&Event::Stop {
         session: r.session.clone(),
         wall: fim,
         mono_ms,
     });
 
-    let i = &r.inicio;
-    if let Ok(conn) = db.conn.lock() {
-        let _ = conn.execute(
-            "INSERT INTO time_entries
-               (id, started_at, ended_at, activity_type_id, description, course_id,
-                task_id, subject_id, aula, context, parent_id, planejado_ms, source,
-                device_id, version, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'timer', ?13, 1, ?3, ?3)",
-            rusqlite::params![
-                i.entry_id,
-                r.started_wall,
-                fim,
-                i.activity_type_id,
-                if i.description.is_empty() { None } else { Some(&i.description) },
-                i.curso_id,
-                i.tarefa_id,
-                i.materia_id,
-                i.aula,
-                i.context,
-                i.parent_id,
-                i.planejado_ms,
-                db.device_id,
-            ],
-        );
-    }
-
     Ok(StopResult {
         session: r.session.clone(),
-        entry_id: i.entry_id.clone(),
+        entry_id: r.inicio.entry_id.clone(),
         wall_ms,
         mono_ms,
         drift_ms: wall_ms - mono_ms,

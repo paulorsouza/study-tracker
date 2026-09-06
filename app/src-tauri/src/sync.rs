@@ -158,10 +158,19 @@ pub async fn receber(
                 continue;
             };
             maior = maior.max(op.seq);
-            match aplicar(db, &op, &op.device_id)? {
-                Aplicacao::Aplicada => r.aplicadas += 1,
-                Aplicacao::Ignorada => r.ignoradas += 1,
-                Aplicacao::Conflito => r.conflitos += 1,
+            match aplicar(db, &op, &op.device_id) {
+                Ok(Aplicacao::Aplicada) => r.aplicadas += 1,
+                Ok(Aplicacao::Ignorada) => r.ignoradas += 1,
+                Ok(Aplicacao::Conflito) => r.conflitos += 1,
+                // Operação que não aplica — coluna que esta versão não tem,
+                // chave estrangeira para registro que ainda não chegou — vai
+                // para a área de recuperação, e a leitura segue. Antes o erro
+                // subia antes de o cursor avançar, e a mesma página voltava a
+                // cada sincronização, para sempre.
+                Err(e) => {
+                    quarentena(db, &op, &format!("não aplicável: {e}"))?;
+                    r.conflitos += 1;
+                }
             }
         }
 
@@ -184,6 +193,14 @@ pub async fn receber(
     }
 
     Ok(r)
+}
+
+/// Guarda na área de recuperação uma operação que não pôde ser aplicada, com o
+/// erro como motivo. Resolver com "usar a de lá" tenta aplicar de novo — e
+/// falha de novo enquanto a causa existir, agora com o erro na tela.
+fn quarentena(db: &Db, op: &Operacao, motivo: &str) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    registrar_conflito(&conn, op, &op.device_id, motivo)
 }
 
 enum Aplicacao {

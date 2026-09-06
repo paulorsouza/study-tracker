@@ -74,11 +74,16 @@ export default function Mcp({
     );
   }
 
+  // Caminho no formato do sistema em que a tela está: barra invertida só
+  // faz sentido no Windows.
+  const caminho = /windows/i.test(navigator.userAgent)
+    ? "C:\\\\caminho\\\\do\\\\repositorio\\\\mcp\\\\servidor.js"
+    : "/caminho/do/repositorio/mcp/servidor.js";
   const trecho = `{
   "mcpServers": {
     "estudos": {
       "command": "node",
-      "args": ["CAMINHO\\\\DO\\\\REPOSITORIO\\\\mcp\\\\servidor.js"],
+      "args": ["${caminho}"],
       "env": {
         "ESTUDOS_TOKEN": "${mostrarToken ? info.token : "cole-o-token-aqui"}",
         "ESTUDOS_PORTA": "${info.porta}"

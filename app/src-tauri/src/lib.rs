@@ -159,8 +159,10 @@ pub fn run() {
             let conn = db::abrir(&dir.join("estudos.sqlite3"))?;
             let device_id = db::device_id(&conn)?;
             db::semear(&conn, &device_id)?;
+            // O token da extensão nasce aqui para já existir na tela de
+            // configuração; a ponte o relê do banco a cada pedido.
             #[cfg(desktop)]
-            let token = bridge::token(&conn)?;
+            bridge::token(&conn)?;
             app.manage(db::Db {
                 conn: Mutex::new(conn),
                 device_id,
@@ -179,11 +181,8 @@ pub fn run() {
 
             #[cfg(desktop)]
             {
-                app.manage(bridge::Ponte {
-                    porta: bridge::PORTA_PADRAO,
-                    token: token.clone(),
-                });
-                bridge::iniciar(app.handle().clone(), bridge::PORTA_PADRAO, token);
+                app.manage(bridge::Ponte { porta: bridge::PORTA_PADRAO });
+                bridge::iniciar(app.handle().clone(), bridge::PORTA_PADRAO);
 
                 // A bandeja depende do banco e do cronômetro já registrados:
                 // ela monta o menu a partir dos dois.
@@ -216,6 +215,7 @@ pub fn run() {
         janela::mini_no_topo,
         janela::mini_altura,
         bridge::ponte_info,
+        bridge::ponte_revogar,
     ]);
     #[cfg(mobile)]
     let construtor = registrar!(construtor, []);

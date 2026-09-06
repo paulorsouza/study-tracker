@@ -467,6 +467,24 @@ pub fn salvar_curso(
     }
 
     let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+
+    // As tags entram antes do UPDATE: o gatilho de sincronização monta o
+    // payload no UPDATE, com `json_group_array` de `course_tags`, e as tags
+    // gravadas depois só viajariam na edição seguinte.
+    conn.execute("DELETE FROM course_tags WHERE course_id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    for t in tags.iter() {
+        let t = t.trim().to_lowercase().replace(' ', "-");
+        if t.is_empty() {
+            continue;
+        }
+        conn.execute(
+            "INSERT OR IGNORE INTO course_tags (course_id, tag) VALUES (?1, ?2)",
+            params![id, t],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
     conn.execute(
         "UPDATE courses
             SET titulo = ?2, platform_id = ?3, professor = ?4, categoria = ?5,
@@ -481,20 +499,6 @@ pub fn salvar_curso(
         ],
     )
     .map_err(|e| e.to_string())?;
-
-    conn.execute("DELETE FROM course_tags WHERE course_id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
-    for t in tags.iter() {
-        let t = t.trim().to_lowercase().replace(' ', "-");
-        if t.is_empty() {
-            continue;
-        }
-        conn.execute(
-            "INSERT OR IGNORE INTO course_tags (course_id, tag) VALUES (?1, ?2)",
-            params![id, t],
-        )
-        .map_err(|e| e.to_string())?;
-    }
     Ok(())
 }
 
@@ -511,7 +515,12 @@ pub async fn baixar_capa(db: tauri::State<'_, Db>, id: String, url: String) -> R
         return Err("a capa precisa de um endereço http ou https".into());
     }
 
-    let r = reqwest::Client::new()
+    // Tempo limite: sem ele, um servidor que aceita a conexão e não responde
+    // deixaria o comando pendurado sem nunca devolver nada à tela.
+    let r = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?
         .get(endereco.as_str())
         .send()
         .await
@@ -519,6 +528,17 @@ pub async fn baixar_capa(db: tauri::State<'_, Db>, id: String, url: String) -> R
 
     if !r.status().is_success() {
         return Err(format!("o servidor respondeu {}", r.status()));
+    }
+
+    // Recusa pelo tamanho anunciado antes de baixar: o corpo inteiro entraria
+    // na memória só para ser rejeitado depois.
+    if let Some(n) = r.content_length() {
+        if n > 400 * 1024 {
+            return Err(format!(
+                "imagem grande demais ({} KB). Use uma menor que 400 KB.",
+                n / 1024
+            ));
+        }
     }
 
     let tipo = r

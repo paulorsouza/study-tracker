@@ -33,7 +33,6 @@ pub const PORTA_PADRAO: u16 = 47823;
 
 pub struct Ponte {
     pub porta: u16,
-    pub token: String,
 }
 
 /// Token de pareamento da extensão. Vive no banco: sobrevive a reinício, e
@@ -104,8 +103,17 @@ fn param(req: &Request, nome: &str) -> Option<String> {
     let q = url.split_once('?')?.1;
     q.split('&').find_map(|p| {
         let (k, v) = p.split_once('=')?;
-        (k == nome).then(|| v.replace("%20", " ").replace('+', " "))
+        (k == nome).then(|| decodificar(v))
     })
+}
+
+/// Desfaz o percent-encoding de um valor da query: `+` é espaço, como em
+/// formulário, e `%C3%A9` vira `é`. Sem isto, qualquer busca com acento vinda
+/// do servidor MCP — que codifica com `encodeURIComponent` — não casava nada.
+fn decodificar(v: &str) -> String {
+    percent_encoding::percent_decode_str(&v.replace('+', " "))
+        .decode_utf8_lossy()
+        .into_owned()
 }
 
 /// Decide se a chamada pode seguir. Restrições valem só para o MCP: a extensão
@@ -135,7 +143,7 @@ fn pode(
     Ok(())
 }
 
-pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
+pub fn iniciar(app: tauri::AppHandle, porta: u16) {
     std::thread::spawn(move || {
         let endereco = format!("127.0.0.1:{porta}");
         let server = match Server::http(&endereco) {
@@ -163,20 +171,21 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                 continue;
             };
 
-            // O token do MCP é relido a cada pedido de propósito: revogar tem
-            // que valer na hora, não no próximo reinício do app.
-            let token_mcp = db
-                .conn
-                .lock()
-                .ok()
-                .and_then(|c| permissoes::token_mcp(&c).ok())
-                .unwrap_or_default();
+            // Os dois tokens são relidos a cada pedido de propósito: revogar
+            // tem que valer na hora, não no próximo reinício do app.
+            let (token_extensao, token_mcp) = match db.conn.lock() {
+                Ok(c) => (
+                    token(&c).unwrap_or_default(),
+                    permissoes::token_mcp(&c).unwrap_or_default(),
+                ),
+                Err(_) => (String::new(), String::new()),
+            };
 
             let apresentado = valor_do_header(&req, "Authorization")
                 .and_then(|v| v.strip_prefix("Bearer ").map(str::to_string));
 
             let origem = match apresentado.as_deref() {
-                Some(t) if t == token_extensao => Some(Origem::Extensao),
+                Some(t) if !t.is_empty() && t == token_extensao => Some(Origem::Extensao),
                 Some(t) if !t.is_empty() && t == token_mcp => Some(Origem::Mcp),
                 _ => None,
             };
@@ -188,19 +197,30 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
 
             let cfg = permissoes::config_mcp(&db);
 
-            // Fecha a permissão e, quando for escrita, registra o que passou.
+            // Fecha a permissão. A recusa é auditada aqui; o que passou só é
+            // auditado depois, com o resultado real — um pedido que a permissão
+            // aceitou e o cronômetro recusou não é "ok".
             macro_rules! guardar {
                 ($escrita:expr, $ferramenta:expr, $acao:expr, $detalhe:expr) => {
-                    match pode(origem, &cfg, $escrita, $ferramenta) {
-                        Ok(()) => {
-                            if $escrita {
-                                permissoes::auditar(&db, origem, $acao, &$detalhe, "ok");
-                            }
+                    if let Err(e) = pode(origem, &cfg, $escrita, $ferramenta) {
+                        permissoes::auditar(&db, origem, $acao, &$detalhe, "recusado");
+                        responder(req, 403, json!({ "erro": e }));
+                        continue;
+                    }
+                };
+            }
+
+            // Responde uma escrita e a audita com o que de fato aconteceu.
+            macro_rules! escrita {
+                ($acao:expr, $detalhe:expr, $resultado:expr) => {
+                    match $resultado {
+                        Ok(corpo) => {
+                            permissoes::auditar(&db, origem, $acao, &$detalhe, "ok");
+                            responder(req, 200, corpo);
                         }
-                        Err(e) => {
-                            permissoes::auditar(&db, origem, $acao, &$detalhe, "recusado");
-                            responder(req, 403, json!({ "erro": e }));
-                            continue;
+                        Err((status, e)) => {
+                            permissoes::auditar(&db, origem, $acao, &$detalhe, "erro");
+                            responder(req, status, json!({ "erro": e }));
                         }
                     }
                 };
@@ -214,7 +234,15 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                     let t = app
                         .try_state::<TimerState>()
                         .and_then(|s| timer::status_de(&s))
-                        .map(|s| json!({ "descricao": s.description, "wall_ms": s.wall_ms }));
+                        // O total da sessão, e não só o segmento corrente: depois
+                        // de pausar e retomar, a extensão mostrava o tempo desde a
+                        // retomada.
+                        .map(|s| json!({
+                            "descricao": s.description,
+                            "wall_ms": s.acumulado_ms + s.wall_ms,
+                            "segmento_ms": s.wall_ms,
+                            "pausado": s.pausado,
+                        }));
                     responder(req, 200, json!({ "timer": t, "cursos": cursos }));
                 }
 
@@ -249,10 +277,10 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                     guardar!(true, None, "criar_curso", corpo);
                     let titulo = corpo["titulo"].as_str().unwrap_or("").to_string();
                     let url = corpo["url"].as_str().map(str::to_string);
-                    match library::criar(&db, titulo, url) {
-                        Ok(id) => responder(req, 200, json!({ "id": id })),
-                        Err(e) => responder(req, 400, json!({ "erro": e })),
-                    }
+                    let r = library::criar(&db, titulo, url)
+                        .map(|id| json!({ "id": id }))
+                        .map_err(|e| (400u16, e));
+                    escrita!("criar_curso", corpo, r);
                 }
 
                 ("POST", "/cursos/rota") => {
@@ -260,12 +288,13 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                     guardar!(true, None, "atualizar_rota", corpo);
                     let id = corpo["curso_id"].as_str().unwrap_or("").to_string();
                     let url = corpo["url"].as_str().unwrap_or("").to_string();
-                    if id.is_empty() || url.is_empty() {
-                        responder(req, 400, json!({ "erro": "curso_id e url são obrigatórios" }));
+                    let r: Result<Value, (u16, String)> = if id.is_empty() || url.is_empty() {
+                        Err((400, "curso_id e url são obrigatórios".into()))
                     } else {
                         library::registrar_ultima_url(&db, &id, &url);
-                        responder(req, 200, json!({ "ok": true }));
-                    }
+                        Ok(json!({ "ok": true }))
+                    };
+                    escrita!("atualizar_rota", corpo, r);
                 }
 
                 ("POST", "/tarefas") => {
@@ -278,26 +307,24 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                         corpo["curso_id"].as_str().map(str::to_string),
                         corpo["duracao_min"].as_i64(),
                     );
-                    match r {
-                        Ok(id) => responder(req, 200, json!({ "id": id })),
-                        Err(e) => responder(req, 400, json!({ "erro": e })),
-                    }
+                    let r = r.map(|id| json!({ "id": id })).map_err(|e| (400u16, e));
+                    escrita!("criar_tarefa", corpo, r);
                 }
 
                 ("POST", "/tarefas/concluir") => {
                     let corpo = corpo_json(&mut req);
                     guardar!(true, Some(cfg.ferramentas.concluir_tarefa), "concluir_tarefa", corpo);
-                    match tasks::concluir_simples(&db, corpo["id"].as_str().unwrap_or("")) {
-                        Ok(()) => responder(req, 200, json!({ "ok": true })),
-                        Err(e) => responder(req, 400, json!({ "erro": e })),
-                    }
+                    let r = tasks::concluir_simples(&db, corpo["id"].as_str().unwrap_or(""))
+                        .map(|()| json!({ "ok": true }))
+                        .map_err(|e| (400u16, e));
+                    escrita!("concluir_tarefa", corpo, r);
                 }
 
                 ("POST", "/notas") => {
                     let corpo = corpo_json(&mut req);
-                    guardar!(true, Some(cfg.ferramentas.criar_nota), "criar_nota", json!({
-                        "titulo": corpo["titulo"], "curso_id": corpo["curso_id"]
-                    }));
+                    // Só título e curso no rastro: a auditoria não é cópia da nota.
+                    let detalhe = json!({ "titulo": corpo["titulo"], "curso_id": corpo["curso_id"] });
+                    guardar!(true, Some(cfg.ferramentas.criar_nota), "criar_nota", detalhe);
                     let tags = corpo["tags"]
                         .as_array()
                         .map(|a| {
@@ -313,10 +340,8 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                         corpo["curso_id"].as_str().map(str::to_string),
                         tags,
                     );
-                    match r {
-                        Ok(id) => responder(req, 200, json!({ "id": id })),
-                        Err(e) => responder(req, 400, json!({ "erro": e })),
-                    }
+                    let r = r.map(|id| json!({ "id": id })).map_err(|e| (400u16, e));
+                    escrita!("criar_nota", detalhe, r);
                 }
 
                 ("POST", "/timer/iniciar") => {
@@ -338,10 +363,8 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                     // pela extensão deixaria o menu mentindo até a próxima vez
                     // que a janela mexesse em alguma coisa.
                     crate::bandeja::atualizar(&app);
-                    match r {
-                        Ok(()) => responder(req, 200, json!({ "ok": true })),
-                        Err(e) => responder(req, 409, json!({ "erro": e })),
-                    }
+                    let r = r.map(|()| json!({ "ok": true })).map_err(|e| (409u16, e));
+                    escrita!("iniciar_cronometro", corpo, r);
                 }
 
                 ("POST", "/timer/parar") => {
@@ -356,10 +379,10 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
                         None => Err("cronômetro indisponível".into()),
                     };
                     crate::bandeja::atualizar(&app);
-                    match r {
-                        Ok(ms) => responder(req, 200, json!({ "ok": true, "wall_ms": ms })),
-                        Err(e) => responder(req, 409, json!({ "erro": e })),
-                    }
+                    let r = r
+                        .map(|ms| json!({ "ok": true, "wall_ms": ms }))
+                        .map_err(|e| (409u16, e));
+                    escrita!("parar_cronometro", json!({}), r);
                 }
 
                 _ => responder(req, 404, json!({ "erro": "rota desconhecida" })),
@@ -368,8 +391,40 @@ pub fn iniciar(app: tauri::AppHandle, porta: u16, token_extensao: String) {
     });
 }
 
-/// Dados de pareamento da extensão, para a tela de configuração.
+/// Dados de pareamento da extensão, para a tela de configuração. O token sai
+/// do banco, que é de onde a ponte também o lê.
 #[tauri::command]
-pub fn ponte_info(ponte: tauri::State<Ponte>) -> Value {
-    json!({ "porta": ponte.porta, "token": ponte.token })
+pub fn ponte_info(db: tauri::State<Db>, ponte: tauri::State<Ponte>) -> Result<Value, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let t = token(&conn).map_err(|e| e.to_string())?;
+    Ok(json!({ "porta": ponte.porta, "token": t }))
+}
+
+/// Troca o token da extensão. Vale no pedido seguinte: a ponte relê o token a
+/// cada requisição, então a extensão antiga para de ser aceita na hora — é a
+/// revogação separada que D-020 promete para cada um dos dois tokens.
+#[tauri::command]
+pub fn ponte_revogar(db: tauri::State<Db>) -> Result<String, String> {
+    let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+    let novo = uuid::Uuid::new_v4().to_string().replace('-', "");
+    conn.execute(
+        "INSERT INTO settings (chave, valor) VALUES ('bridge_token', ?1)
+         ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor",
+        rusqlite::params![novo],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(novo)
+}
+
+#[cfg(test)]
+mod testes {
+    use super::decodificar;
+
+    #[test]
+    fn desfaz_percent_encoding() {
+        assert_eq!(decodificar("caf%C3%A9"), "café");
+        assert_eq!(decodificar("a+b%20c"), "a b c");
+        assert_eq!(decodificar("2026-09-05"), "2026-09-05");
+        assert_eq!(decodificar("mais%2Bmais"), "mais+mais", "o + codificado continua +");
+    }
 }

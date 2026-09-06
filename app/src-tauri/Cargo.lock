@@ -1142,6 +1142,7 @@ name = "estudos"
 version = "0.0.2"
 dependencies = [
  "keyring",
+ "percent-encoding",
  "reqwest",
  "rusqlite",
  "serde",

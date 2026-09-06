@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Painel from "./Painel";
 import BarraJanela from "./BarraJanela";
+import BordasRedimensionar from "./BordasRedimensionar";
 import { useCompacto, ehMovel } from "./dispositivo";
 import Tempo from "./Tempo";
 import Planejamento from "./Planejamento";
@@ -332,6 +333,7 @@ export default function App() {
           (D-028). No celular não há janela para minimizar, maximizar ou
           fechar — mostrá-la seria oferecer três botões que não fazem nada. */}
       {!ehMovel && <BarraJanela />}
+      {!ehMovel && <BordasRedimensionar />}
       <div className={`shell${compacto ? " shell-compacto" : ""}`}>
         <nav className={`lateral${compacto ? " lateral-barra" : ""}`} aria-label="Seções">
         {!compacto && (

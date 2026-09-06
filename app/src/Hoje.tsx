@@ -457,13 +457,18 @@ function FormLancamento({
 
   const salvar = async () => {
     if (!inicio) return onErro("informe a hora de início");
+    const inicioMs = comHora(dia, inicio);
+    // Fim antes do início é a sessão que atravessou a meia-noite: 23:00 às
+    // 01:00 termina no dia seguinte, não oito horas antes de começar.
+    let fimMs = fim ? comHora(dia, fim) : null;
+    if (fimMs !== null && fimMs <= inicioMs) fimMs += 86_400_000;
     try {
       let id = item?.id;
       if (item) {
         await invoke("editar_lancamento", {
           id: item.id,
-          inicio: comHora(dia, inicio),
-          fim: comHora(dia, fim),
+          inicio: inicioMs,
+          fim: fimMs,
           activityTypeId: tipo,
           descricao: desc.trim() || null,
           cursoId: curso || null,
@@ -471,8 +476,8 @@ function FormLancamento({
       } else {
         if (!fim && !duracao.trim()) return onErro("informe o fim ou a duração");
         id = await invoke<string>("criar_lancamento", {
-          inicio: comHora(dia, inicio),
-          fim: fim ? comHora(dia, fim) : null,
+          inicio: inicioMs,
+          fim: fimMs,
           duracao: duracao.trim() || null,
           activityTypeId: tipo,
           descricao: desc.trim() || null,

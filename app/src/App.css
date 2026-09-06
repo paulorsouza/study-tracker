@@ -193,6 +193,10 @@ body {
 
 .ctrl:hover { background: var(--surf-3); color: var(--tx); }
 
+/* Faixas invisíveis nas bordas da janela sem decoração: é por elas que o
+   Wayland aceita redimensionar. Acima do modal, porque a borda é da janela. */
+.borda-redim { position: fixed; z-index: 60; }
+
 /* Vermelho só no fechar, e só no hover: é o único controle cujo engano custa
    caro, e o realce permanente viraria ruído. */
 .ctrl-fechar:hover { background: #e04352; color: #fff; }

@@ -151,6 +151,27 @@ fn normalizar(t: &str) -> Option<String> {
     (!s.is_empty()).then_some(s)
 }
 
+/// Depois de inserir uma nota com tags, o gatilho do INSERT já enfileirou um
+/// payload sem elas — ainda não existiam. Um UPDATE que só sobe a versão
+/// enfileira o payload completo, e a outra máquina aplica pela versão maior.
+/// Sem tag, nada a fazer.
+fn tocar_com_tags(
+    conn: &rusqlite::Connection,
+    id: &str,
+    tags: &[String],
+    agora: i64,
+) -> Result<(), String> {
+    if !tags.iter().any(|t| normalizar(t).is_some()) {
+        return Ok(());
+    }
+    conn.execute(
+        "UPDATE notes SET updated_at = ?2, version = version + 1 WHERE id = ?1",
+        params![id, agora],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn gravar_tags(conn: &rusqlite::Connection, id: &str, tags: &[String]) -> Result<(), String> {
     conn.execute("DELETE FROM note_tags WHERE note_id = ?1", params![id])
         .map_err(|e| e.to_string())?;
@@ -188,6 +209,10 @@ pub fn salvar_nota(
 
     let id = match id {
         Some(id) => {
+            // As tags entram antes do UPDATE: o gatilho de sincronização monta
+            // o payload no UPDATE, com `json_group_array` de `note_tags`, e as
+            // tags gravadas depois só viajariam na edição seguinte.
+            gravar_tags(&conn, &id, &tags)?;
             conn.execute(
                 "UPDATE notes
                     SET titulo = ?2, conteudo = ?3, modelo = ?4, course_id = ?5,
@@ -232,11 +257,12 @@ pub fn salvar_nota(
                 ],
             )
             .map_err(|e| e.to_string())?;
+            gravar_tags(&conn, &novo, &tags)?;
+            tocar_com_tags(&conn, &novo, &tags, agora)?;
             novo
         }
     };
 
-    gravar_tags(&conn, &id, &tags)?;
     Ok(id)
 }
 
@@ -345,5 +371,6 @@ pub fn criar_simples(
     )
     .map_err(|e| e.to_string())?;
     gravar_tags(&conn, &id, &tags)?;
+    tocar_com_tags(&conn, &id, &tags, agora)?;
     Ok(id)
 }
