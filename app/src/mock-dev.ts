@@ -21,14 +21,14 @@ const emHoras = (h: number, m = 0) => {
 // Paleta categórica validada (ver migração 002): claro e escuro são passos
 // escolhidos para cada superfície, não um o clareado do outro.
 const TIPOS = [
-  { id: "at-estudo", nome: "Estudo", cor: "#2a78d6", cor_escura: "#3987e5", conta_como_estudo: true , icone: "livro", campos_extra: null },
-  { id: "at-academia", nome: "Academia", cor: "#eb6834", cor_escura: "#d95926", conta_como_estudo: false , icone: "halter", campos_extra: "treino" },
-  { id: "at-caminhada", nome: "Caminhada com os dogs", cor: "#1baf7a", cor_escura: "#199e70", conta_como_estudo: false , icone: "cachorro", campos_extra: "distancia" },
-  { id: "at-exercicio", nome: "Exercício", cor: "#eda100", cor_escura: "#c98500", conta_como_estudo: false , icone: "corrida", campos_extra: "treino" },
-  { id: "at-descanso", nome: "Descanso", cor: "#e87ba4", cor_escura: "#d55181", conta_como_estudo: false , icone: "cama", campos_extra: null },
-  { id: "at-deslocamento", nome: "Deslocamento", cor: "#008300", cor_escura: "#008300", conta_como_estudo: false , icone: "carro", campos_extra: "distancia" },
-  { id: "at-pausa", nome: "Pausa", cor: "#4a3aa7", cor_escura: "#9085e9", conta_como_estudo: false , icone: "cafe", campos_extra: null },
-  { id: "at-pessoal", nome: "Pessoal", cor: "#e34948", cor_escura: "#e66767", conta_como_estudo: false , icone: "pessoa", campos_extra: null },
+  { id: "at-estudo", nome: "Estudo", cor: "#2a78d6", cor_escura: "#3987e5", conta_como_estudo: true , icone: "livro", campos_extra: null, compartilhar_familia: false },
+  { id: "at-academia", nome: "Academia", cor: "#eb6834", cor_escura: "#d95926", conta_como_estudo: false , icone: "halter", campos_extra: "treino", compartilhar_familia: false },
+  { id: "at-caminhada", nome: "Caminhada com os dogs", cor: "#1baf7a", cor_escura: "#199e70", conta_como_estudo: false , icone: "cachorro", campos_extra: "distancia", compartilhar_familia: false },
+  { id: "at-exercicio", nome: "Exercício", cor: "#eda100", cor_escura: "#c98500", conta_como_estudo: false , icone: "corrida", campos_extra: "treino", compartilhar_familia: false },
+  { id: "at-descanso", nome: "Descanso", cor: "#e87ba4", cor_escura: "#d55181", conta_como_estudo: false , icone: "cama", campos_extra: null, compartilhar_familia: false },
+  { id: "at-deslocamento", nome: "Deslocamento", cor: "#008300", cor_escura: "#008300", conta_como_estudo: false , icone: "carro", campos_extra: "distancia", compartilhar_familia: false },
+  { id: "at-pausa", nome: "Pausa", cor: "#4a3aa7", cor_escura: "#9085e9", conta_como_estudo: false , icone: "cafe", campos_extra: null, compartilhar_familia: false },
+  { id: "at-pessoal", nome: "Pessoal", cor: "#e34948", cor_escura: "#e66767", conta_como_estudo: false , icone: "pessoa", campos_extra: null, compartilhar_familia: false },
 ];
 
 const cor = (id: string) => TIPOS.find((t) => t.id === id)!;

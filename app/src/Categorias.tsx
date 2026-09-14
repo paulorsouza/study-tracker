@@ -12,6 +12,7 @@ export type Tipo = {
   conta_como_estudo: boolean;
   icone: string | null;
   campos_extra: string | null;
+  compartilhar_familia: boolean;
 };
 
 export type Meta = {
@@ -125,6 +126,9 @@ export default function Categorias({
               {t.conta_como_estudo && (
                 <span className="lanc-curso"> · conta como estudo</span>
               )}
+              {t.compartilhar_familia && (
+                <span className="lanc-curso"> · na família</span>
+              )}
             </span>
             {/* A meta é a própria etiqueta: clicar nela abre o ajuste. Um
                 cartão inteiro de campos por categoria virava planilha. */}
@@ -225,6 +229,7 @@ function FormTipo({
     contaComoEstudo: boolean;
     icone: string | null;
     camposExtra: string | null;
+    compartilharFamilia: boolean;
   }) => void;
 }) {
   const inicial = form?.modo === "editar" ? form.t : undefined;
@@ -233,6 +238,7 @@ function FormTipo({
   const [estudo, setEstudo] = useState(inicial?.conta_como_estudo ?? false);
   const [icone, setIcone] = useState(inicial?.icone ?? "circulo");
   const [extra, setExtra] = useState(inicial?.campos_extra ?? "");
+  const [familia, setFamilia] = useState(inicial?.compartilhar_familia ?? false);
 
   // A paleta pode chegar depois do primeiro render do formulário novo.
   useEffect(() => {
@@ -250,6 +256,7 @@ function FormTipo({
       contaComoEstudo: estudo,
       icone,
       camposExtra: extra || null,
+      compartilharFamilia: familia,
     });
 
   return (
@@ -326,11 +333,22 @@ function FormTipo({
           />
           Conta como tempo de estudo
         </label>
+        <label className="campo" style={{ justifyContent: "flex-end", flexDirection: "row", alignItems: "center", gap: 9, paddingTop: 22 }}>
+          <input
+            type="checkbox"
+            checked={familia}
+            onChange={(e) => setFamilia(e.target.checked)}
+            style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
+          />
+          Compartilhar com a família
+        </label>
       </div>
       <p className="nota">
         A cor sai de uma paleta fechada de oito, validada para daltonismo nos
         dois temas. O campo extra aparece só nos lançamentos desta categoria, e
-        continua opcional.
+        continua opcional. Compartilhar com a família manda só o total de
+        minutos do dia para o hub — nunca o nome do curso, da tarefa ou da
+        nota.
       </p>
     </Modal>
   );

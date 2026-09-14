@@ -2,6 +2,7 @@ mod categorias;
 mod db;
 mod entries;
 mod exportacao;
+mod familia;
 mod library;
 mod notas;
 mod notebooklm;
@@ -140,6 +141,9 @@ macro_rules! registrar {
             sync::sync_pendencias,
             sync::sync_conflitos,
             sync::sync_resolver,
+            familia::familia_configurar,
+            familia::familia_estado,
+            familia::familia_enviar_hoje,
             $($extra),*
         ])
     };
@@ -178,6 +182,7 @@ pub fn run() {
             let sessao = pomodoro::restaurar(app.state::<db::Db>().inner());
             app.manage(pomodoro::PomodoroState(Mutex::new(sessao)));
             pomodoro::spawn_relogio(app.handle().clone());
+            familia::spawn_envio(app.handle().clone());
 
             #[cfg(desktop)]
             {

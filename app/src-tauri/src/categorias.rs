@@ -88,6 +88,7 @@ pub fn criar_tipo(
     conta_como_estudo: bool,
     icone: Option<String>,
     campos_extra: Option<String>,
+    compartilhar_familia: bool,
 ) -> Result<String, String> {
     let nome = nome.trim().to_string();
     if nome.is_empty() {
@@ -112,11 +113,11 @@ pub fn criar_tipo(
     conn.execute(
         "INSERT INTO activity_types
            (id, nome, cor, cor_escura, conta_como_estudo, icone, campos_extra,
-            ordem, device_id, version, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 1, ?10, ?10)",
+            compartilhar_familia, ordem, device_id, version, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 1, ?11, ?11)",
         params![
             id, nome, cor, cor_escura, conta_como_estudo as i64, icone,
-            campos_extra, ordem, db.device_id, agora
+            campos_extra, compartilhar_familia as i64, ordem, db.device_id, agora
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -133,6 +134,7 @@ pub fn editar_tipo(
     conta_como_estudo: bool,
     icone: Option<String>,
     campos_extra: Option<String>,
+    compartilhar_familia: bool,
 ) -> Result<(), String> {
     if !PALETA.iter().any(|(_, c, _)| *c == cor) {
         return Err("cor fora da paleta validada".into());
@@ -142,11 +144,12 @@ pub fn editar_tipo(
     conn.execute(
         "UPDATE activity_types
             SET nome = ?2, cor = ?3, cor_escura = ?4, conta_como_estudo = ?5,
-                icone = ?6, campos_extra = ?7, updated_at = ?8, version = version + 1
+                icone = ?6, campos_extra = ?7, compartilhar_familia = ?8,
+                updated_at = ?9, version = version + 1
           WHERE id = ?1 AND deleted_at IS NULL",
         params![
             id, nome.trim(), cor, cor_escura, conta_como_estudo as i64, icone,
-            campos_extra, agora_ms()
+            campos_extra, compartilhar_familia as i64, agora_ms()
         ],
     )
     .map_err(|e| e.to_string())?;

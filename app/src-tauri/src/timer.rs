@@ -408,6 +408,10 @@ pub fn parar(state: &TimerState, db: &crate::db::Db) -> Result<StopResult, Strin
         mono_ms,
     });
 
+    // Melhor esforço: sem hub configurado ou sem rede, o próximo ciclo do
+    // envio periódico tenta de novo. Nunca falha o encerramento por isto.
+    let _ = crate::familia::enviar_hoje(db);
+
     Ok(StopResult {
         session: r.session.clone(),
         entry_id: r.inicio.entry_id.clone(),

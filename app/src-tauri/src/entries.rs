@@ -60,6 +60,9 @@ pub struct TipoAtividade {
     /// Mora na categoria e não numa regra no código porque quem decide que
     /// academia registra treino é o usuário — ele pode criar "Natação" amanhã.
     pub campos_extra: Option<String>,
+    /// Modo família (D-042): se os minutos desta categoria entram no
+    /// agregado enviado ao hub. Nasce desligado.
+    pub compartilhar_familia: bool,
 }
 
 /// Aceita `45m`, `1h30`, `1:30`, `2h` e número puro em minutos.
@@ -109,7 +112,8 @@ pub fn listar_tipos(db: tauri::State<Db>) -> Result<Vec<TipoAtividade>, String> 
     let conn = db.conn.lock().unwrap();
     let mut stmt = conn
         .prepare(
-            "SELECT id, nome, cor, cor_escura, conta_como_estudo, icone, campos_extra
+            "SELECT id, nome, cor, cor_escura, conta_como_estudo, icone, campos_extra,
+                    compartilhar_familia
                FROM activity_types
               WHERE deleted_at IS NULL ORDER BY ordem",
         )
@@ -124,6 +128,7 @@ pub fn listar_tipos(db: tauri::State<Db>) -> Result<Vec<TipoAtividade>, String> 
                 conta_como_estudo: r.get::<_, i64>(4)? != 0,
                 icone: r.get(5)?,
                 campos_extra: r.get(6)?,
+                compartilhar_familia: r.get::<_, i64>(7)? != 0,
             })
         })
         .map_err(|e| e.to_string())?

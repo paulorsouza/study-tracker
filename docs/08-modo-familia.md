@@ -52,17 +52,32 @@ total do dia inteiro, não soma em cima do que já estava lá. Não há fila nem
 histórico de operações como em `sync_operations` — não faz falta, porque não
 há conflito possível em "qual é o total de hoje".
 
-## O que ainda falta (fora do F0)
+## F1 — envio (feito)
 
-- **F1 — envio**: módulo `familia.rs` (`familia_configurar`,
-  `familia_enviar_hoje`), disparado num intervalo e ao encerrar um
-  lançamento. Reaproveita o padrão de chamada HTTP de `supabase.rs`.
-- **F2 — tela Família**: leitura do hub (`familia_buscar`), grade membro ×
-  categoria por dia/semana.
+Módulo `familia.rs`: `familia_configurar` (grava `hub_url`, `hub_anon_key`,
+`membro_id` em `settings`, chave `familia_config` — mesmo padrão de
+`supabase.rs::Config`), `familia_estado` (se está configurado, sem devolver a
+chave) e `familia_enviar_hoje` (soma `time_entries` de hoje por categoria
+compartilhável e faz upsert no hub).
+
+O envio dispara em dois lugares: a cada 15 minutos (`familia::spawn_envio`,
+mesma thread simples de `timer::spawn_heartbeat`) e ao final de `timer::parar`
+— o ponto único por onde todo encerramento de sessão passa (timer, Pomodoro,
+ponte HTTP, bandeja). Erro é engolido nos dois casos: quem não configurou o
+modo família não deve ver nada sobre ele, e uma rede ruim não pode segurar
+quem só queria parar de estudar (por isso o cliente HTTP tem tempo limite de
+5s). Falha aqui nunca é incidente — o próximo ciclo tenta de novo.
+
+Dia local calculado com `chrono` (feature `clock`) — novo na árvore de
+dependências porque, até aqui, "dia" só existia no lado do TypeScript (o
+`Date` do navegador); o envio roda sozinho, sem tela aberta.
+
+O interruptor `compartilhar_familia` agora é editável pela própria tela de
+Categorias (`Categorias.tsx`), não só por SQL direto.
+
+## O que ainda falta
+
+- **F2 — tela Família**: leitura do hub (`familia_buscar`, ainda não existe),
+  grade membro × categoria por dia/semana.
 - **F3 — onboarding**: tela para colar URL/chave do hub e escolher o nome do
   membro; roteiro de instalação nas máquinas de quem ainda não usa o app.
-
-Nenhum destes três está implementado. A coluna `compartilhar_familia` existe
-no banco local mas hoje só é alterável por SQL direto — a interface para
-ligá-la por categoria entra no F1, junto com o comando que efetivamente lê e
-envia.

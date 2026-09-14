@@ -1111,5 +1111,5 @@ segunda conta por pessoa só para ver o resumo da família não pagaria o atrito
 introdução do zero para quem nunca usou o app.
 
 Esquema do hub, o que cada fase entrega e o que ainda falta: `08-modo-familia.md`. F0
-(esta decisão + migração 013 + esquema do hub) feito; F1 (envio), F2 (tela) e F3
-(onboarding) ainda não.
+(migração 013 + esquema do hub) e F1 (módulo `familia.rs`, envio a cada 15 min e ao
+encerrar um lançamento) feitos; F2 (tela) e F3 (onboarding) ainda não.

@@ -27,7 +27,11 @@ uuid = { version = "1.26.0", features = ["v4"] }
 tauri-plugin-notification = "2.4.0"
 sha2 = "0.11.0"
 tauri-plugin-dialog = "2.7.3"
-reqwest = { version = "0.13.4", features = ["json"] }
+reqwest = { version = "0.13.4", features = ["json", "blocking"] }
+# "clock": até aqui, "dia" só existia no lado do TypeScript (o Date do
+# navegador). O envio do modo família roda sozinho, sem tela aberta, então
+# precisa da mesma noção de dia local sem depender do frontend.
+chrono = { version = "0.4", features = ["clock"] }
 
 # Só existe no desktop, e por isso nem é compilado para o Android:
 #
