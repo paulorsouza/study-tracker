@@ -1077,3 +1077,39 @@ são óbvias em cada correção.
 Fora, de propósito: o Painel fatia a sessão que cruza a meia-noite entre os dois dias
 (`porDiaLocal`), e a Semana e o pacote do NotebookLM contam pelo início (D-033). São duas
 perguntas diferentes, e ficam como estão.
+
+---
+
+## D-042 — Modo família: bancos continuam separados, só o agregado é comum
+
+**2026-09-14**
+
+Pedido: ver atividades e horas da família inteira, mesmo com cada pessoa no seu próprio
+banco — ou, se fizer mais sentido, um banco único compartilhado, mantendo algumas coisas
+individuais.
+
+Decisão: **bancos separados continuam**; entra um segundo destino de sincronização, menor,
+só para o resumo. Banco único foi descartado porque o esquema inteiro assume um dono por
+instalação (`idx_entry_unico_ativo` é por `device_id`, não há `user_id` em tabela nenhuma) —
+migrar para multi-inquilino tocaria as doze migrações existentes, os gatilhos de sync e a
+política de RLS, pelo ganho de uma tela que a arquitetura atual já entrega com um envio a
+mais.
+
+**O que viaja para o hub da família: só minutos por categoria e por dia.** Nunca nome de
+curso, tarefa, nota ou descrição — esses continuam só no projeto pessoal de cada um (D-024).
+Por categoria, o compartilhamento nasce desligado (`activity_types.compartilhar_familia`,
+migração 013); cada pessoa escolhe quais das suas categorias entram.
+
+Isto é uma exceção deliberada a D-024 ("não existe backend compartilhado"), não uma
+reversão dela: o hub é um projeto Supabase à parte, com uma tabela só, sem os dados de
+estudo em si — o argumento de D-024 (não misturar banco de estudo entre pessoas) continua
+de pé para tudo que não seja este agregado.
+
+**Sem login por pessoa no hub.** Uma chave anon compartilhada entre os apps da família,
+com RLS permissiva só dentro da tabela do agregado (ver `08-modo-familia.md`). Exigir uma
+segunda conta por pessoa só para ver o resumo da família não pagaria o atrito, numa
+introdução do zero para quem nunca usou o app.
+
+Esquema do hub, o que cada fase entrega e o que ainda falta: `08-modo-familia.md`. F0
+(esta decisão + migração 013 + esquema do hub) feito; F1 (envio), F2 (tela) e F3
+(onboarding) ainda não.

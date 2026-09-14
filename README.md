@@ -22,6 +22,7 @@ está e inicia o cronômetro sem sair da página. O app cuida da gestão.
 | `docs/05-empacotamento.md` | como gerar os instaladores |
 | `docs/06-linux.md` | montar e testar no Linux, do zero |
 | `docs/07-android.md` | o que vai e o que não vai para o celular, e por quê |
+| `docs/08-modo-familia.md` | resumo agregado entre bancos separados, e o esquema do hub |
 
 Quem for mexer no código: comece por `01-decisoes.md`. Boa parte do que parece
 arbitrário está explicado lá, incluindo as escolhas que foram revertidas.
