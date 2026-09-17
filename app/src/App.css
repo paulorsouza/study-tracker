@@ -2036,6 +2036,101 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   text-wrap: pretty;
 }
 
+/* Busca (Ctrl+K). Sobe um pouco do centro: a lista cresce para baixo e o
+   campo precisa ficar onde o olho já está. */
+.busca-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, .45);
+}
+
+.busca {
+  width: min(620px, calc(100vw - 48px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surf-2);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow: var(--sombra-2);
+  overflow: hidden;
+}
+
+.busca-campo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--tx-3);
+}
+
+.busca-campo input {
+  flex: 1;
+  min-width: 0;
+  margin: 0 !important;
+  border: 0;
+  background: none;
+  font-size: 15px;
+  color: var(--tx);
+}
+
+.busca-campo input:focus { outline: none; box-shadow: none; }
+
+.busca-lista { overflow-y: auto; padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr); }
+
+.busca-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--tx-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.busca-item.sel { background: var(--surf-3); color: var(--tx); }
+.busca-rotulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.busca-detalhe { flex: none; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-3); font-size: 12px; }
+
+.metas-dia {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.meta-dia {
+  min-width: 0;
+  padding: 9px 11px;
+  background: var(--surf);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.meta-dia-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 12px;
+  color: var(--tx-3);
+}
+
+.meta-dia-topo span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-dia-topo b { color: var(--tx); font-weight: 600; }
+
 .tarefa-barra {
   height: 4px;
   border-radius: 2px;

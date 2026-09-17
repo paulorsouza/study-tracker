@@ -22,6 +22,22 @@ export const Relogio = ({ size = 17 }: P) => (
   </svg>
 );
 
+export const Repetir = ({ size = 15 }: P) => (
+  <svg {...base(size)}>
+    <path d="M4 10a6 6 0 0 1 6-6h9" />
+    <path d="M16 1.5L19.5 4 16 6.5" />
+    <path d="M20 14a6 6 0 0 1-6 6H5" />
+    <path d="M8 17.5L4.5 20 8 22.5" />
+  </svg>
+);
+
+export const Lupa = ({ size = 16 }: P) => (
+  <svg {...base(size)}>
+    <circle cx="11" cy="11" r="6" />
+    <path d="M15.5 15.5L20 20" />
+  </svg>
+);
+
 export const Livro = ({ size = 17 }: P) => (
   <svg {...base(size)}>
     <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />

@@ -255,6 +255,27 @@ export default function Planejamento({
   const totalEstimado = abertas.reduce((s, t) => s + (t.duracao_estimada_min ?? 0), 0);
   const totalFeito = tarefas.reduce((s, t) => s + t.realizado_ms, 0);
 
+  // O plano do dia é por categoria (2h de CPA, 1h de jogos, 30 min de
+  // matemática): o total somado não diz se o dia foi cumprido. Sai da própria
+  // lista de tarefas, então não há segunda fonte para discordar.
+  const porCategoria = (() => {
+    const m = new Map<string, { nome: string; cor: string | null; cor_escura: string | null; feito: number; plano: number }>();
+    for (const t of tarefas) {
+      const chave = t.activity_type_id ?? "sem";
+      const atual = m.get(chave) ?? {
+        nome: t.atividade ?? "Sem categoria",
+        cor: t.cor,
+        cor_escura: t.cor_escura,
+        feito: 0,
+        plano: 0,
+      };
+      atual.feito += t.realizado_ms;
+      atual.plano += (t.duracao_estimada_min ?? 0) * 60000;
+      m.set(chave, atual);
+    }
+    return [...m.values()].filter((c) => c.plano > 0 || c.feito > 0).sort((a, b) => b.plano - a.plano);
+  })();
+
   const cartao = (t: Tarefa, arrastavel: boolean) => (
     <Cartao
       key={t.id}
@@ -339,6 +360,29 @@ export default function Planejamento({
           <button className="btn btn-icone" onClick={() => mudarDia(1)} aria-label="Próximo">
             <I.Seta dir="dir" />
           </button>
+        </div>
+      )}
+
+      {modo === "dia" && porCategoria.length > 1 && (
+        <div className="metas-dia">
+          {porCategoria.map((c) => {
+            const cor = corDe({ cor: c.cor ?? "", cor_escura: c.cor_escura }, tema);
+            const pct = c.plano > 0 ? Math.min((c.feito / c.plano) * 100, 100) : 100;
+            return (
+              <div className="meta-dia" key={c.nome}>
+                <div className="meta-dia-topo">
+                  <span style={{ color: cor }}>{c.nome}</span>
+                  <span className="num">
+                    <b>{durCurta(c.feito)}</b>
+                    {c.plano > 0 && <> / {durCurta(c.plano)}</>}
+                  </span>
+                </div>
+                <div className="tarefa-barra" aria-hidden>
+                  <span style={{ width: `${pct}%`, background: cor }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

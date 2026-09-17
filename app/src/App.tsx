@@ -13,6 +13,7 @@ import Cursos from "./Cursos";
 import Config from "./Config";
 import * as I from "./icones";
 import { ACOES, combo } from "./Cronometro";
+import Busca from "./Busca";
 import "./App.css";
 
 export type Curso = {
@@ -121,6 +122,7 @@ export default function App() {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [versao, setVersao] = useState(0);
   const [rapida, setRapida] = useState<NotaRapida>(null);
+  const [buscaAberta, setBuscaAberta] = useState(false);
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
   const [recentes, setRecentes] = useState<Recente[]>([]);
   const [editandoDock, setEditandoDock] = useState(false);
@@ -275,6 +277,14 @@ export default function App() {
         alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName) && !e.ctrlKey && !e.altKey && !e.metaKey;
       if (digitando) return;
 
+      // Ctrl+K antes dos atalhos configuráveis: é o caminho mais curto para
+      // começar qualquer coisa, e não deve depender de configuração.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setBuscaAberta((v) => !v);
+        return;
+      }
+
       const c = combo(e);
       const acaoId = ACOES.find((a) => (atalhos[a.id] ?? a.padrao) === c)?.id;
       if (!acaoId) return;
@@ -345,6 +355,13 @@ export default function App() {
           fechar — mostrá-la seria oferecer três botões que não fazem nada. */}
       {!ehMovel && <BarraJanela />}
       {!ehMovel && <BordasRedimensionar />}
+      <Busca
+        aberto={buscaAberta}
+        onFechar={() => setBuscaAberta(false)}
+        onAba={(a) => setAba(a as Aba)}
+        onErro={setErro}
+        onMudou={mudou}
+      />
       <div className={`shell${compacto ? " shell-compacto" : ""}`}>
         <nav className={`lateral${compacto ? " lateral-barra" : ""}`} aria-label="Seções">
         {!compacto && (
