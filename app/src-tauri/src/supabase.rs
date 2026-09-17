@@ -127,6 +127,14 @@ fn apagar_refresh(_email: &str) {
 struct RespostaAuth {
     access_token: String,
     refresh_token: String,
+    /// Segundos. O Supabase manda sempre; o padrão cobre um projeto que não
+    /// mande, com a validade padrão dele.
+    #[serde(default = "uma_hora")]
+    expires_in: i64,
+}
+
+fn uma_hora() -> i64 {
+    3600
 }
 
 #[derive(Deserialize)]
@@ -154,7 +162,7 @@ async fn autenticar(
         _ => return Err("configure a URL e a chave anon do seu projeto".into()),
     };
 
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .post(format!("{}/auth/v1/{caminho}", url.trim_end_matches('/')))
         .header("apikey", key)
         .header("Content-Type", "application/json")
@@ -205,6 +213,7 @@ pub async fn supabase_entrar(
     }
 
     guardar_refresh(&email, &r.refresh_token)?;
+    esquecer_acesso().await;
     let mut cfg = cfg;
     cfg.email = Some(email);
     gravar_config(&db, &cfg)
@@ -216,19 +225,58 @@ pub async fn supabase_sair(db: tauri::State<'_, Db>) -> Result<(), String> {
     if let Some(e) = cfg.email.clone() {
         apagar_refresh(&e);
     }
+    esquecer_acesso().await;
     cfg.email = None;
     gravar_config(&db, &cfg)
 }
 
-/// Token de acesso fresco, trocando o de renovação. Não é guardado: vale
-/// minutos, e mantê-lo em memória entre sincronizações não compraria nada.
-pub async fn token_de_acesso(cfg: &Config) -> Result<String, String> {
+/// Token de acesso guardado em memória enquanto vale.
+///
+/// Antes cada sincronização trocava o token de renovação — uma rodada a cada
+/// clique, então tanto fazia. Com o tempo real (D-043) são dezenas de rodadas
+/// por hora, e duas delas ao mesmo tempo (o motor e o botão) gastariam o
+/// **mesmo** token de renovação: o Supabase rotaciona a cada uso e trata reuso
+/// como roubo de sessão, derrubando o login. A trava serializa a troca, e o
+/// cache faz com que ela aconteça uma vez por hora, não uma por rodada.
+///
+/// Só em memória, como o de renovação no Android: o de acesso vale minutos e
+/// não tem por que chegar ao disco.
+struct Acesso {
+    email: String,
+    token: String,
+    expira_ms: i64,
+}
+
+fn trava_acesso() -> &'static tokio::sync::Mutex<Option<Acesso>> {
+    static T: std::sync::OnceLock<tokio::sync::Mutex<Option<Acesso>>> = std::sync::OnceLock::new();
+    T.get_or_init(|| tokio::sync::Mutex::new(None))
+}
+
+async fn esquecer_acesso() {
+    *trava_acesso().lock().await = None;
+}
+
+/// Margem antes do vencimento: um token que vence no meio do pedido é pior
+/// que renovar dois minutos cedo.
+const MARGEM_MS: i64 = 120_000;
+
+/// Token de acesso válido e o instante em que ele vence (ms desde a época).
+pub async fn acesso(cfg: &Config) -> Result<(String, i64), String> {
     let email = cfg
         .email
         .as_ref()
         .ok_or("você não está conectado ao Supabase")?;
-    let refresh = ler_refresh(email).ok_or("sessão não encontrada no cofre; entre de novo")?;
 
+    let mut guarda = trava_acesso().lock().await;
+    let agora = crate::db::agora_ms();
+    if let Some(a) = guarda.as_ref() {
+        if &a.email == email && a.expira_ms - agora > MARGEM_MS {
+            return Ok((a.token.clone(), a.expira_ms));
+        }
+    }
+    *guarda = None;
+
+    let refresh = ler_refresh(email).ok_or("sessão não encontrada no cofre; entre de novo")?;
     let r = autenticar(
         cfg,
         "token?grant_type=refresh_token",
@@ -237,9 +285,19 @@ pub async fn token_de_acesso(cfg: &Config) -> Result<String, String> {
     .await?;
 
     // O Supabase rotaciona o refresh a cada uso: guardar o novo é obrigatório,
-    // senão a próxima sincronização encontra um token já queimado.
+    // senão a próxima troca encontra um token já queimado.
     guardar_refresh(email, &r.refresh_token)?;
-    Ok(r.access_token)
+    let expira_ms = agora + r.expires_in * 1000;
+    *guarda = Some(Acesso {
+        email: email.clone(),
+        token: r.access_token.clone(),
+        expira_ms,
+    });
+    Ok((r.access_token, expira_ms))
+}
+
+pub async fn token_de_acesso(cfg: &Config) -> Result<String, String> {
+    acesso(cfg).await.map(|(t, _)| t)
 }
 
 #[derive(Serialize)]
@@ -287,7 +345,7 @@ pub async fn enviar_ops(
         return Ok(());
     }
     let (url, key) = base(cfg)?;
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .post(format!("{url}/rest/v1/sync_operations"))
         .header("apikey", &key)
         .header("Authorization", format!("Bearer {token}"))
@@ -322,7 +380,7 @@ pub async fn receber_ops(
          &order=seq.asc&limit={limite}"
     );
 
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .get(alvo)
         .header("apikey", &key)
         .header("Authorization", format!("Bearer {token}"))
@@ -382,6 +440,20 @@ create policy "dono grava" on public.sync_operations
 drop policy if exists "dono apaga" on public.sync_operations;
 create policy "dono apaga" on public.sync_operations
   for delete using (auth.uid() = user_id);
+
+-- Tempo real (D-043): o Supabase só avisa de linhas novas em tabelas que
+-- estão na publicação dele. O aviso respeita as políticas acima — cada conta
+-- só ouve as próprias operações. O `if` deixa o script rodar de novo sem erro.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+     where pubname = 'supabase_realtime'
+       and schemaname = 'public' and tablename = 'sync_operations'
+  ) then
+    alter publication supabase_realtime add table public.sync_operations;
+  end if;
+end $$;
 "#;
 
 #[tauri::command]
@@ -408,7 +480,7 @@ pub async fn supabase_recuperar_senha(
     }
     let (url, key) = base(&cfg)?;
 
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .post(format!("{url}/auth/v1/recover"))
         .header("apikey", &key)
         .header("Content-Type", "application/json")
@@ -440,7 +512,7 @@ pub async fn supabase_trocar_senha(
     let token = token_de_acesso(&cfg).await?;
     let (url, key) = base(&cfg)?;
 
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .put(format!("{url}/auth/v1/user"))
         .header("apikey", &key)
         .header("Authorization", format!("Bearer {token}"))
@@ -532,7 +604,7 @@ pub async fn supabase_encerrar_outras(db: tauri::State<'_, Db>) -> Result<(), St
     let token = token_de_acesso(&cfg).await?;
     let (url, key) = base(&cfg)?;
 
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .post(format!("{url}/auth/v1/logout?scope=others"))
         .header("apikey", &key)
         .header("Authorization", format!("Bearer {token}"))
@@ -559,7 +631,7 @@ pub async fn supabase_apagar_nuvem(db: tauri::State<'_, Db>) -> Result<u64, Stri
     let token = token_de_acesso(&cfg).await?;
     let (url, key) = base(&cfg)?;
 
-    let r = reqwest::Client::new()
+    let r = crate::rede::cliente()
         .delete(format!("{url}/rest/v1/sync_operations?seq=gte.0"))
         .header("apikey", &key)
         .header("Authorization", format!("Bearer {token}"))

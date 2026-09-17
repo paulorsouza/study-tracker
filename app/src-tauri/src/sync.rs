@@ -192,7 +192,75 @@ pub async fn receber(
         }
     }
 
+    reaplicar_quarentena(db, &mut r)?;
     Ok(r)
+}
+
+/// Tenta de novo o que ficou na quarentena por não aplicar.
+///
+/// O caso que motivou: a ordem do servidor é a ordem de **envio**, não a de
+/// dependência. Registros criados antes da fila existir só entram nela depois
+/// (migração 014), então uma máquina nova recebe as tarefas antes do curso a
+/// que elas apontam — a chave estrangeira recusa, e a tarefa vai para a
+/// quarentena. Quando o curso chega, na mesma rodada ou numa seguinte, ela
+/// passa a aplicar.
+///
+/// A regra de versões continua valendo: a operação passa por `aplicar`, não
+/// por `escrever_registro`. O que ainda não aplica fica onde estava, com o
+/// motivo original — sem conflito novo a cada rodada.
+fn reaplicar_quarentena(db: &Db, r: &mut Recebimento) -> Result<(), String> {
+    let pendentes: Vec<(String, String, String, String, String)> = {
+        let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, entidade, registro_id, payload_remoto, origem
+                   FROM sync_conflitos
+                  WHERE resolvido_em IS NULL AND motivo LIKE 'não aplicável:%'
+                  ORDER BY criado_em",
+            )
+            .map_err(|e| e.to_string())?;
+        let v = stmt
+            .query_map([], |l| Ok((l.get(0)?, l.get(1)?, l.get(2)?, l.get(3)?, l.get(4)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        v
+    };
+
+    for (conflito_id, entidade, registro_id, payload, origem) in pendentes {
+        let Ok(payload) = serde_json::from_str::<serde_json::Value>(&payload) else {
+            continue;
+        };
+        let op = Operacao {
+            seq: 0,
+            id: String::new(),
+            version: payload.get("version").and_then(|v| v.as_i64()).unwrap_or(0),
+            entidade,
+            registro_id,
+            device_id: origem.clone(),
+            payload,
+            criada_em: 0,
+        };
+        let resolucao = match aplicar(db, &op, &origem) {
+            Ok(Aplicacao::Aplicada) => {
+                r.aplicadas += 1;
+                r.conflitos = r.conflitos.saturating_sub(1);
+                "reaplicada"
+            }
+            Ok(Aplicacao::Ignorada) => "superada",
+            // Virou conflito de verdade: `aplicar` já registrou um novo, com o
+            // motivo certo. Este sai para não aparecer duas vezes.
+            Ok(Aplicacao::Conflito) => "substituida",
+            Err(_) => continue,
+        };
+        let conn = db.conn.lock().map_err(|_| "banco ocupado")?;
+        conn.execute(
+            "UPDATE sync_conflitos SET resolvido_em = ?2, resolucao = ?3 WHERE id = ?1",
+            params![conflito_id, agora_ms(), resolucao],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Guarda na área de recuperação uma operação que não pôde ser aplicada, com o
@@ -260,6 +328,23 @@ fn aplicar(db: &Db, op: &Operacao, origem: &str) -> Result<Aplicacao, String> {
                 let igual = registro_igual(&conn, op)?;
                 if igual {
                     return Ok(Aplicacao::Ignorada);
+                }
+                // Registro que nunca entrou na fila daqui não tem edição local
+                // a proteger: é linha semeada, igual em toda máquina a menos de
+                // device_id e datas. Tratar como edição concorrente punha cada
+                // categoria padrão em conflito no primeiro login de uma máquina
+                // nova (D-043). A de fora vale.
+                let editado_aqui: bool = conn
+                    .query_row(
+                        "SELECT EXISTS (SELECT 1 FROM sync_operations
+                                         WHERE entidade = ?1 AND registro_id = ?2)",
+                        params![op.entidade, op.registro_id],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(true);
+                if !editado_aqui {
+                    escrever_registro(&conn, op)?;
+                    return Ok(Aplicacao::Aplicada);
                 }
                 registrar_conflito(&conn, op, origem, "edição concorrente")?;
                 return Ok(Aplicacao::Conflito);
@@ -470,37 +555,68 @@ pub struct ResultadoSync {
     pub erro: Option<String>,
 }
 
-#[tauri::command]
-pub async fn sync_agora(db: tauri::State<'_, Db>) -> Result<ResultadoSync, String> {
+/// Uma rodada completa: recebe, depois envia.
+///
+/// Uma de cada vez. O motor do tempo real e o botão podem pedir juntos, e duas
+/// rodadas simultâneas leriam o mesmo cursor e enviariam a mesma fila — o
+/// resultado seria correto (tudo é idempotente), mas em dobro. A trava é
+/// assíncrona porque a rodada espera a rede segurando-a.
+pub async fn rodar(db: &Db) -> ResultadoSync {
+    static TRAVA: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    let _vez = TRAVA.get_or_init(|| tokio::sync::Mutex::new(())).lock().await;
+
     let mut r = ResultadoSync {
         enviadas: 0,
         recebimento: Recebimento::default(),
         erro: None,
     };
 
-    let cfg = crate::supabase::config_de(&db);
+    let cfg = crate::supabase::config_de(db);
     let token = match crate::supabase::token_de_acesso(&cfg).await {
         Ok(t) => t,
         Err(e) => {
             r.erro = Some(e);
-            return Ok(r);
+            return r;
         }
     };
 
     // Recebe antes de enviar: aplicar o que veio primeiro reduz a chance de
     // mandar uma versão que já nasceu superada.
-    match receber(&db, &cfg, &token).await {
+    match receber(db, &cfg, &token).await {
         Ok(rec) => r.recebimento = rec,
         Err(e) => {
             r.erro = Some(e);
-            return Ok(r);
+            return r;
         }
     }
-    match enviar(&db, &cfg, &token).await {
+    match enviar(db, &cfg, &token).await {
         Ok(n) => r.enviadas = n,
         Err(e) => r.erro = Some(e),
     }
-    Ok(r)
+    r
+}
+
+#[tauri::command]
+pub async fn sync_agora(db: tauri::State<'_, Db>) -> Result<ResultadoSync, String> {
+    Ok(rodar(&db).await)
+}
+
+/// Operações locais esperando envio. É o que o motor do tempo real olha para
+/// saber que houve escrita — a fila é preenchida por gatilho, então este
+/// número muda com qualquer escrita, de qualquer módulo, sem aviso explícito.
+pub fn na_fila(db: &Db) -> i64 {
+    db.conn
+        .lock()
+        .ok()
+        .and_then(|c| {
+            c.query_row(
+                "SELECT count(*) FROM sync_operations WHERE enviada_em IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .ok()
+        })
+        .unwrap_or(0)
 }
 
 #[derive(Serialize)]

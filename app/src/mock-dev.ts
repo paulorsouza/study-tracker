@@ -349,6 +349,12 @@ const respostas: Record<string, (a: any) => unknown> = {
     recebimento: { aplicadas: 7, ignoradas: 2, conflitos: 1 },
     erro: null,
   }),
+  sync_tempo_real: () => ({
+    conectado: true,
+    ultima_rodada: Date.now() - 20000,
+    erro_rodada: null,
+    erro_conexao: null,
+  }),
   sync_conflitos: () => [
     {
       id: "cf1",

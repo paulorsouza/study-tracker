@@ -55,6 +55,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "013_modo_familia",
         include_str!("../migrations/013_modo_familia.sql"),
     ),
+    (
+        "014_fila_retroativa",
+        include_str!("../migrations/014_fila_retroativa.sql"),
+    ),
+    ("015_rotinas", include_str!("../migrations/015_rotinas.sql")),
 ];
 
 pub fn abrir(caminho: &Path) -> rusqlite::Result<Connection> {
@@ -160,6 +165,23 @@ pub fn semear(conn: &Connection, device: &str) -> rusqlite::Result<()> {
         ("at-pessoal", "Pessoal", "#e34948", "#e66767", 0),
     ];
 
+    // A semeadura não entra na fila de sincronização: toda máquina nasce com
+    // estas mesmas linhas, com os mesmos ids. Enfileirá-las mandaria para a
+    // outra máquina uma cópia na mesma versão, com device_id e datas
+    // diferentes — "edição concorrente" em cada categoria, no primeiro login
+    // do celular (D-043). Quem editar uma delas depois sobe a versão, e aí a
+    // edição viaja normalmente.
+    conn.execute("UPDATE sync_estado SET aplicando = 1 WHERE unico = 1", [])?;
+    let resultado = semear_linhas(conn, device, tipos);
+    conn.execute("UPDATE sync_estado SET aplicando = 0 WHERE unico = 1", [])?;
+    resultado
+}
+
+fn semear_linhas(
+    conn: &Connection,
+    device: &str,
+    tipos: &[(&str, &str, &str, &str, i64)],
+) -> rusqlite::Result<()> {
     let agora = agora_ms();
     for (i, (id, nome, cor, escura, estudo)) in tipos.iter().enumerate() {
         conn.execute(

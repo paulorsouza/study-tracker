@@ -32,6 +32,13 @@ reqwest = { version = "0.13.4", features = ["json", "blocking"] }
 # navegador). O envio do modo família roda sozinho, sem tela aberta, então
 # precisa da mesma noção de dia local sem depender do frontend.
 chrono = { version = "0.4", features = ["clock"] }
+# Tempo real (D-043): o WebSocket do Supabase Realtime pega carona no próprio
+# reqwest, e com isso usa a mesma pilha TLS da sincronização em vez de trazer
+# uma segunda. `tokio` já vinha pelo Tauri; aqui só ficam visíveis os recursos
+# que o motor usa.
+reqwest-websocket = "0.6.0"
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+tokio = { version = "1", features = ["sync", "time", "macros"] }
 
 # Só existe no desktop, e por isso nem é compilado para o Android:
 #

@@ -1113,3 +1113,47 @@ introdução do zero para quem nunca usou o app.
 Esquema do hub, o que cada fase entrega e o que ainda falta: `08-modo-familia.md`. F0
 (migração 013 + esquema do hub) e F1 (módulo `familia.rs`, envio a cada 15 min e ao
 encerrar um lançamento) feitos; F2 (tela) e F3 (onboarding) ainda não.
+
+---
+
+## D-043 — Sincronização em tempo real, sem mudar D-024
+
+**2026-09-16**
+
+Pedido: sincronização em tempo real, "como o Firebase". Até aqui ela só rodava no botão.
+
+Decisão: **a arquitetura de D-024 fica** — SQLite como verdade, fila por gatilho, rodada
+que recebe e depois envia. Muda só quem decide rodar. Ler e gravar direto no Supabase, como
+o Firebase faz, custaria o app offline, que é premissa do plano.
+
+- **Envio:** o motor (`tempo_real.rs`) olha a fila local a cada 1,5 s. Como a fila é
+  preenchida por gatilho, qualquer escrita de qualquer módulo sobe sem ninguém avisar.
+- **Recepção:** WebSocket com o Supabase Realtime, inscrito em `INSERT` de
+  `sync_operations` com `device_id` diferente do daqui. O aviso **não traz dado**: só acorda
+  uma rodada, que busca pelo cursor como sempre. Aviso perdido atrasa, nunca corrompe.
+- **Rede de segurança:** rodada a cada 5 min com o tempo real ligado, a cada 1 min sem ele.
+  Depois de erro, 30 s de espera antes de a fila disparar outra.
+- O WebSocket usa o próprio reqwest (`reqwest-websocket`), para não trazer uma segunda
+  pilha TLS. A conexão é refeita 3 min antes de o token de acesso vencer, em vez de renovar
+  o token num canal aberto.
+- Exige a tabela na publicação `supabase_realtime`; o trecho entrou no SQL da tela.
+
+Três defeitos apareceram no caminho, e sem eles o primeiro uso numa máquina nova falharia:
+
+1. **Token de renovação queimado.** Cada rodada trocava o token de renovação, e o Supabase
+   trata reuso como roubo de sessão. Com dezenas de rodadas por hora, duas simultâneas
+   derrubariam o login. Agora o token de acesso fica em memória até perto de vencer, a troca
+   é serializada, e `sync::rodar` roda uma de cada vez.
+2. **Registros anteriores à fila nunca viajavam.** Tudo criado antes da migração 008 e nunca
+   editado estava fora da fila: numa máquina nova, as tarefas chegavam apontando para curso
+   inexistente e iam para a quarentena. A migração 014 enfileira esses registros pelo próprio
+   gatilho (`UPDATE ... SET version = version`), e a quarentena de "não aplicável" é tentada de
+   novo a cada rodada — a ordem do servidor é a de envio, não a de dependência.
+3. **Categorias semeadas em conflito.** Toda máquina nasce com as mesmas categorias, mesma
+   versão, device_id e datas diferentes: "edição concorrente" em cada uma, no primeiro login.
+   A semeadura não entra mais na fila, e registro que nunca entrou na fila local cede para o
+   de fora — sem edição local, não há o que proteger.
+
+Um quarto é só do Android: o verificador de certificados padrão do reqwest precisa de uma
+inicialização por JNI que o app não faz, e **toda** chamada HTTPS falharia no celular. Lá o
+cliente usa as raízes do Mozilla embutidas (`rede.rs`). No desktop nada muda.

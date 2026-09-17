@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import Painel from "./Painel";
 import BarraJanela from "./BarraJanela";
 import BordasRedimensionar from "./BordasRedimensionar";
@@ -151,6 +152,16 @@ export default function App() {
     // reconstrói na mão de quem está clicando nele.
     invoke("atualizar_bandeja").catch(() => {});
   }, [recarregarCursos]);
+
+  // Dado que chegou de outra máquina pelo tempo real (D-043) entra pelo mesmo
+  // contador de qualquer outra mudança: as telas não precisam saber de onde
+  // ele veio.
+  useEffect(() => {
+    const p = listen("sync:mudou", mudou);
+    return () => {
+      p.then((un) => un());
+    };
+  }, [mudou]);
 
   const recarregarFavoritos = useCallback(() => {
     invoke<Favorito[]>("listar_favoritos").then(setFavoritos).catch(() => {});

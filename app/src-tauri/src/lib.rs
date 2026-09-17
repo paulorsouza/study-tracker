@@ -7,9 +7,11 @@ mod library;
 mod notas;
 mod notebooklm;
 mod pomodoro;
+mod rede;
 mod supabase;
 mod sync;
 mod tasks;
+mod tempo_real;
 mod timer;
 
 // Só no desktop, e não por falta de vontade de portar:
@@ -141,6 +143,7 @@ macro_rules! registrar {
             sync::sync_pendencias,
             sync::sync_conflitos,
             sync::sync_resolver,
+            tempo_real::sync_tempo_real,
             familia::familia_configurar,
             familia::familia_estado,
             familia::familia_enviar_hoje,
@@ -183,6 +186,7 @@ pub fn run() {
             app.manage(pomodoro::PomodoroState(Mutex::new(sessao)));
             pomodoro::spawn_relogio(app.handle().clone());
             familia::spawn_envio(app.handle().clone());
+            tempo_real::iniciar(app.handle().clone());
 
             #[cfg(desktop)]
             {

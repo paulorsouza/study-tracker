@@ -517,11 +517,9 @@ pub async fn baixar_capa(db: tauri::State<'_, Db>, id: String, url: String) -> R
 
     // Tempo limite: sem ele, um servidor que aceita a conexão e não responde
     // deixaria o comando pendurado sem nunca devolver nada à tela.
-    let r = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| e.to_string())?
+    let r = crate::rede::cliente()
         .get(endereco.as_str())
+        .timeout(std::time::Duration::from_secs(20))
         .send()
         .await
         .map_err(|e| format!("não consegui baixar: {e}"))?;

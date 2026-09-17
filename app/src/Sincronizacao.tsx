@@ -10,6 +10,12 @@ type Resultado = {
   recebimento: { aplicadas: number; ignoradas: number; conflitos: number };
   erro: string | null;
 };
+type TempoReal = {
+  conectado: boolean;
+  ultima_rodada: number | null;
+  erro_rodada: string | null;
+  erro_conexao: string | null;
+};
 type Conflito = {
   id: string;
   entidade: string;
@@ -56,6 +62,7 @@ export default function Sincronizacao({
   const [criando, setCriando] = useState(false);
   const [rodando, setRodando] = useState(false);
   const [res, setRes] = useState<Resultado | null>(null);
+  const [tr, setTr] = useState<TempoReal | null>(null);
 
   const carregar = useCallback(() => {
     invoke<Estado>("supabase_estado").then((e) => {
@@ -68,6 +75,19 @@ export default function Sincronizacao({
   }, []);
 
   useEffect(carregar, [carregar]);
+
+  // O motor roda sozinho no processo do app; a tela só acompanha. Fila e
+  // conflitos mudam sem clique nenhum agora, então são relidos junto.
+  useEffect(() => {
+    const ler = () => {
+      invoke<TempoReal>("sync_tempo_real").then(setTr).catch(() => {});
+      invoke<Pendencias>("sync_pendencias").then(setPend).catch(() => {});
+      invoke<Conflito[]>("sync_conflitos").then(setConflitos).catch(() => {});
+    };
+    ler();
+    const id = setInterval(ler, 2000);
+    return () => clearInterval(id);
+  }, []);
 
   const sincronizar = () => {
     setRodando(true);
@@ -121,10 +141,6 @@ export default function Sincronizacao({
             </button>
           )}
         </div>
-        <p className="nota" style={{ marginTop: 0, marginBottom: 16 }}>
-          Cada pessoa usa o <b>próprio</b> projeto Supabase. Não existe servidor
-          compartilhado — seus dados de estudo não ficam num banco de terceiros.
-        </p>
 
         {!est.configurado ? (
           <div className="passo-vazio">
@@ -183,13 +199,25 @@ export default function Sincronizacao({
               </div>
             </div>
 
+            <div className="aviso" style={{ marginBottom: 16 }}>
+              <div>
+                <strong>
+                  {tr?.conectado
+                    ? "Tempo real ligado"
+                    : "Tempo real desconectado"}
+                </strong>
+                {tr?.ultima_rodada && <p>Última troca: {quando(tr.ultima_rodada)}</p>}
+                {tr?.erro_rodada && <p style={{ color: "var(--warn)" }}>{tr.erro_rodada}</p>}
+                {!tr?.conectado && tr?.erro_conexao && (
+                  <p style={{ color: "var(--warn)" }}>{tr.erro_conexao}</p>
+                )}
+              </div>
+            </div>
+
             <div className="linha">
-              <button className="btn btn-primario" onClick={sincronizar} disabled={rodando}>
+              <button className="btn btn-fantasma" onClick={sincronizar} disabled={rodando}>
                 {rodando ? "Sincronizando…" : "Sincronizar agora"}
               </button>
-              <span className="nota" style={{ margin: 0 }}>
-                recebe primeiro, depois envia
-              </span>
             </div>
 
             {res && !res.erro && (
@@ -198,12 +226,9 @@ export default function Sincronizacao({
                   <strong>
                     {res.enviadas} enviada(s), {res.recebimento.aplicadas} aplicada(s)
                   </strong>
-                  <p>
-                    {res.recebimento.ignoradas} ignorada(s) por já estarem aqui
-                    {res.recebimento.conflitos > 0 &&
-                      `, ${res.recebimento.conflitos} em conflito`}
-                    .
-                  </p>
+                  {res.recebimento.conflitos > 0 && (
+                    <p>{res.recebimento.conflitos} em conflito</p>
+                  )}
                 </div>
               </div>
             )}
@@ -214,10 +239,6 @@ export default function Sincronizacao({
       {est.conectado && conflitos.length > 0 && (
         <section className="card">
           <h2>Conflitos</h2>
-          <p className="nota" style={{ marginTop: 0 }}>
-            Nada foi descartado. Estes registros mudaram nos dois lados e o
-            app não escolhe sozinho — as duas versões estão guardadas.
-          </p>
           {conflitos.map((c) => (
             <div key={c.id} className="lanc">
               <span className="lanc-cor" style={{ background: "var(--warn)" }} />
@@ -250,17 +271,6 @@ export default function Sincronizacao({
           ))}
         </section>
       )}
-
-      <div className="aviso" style={{ marginTop: 0 }}>
-        <I.Alerta />
-        <div>
-          <strong>Lançamento de tempo nunca é descartado</strong>
-          <p>
-            Se as duas máquinas registrarem sessões diferentes, as duas ficam —
-            sobreposição aparece na linha do tempo do dia, para você decidir.
-          </p>
-        </div>
-      </div>
 
       <Modal
         titulo="Projeto Supabase"
@@ -303,10 +313,6 @@ export default function Sincronizacao({
             />
           </div>
         </div>
-        <p className="nota">
-          A chave anon é pública por desenho: quem protege as linhas é a política
-          de acesso por usuário que o SQL cria, não o sigilo dela.
-        </p>
       </Modal>
 
       <Modal
@@ -353,10 +359,6 @@ export default function Sincronizacao({
           />
           É a primeira vez — criar a conta neste projeto
         </label>
-        <p className="nota">
-          A senha vai uma vez para o seu Supabase e o app a esquece. O que fica
-          guardado é o token de renovação, no cofre de credenciais do sistema.
-        </p>
       </Modal>
     </>
   );

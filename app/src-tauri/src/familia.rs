@@ -185,10 +185,7 @@ pub fn enviar_hoje(db: &Db) -> Result<(), String> {
 
     // Tempo limite curto: isto roda sozinho atrás do fim de um cronômetro, e
     // uma rede ruim não pode segurar quem só queria parar de estudar.
-    let cliente = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let cliente = crate::rede::cliente_bloqueante(Duration::from_secs(5))?;
 
     let r = cliente
         .post(format!("{url}/rest/v1/family_daily_stats"))

@@ -181,7 +181,9 @@ Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
 - [ ] Bandeja do sistema: ícone, menu, clique e início rápido (D-034)
 - [ ] Notificação do Pomodoro com a janela minimizada
 - [ ] Proteção do vault: exportar, editar no Obsidian, exportar de novo
-- [ ] Sincronização contra um Supabase real — autenticação, envio, recepção
+- [x] ~~Sincronização contra um Supabase real~~ **Parcial.** Login, envio e inscrição
+      no tempo real provados em 16/09 (D-043). A **recepção** de outra máquina ainda
+      não passou por aparelho nenhum — o primeiro teste é o tablet
 - [ ] Conta: recuperar senha, trocar senha, encerrar as outras sessões e apagar
       os dados do servidor (tudo depende do Supabase real; D-037)
 - [ ] MCP ligado no Claude Desktop de verdade
