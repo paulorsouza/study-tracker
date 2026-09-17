@@ -170,9 +170,36 @@ fn duracao_para_s(t: &str) -> Option<i64> {
     Some(total)
 }
 
+/// `&amp;` e `&#237;` chegam como evento próprio, fora do texto. Sem resolver,
+/// o título perde pedaços — "Renda fixa &amp; cía" virava "Renda fixaca".
+fn entidade(nome: &str) -> String {
+    if let Some(num) = nome.strip_prefix('#') {
+        let (base, digitos) = match num.strip_prefix(['x', 'X']) {
+            Some(hex) => (16, hex),
+            None => (10, num),
+        };
+        return u32::from_str_radix(digitos, base)
+            .ok()
+            .and_then(char::from_u32)
+            .map(String::from)
+            .unwrap_or_default();
+    }
+    match nome {
+        "amp" => "&",
+        "lt" => "<",
+        "gt" => ">",
+        "quot" => "\"",
+        "apos" => "'",
+        _ => "",
+    }
+    .to_string()
+}
+
 fn itens_do_rss(xml: &str) -> Vec<ItemFeed> {
     let mut leitor = Reader::from_str(xml);
-    leitor.config_mut().trim_text(true);
+    // Sem aparar: o espaço em volta da entidade faz parte do título. A limpeza
+    // acontece no fim, quando o item fecha.
+    leitor.config_mut().trim_text(false);
     let mut buf = Vec::new();
     let mut itens = Vec::new();
 
@@ -203,6 +230,14 @@ fn itens_do_rss(xml: &str) -> Vec<ItemFeed> {
                     }
                 }
             }
+            Ok(Event::GeneralRef(r)) if dentro => {
+                let resolvida = entidade(r.as_ref());
+                match campo.as_deref() {
+                    Some("title") => titulo.push_str(&resolvida),
+                    Some("guid") => guid.push_str(&resolvida),
+                    _ => {}
+                }
+            }
             Ok(Event::Text(t)) if dentro => {
                 let valor = quick_xml::escape::unescape(t.as_ref())
                     .unwrap_or_else(|_| t.as_ref().into())
@@ -211,7 +246,7 @@ fn itens_do_rss(xml: &str) -> Vec<ItemFeed> {
                     Some("title") => titulo.push_str(&valor),
                     Some("guid") => guid.push_str(&valor),
                     Some("pubDate") => {
-                        data = DateTime::parse_from_rfc2822(&valor)
+                        data = DateTime::parse_from_rfc2822(valor.trim())
                             .ok()
                             .map(|d| d.timestamp_millis())
                     }
@@ -222,15 +257,17 @@ fn itens_do_rss(xml: &str) -> Vec<ItemFeed> {
             Ok(Event::End(e)) => {
                 if e.name().as_ref() == "item" {
                     dentro = false;
-                    if !titulo.is_empty() {
+                    let limpo = titulo.trim().to_string();
+                    let guid_limpo = guid.trim().to_string();
+                    if !limpo.is_empty() {
                         itens.push(ItemFeed {
-                            titulo: titulo.clone(),
+                            titulo: limpo.clone(),
                             // Feed sem guid existe: o endereço do áudio, ou o
                             // próprio título, servem de identidade.
-                            guid: if guid.is_empty() {
-                                link.clone().unwrap_or_else(|| titulo.clone())
+                            guid: if guid_limpo.is_empty() {
+                                link.clone().unwrap_or_else(|| limpo.clone())
                             } else {
-                                guid.clone()
+                                guid_limpo
                             },
                             url: link.clone(),
                             publicado_em: data,
@@ -551,4 +588,88 @@ pub fn planejar_episodio(
     .map_err(|e| e.to_string())?;
 
     Ok(tarefa_id)
+}
+
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    /// OPML do AntennaPod: as assinaturas vêm como `outline` com `xmlUrl`,
+    /// dentro de uma árvore que pode ter pastas.
+    #[test]
+    fn le_opml_do_antennapod() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+        <opml version="2.0">
+          <head><title>AntennaPod Subscriptions</title></head>
+          <body>
+            <outline text="Notícias">
+              <outline type="rss" text="Stock Pickers" xmlUrl="https://a/feed.xml"
+                       htmlUrl="https://a" />
+            </outline>
+            <outline type="rss" title="Market Makers" xmlUrl="https://b/feed.xml" />
+          </body>
+        </opml>"#;
+
+        let feeds = feeds_do_opml(xml);
+        assert_eq!(feeds.len(), 2);
+        assert_eq!(feeds[0].0, "Stock Pickers");
+        assert_eq!(feeds[0].1, "https://a/feed.xml");
+        assert_eq!(feeds[0].2.as_deref(), Some("https://a"));
+        assert_eq!(feeds[1].0, "Market Makers");
+    }
+
+    #[test]
+    fn le_itens_do_rss() {
+        let xml = r#"<?xml version="1.0"?>
+        <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+          <channel>
+            <title>Programa</title>
+            <item>
+              <title>Renda fixa &amp; c&#237;a</title>
+              <guid isPermaLink="false">ep-1</guid>
+              <pubDate>Wed, 16 Sep 2026 10:00:00 -0300</pubDate>
+              <itunes:duration>1:02:33</itunes:duration>
+              <enclosure url="https://a/ep1.mp3" type="audio/mpeg" length="1" />
+            </item>
+            <item>
+              <title>Sem guid e em segundos</title>
+              <pubDate>Tue, 15 Sep 2026 10:00:00 -0300</pubDate>
+              <itunes:duration>2700</itunes:duration>
+              <enclosure url="https://a/ep2.mp3" type="audio/mpeg" length="1" />
+            </item>
+          </channel>
+        </rss>"#;
+
+        let itens = itens_do_rss(xml);
+        assert_eq!(itens.len(), 2);
+        // A entidade do XML precisa chegar decodificada ao título.
+        assert_eq!(itens[0].titulo, "Renda fixa & cía");
+        assert_eq!(itens[0].guid, "ep-1");
+        assert_eq!(itens[0].duracao_s, Some(3753));
+        assert!(itens[0].publicado_em.unwrap() > 0);
+        // Sem guid, a identidade é o endereço do áudio.
+        assert_eq!(itens[1].guid, "https://a/ep2.mp3");
+        assert_eq!(itens[1].duracao_s, Some(2700));
+    }
+
+    /// Mesmo episódio, mesmo id: é o que impede duplicata ao reimportar e entre
+    /// máquinas.
+    #[test]
+    fn id_do_episodio_e_estavel() {
+        let a = id_derivado("https://a/feed.xml|ep-1");
+        let b = id_derivado("https://a/feed.xml|ep-1");
+        let c = id_derivado("https://a/feed.xml|ep-2");
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+        assert_eq!(a.len(), 36);
+    }
+
+    #[test]
+    fn duracao_em_tres_formatos() {
+        assert_eq!(duracao_para_s("45:10"), Some(2710));
+        assert_eq!(duracao_para_s("1:02:33"), Some(3753));
+        assert_eq!(duracao_para_s("900"), Some(900));
+        assert_eq!(duracao_para_s(""), None);
+    }
 }
