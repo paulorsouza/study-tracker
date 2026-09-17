@@ -1218,3 +1218,37 @@ Junto foi a limpeza pedida: saíram as legendas de tela, as justificativas de
 desenho e as explicações do que o controle já diz. Ficaram estado de carregando
 e vazio, dado, erro, passo de configuração e aviso de ação destrutiva. O porquê
 das decisões vive aqui, não na interface.
+
+---
+
+## D-046 — Podcasts: o app planeja, o AntennaPod toca
+
+**2026-09-17**
+
+Pedido: organizar os podcasts ouvidos no AntennaPod — planejar quais ouvir e
+ter isso junto do resto da rotina.
+
+**O app não toca áudio.** Reproduzir no desktop resolveria o caso menos
+frequente (o podcast é ouvido no celular, fora de casa) e traria fila,
+velocidade, posição e download — um player inteiro, mal feito, ao lado de um
+que já existe e é bom.
+
+**Episódio planejado vira tarefa**, com `episodio_id` preenchido, em vez de uma
+agenda paralela. Cronômetro, metas do dia, Painel e sincronização continuam
+lendo `tasks` sem saber que podcast existe, e "1h de podcast hoje" entra na
+mesma conta de qualquer outro bloco do dia.
+
+**A categoria é por programa.** É ela que decide se o tempo conta como estudo:
+podcast de mercado conta, o de humor não. Sem isso, o número do dia misturaria
+os dois — e foi para separar esse tipo de coisa que `conta_como_estudo` existe
+desde a migração 001.
+
+**Assinaturas entram por OPML**, exportado do AntennaPod em Configurações →
+Importar/Exportar. Não há API pública para ler de lá o que já foi ouvido: a
+alternativa seria o gpodder.net, que exige conta e configuração nos dois lados.
+A importação manual é mais pobre e honesta sobre o que faz; o gpodder fica como
+porta aberta, não como promessa.
+
+Ids de podcast e episódio são **derivados** do endereço do feed e do guid, como
+em D-044: reimportar o mesmo OPML não duplica nada, e duas máquinas chegam ao
+mesmo id.

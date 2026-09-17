@@ -6,6 +6,7 @@ mod familia;
 mod library;
 mod notas;
 mod notebooklm;
+mod podcasts;
 mod pomodoro;
 mod rede;
 mod rotinas;
@@ -111,6 +112,14 @@ macro_rules! registrar {
             tasks::mudar_estado_tarefa,
             tasks::excluir_tarefa,
             tasks::replanejar_atrasadas,
+            podcasts::listar_podcasts,
+            podcasts::listar_episodios,
+            podcasts::podcasts_importar_opml,
+            podcasts::podcasts_atualizar,
+            podcasts::podcast_categoria,
+            podcasts::excluir_podcast,
+            podcasts::episodio_estado,
+            podcasts::planejar_episodio,
             rotinas::listar_rotinas,
             rotinas::salvar_rotina,
             rotinas::excluir_rotina,

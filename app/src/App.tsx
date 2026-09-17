@@ -10,6 +10,7 @@ import Planejamento from "./Planejamento";
 import Foco from "./Foco";
 import Notas, { NotaRapida } from "./Notas";
 import Cursos from "./Cursos";
+import Podcasts from "./Podcasts";
 import Config from "./Config";
 import * as I from "./icones";
 import { ACOES, combo } from "./Cronometro";
@@ -73,7 +74,7 @@ type Recovery = {
   gap_ms: number;
 };
 
-type Aba = "painel" | "hoje" | "plano" | "foco" | "notas" | "cursos" | "config";
+type Aba = "painel" | "hoje" | "plano" | "foco" | "notas" | "cursos" | "podcasts" | "config";
 
 export function dur(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -344,6 +345,7 @@ export default function App() {
     { id: "foco", nome: "Foco", Icone: I.Alvo },
     { id: "cursos", nome: "Cursos", Icone: I.Livro },
     { id: "notas", nome: "Notas", Icone: I.Nota },
+    { id: "podcasts", nome: "Podcasts", curto: "Podcast", Icone: I.Fone },
     { id: "painel", nome: "Painel", soDesktop: true, Icone: I.Painel },
     { id: "config", nome: "Configurações", curto: "Ajustes", Icone: I.Engrenagem },
   ] as ItemNav[]).filter((x) => !(x.soDesktop && compacto));
@@ -637,6 +639,7 @@ export default function App() {
               onErro={setErro}
             />
           )}
+          {aba === "podcasts" && <Podcasts onErro={setErro} onMudou={mudou} />}
           {aba === "cursos" && (
             <Cursos cursos={cursos} onErro={setErro} onMudou={mudou} />
           )}

@@ -39,6 +39,7 @@ chrono = { version = "0.4", features = ["clock"] }
 reqwest-websocket = "0.6.0"
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 tokio = { version = "1", features = ["sync", "time", "macros"] }
+quick-xml = "0.42.0"
 
 # Só existe no desktop, e por isso nem é compilado para o Android:
 #

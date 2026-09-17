@@ -47,6 +47,9 @@ passou (D-039).
   progresso, tempo recente e o que está ligado a ele; guarda a rota da última
   aula.
 - **Notas** — busca, tags, modelos, revisão, e nota rápida amarrada à sessão.
+- **Podcasts** — assinaturas importadas do AntennaPod por OPML, episódios
+  lidos do feed e planejados como tarefa do dia; a categoria por programa
+  decide se o tempo conta como estudo.
 - **Painel** — estudo por dia, sequência, onde foi o tempo, cursos parados.
 - **Modo compacto** — janela pequena, sempre no topo, com relógio, Pomodoro e
   um menu rápido de cursos. É a que faz sentido ficar visível enquanto o estudo

@@ -37,6 +37,8 @@ const ENTIDADES: &[&str] = &[
     "subjects",
     "time_favorites",
     "rotinas",
+    "podcasts",
+    "episodios",
 ];
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
