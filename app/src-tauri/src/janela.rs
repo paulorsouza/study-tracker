@@ -158,6 +158,41 @@ pub async fn expandir(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Fechar vai para a bandeja; minimizar vira a janela compacta.
+///
+/// O app conta tempo: encerrar no X perderia a sessão em andamento de quem só
+/// queria tirar a janela da frente. Sair de verdade fica no menu da bandeja,
+/// que é onde o cronômetro continua visível enquanto isso.
+pub fn vigiar_principal(app: &tauri::AppHandle) {
+    let Some(janela) = app.get_webview_window("main") else { return };
+    let app = app.clone();
+
+    janela.on_window_event(move |evento| match evento {
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            if let Some(j) = app.get_webview_window("main") {
+                let _ = j.hide();
+            }
+        }
+        // O Tauri não tem evento de minimizar: ele chega como redimensionamento,
+        // e quem responde é o estado da janela.
+        tauri::WindowEvent::Resized(_) => {
+            let minimizada = app
+                .get_webview_window("main")
+                .and_then(|j| j.is_minimized().ok())
+                .unwrap_or(false);
+            if minimizada && app.get_webview_window(ROTULO).is_none() {
+                let app = app.clone();
+                // Fora do laço de eventos, pelo motivo de A-003.
+                tauri::async_runtime::spawn(async move {
+                    let _ = abrir_mini(app).await;
+                });
+            }
+        }
+        _ => {}
+    });
+}
+
 #[tauri::command]
 pub fn mini_no_topo(app: tauri::AppHandle, fixar: bool) -> Result<(), String> {
     if let Some(j) = app.get_webview_window(ROTULO) {

@@ -367,16 +367,20 @@ export default function App() {
           </button>
         ))}
 
-        {/* Segunda janela não existe no Android, e numa janela estreita o modo
-            compacto não resolve nada que a própria janela já não resolva. */}
+        {/* Ação, não destino: fica junto do cronômetro e fora da lista de
+            seções, onde parecia uma sétima tela. Segunda janela não existe no
+            Android, e numa janela estreita não resolve nada. */}
         {!compacto && !ehMovel && (
-          <button
-            className="btn btn-fantasma"
-            style={{ marginTop: "auto", marginBottom: 8, width: "100%", justifyContent: "flex-start", gap: 11, paddingLeft: 12 }}
-            onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}
-          >
-            <I.Janelinha /> Modo compacto
-          </button>
+          <div className="lateral-acoes">
+            <button
+              className="btn-icone"
+              title="Modo compacto"
+              aria-label="Modo compacto"
+              onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}
+            >
+              <I.Janelinha />
+            </button>
+          </div>
         )}
 
         <div className={`dock${compacto ? " dock-barra" : ""}`} style={{ marginTop: 0 }}>

@@ -28,6 +28,38 @@ export function combo(e: KeyboardEvent): string {
   return p.join("+");
 }
 
+type Sistema = {
+  inicio_automatico: boolean;
+  atalho: { ativo: boolean; combo: string | null };
+};
+
+/**
+ * O plugin de atalho global nomeia as teclas de outro jeito que o ouvinte de
+ * dentro do app: "Control" em vez de "Ctrl", e a tecla principal por código.
+ * Converter aqui evita uma segunda captura de teclas só para este campo.
+ */
+function comboGlobal(e: KeyboardEvent): string {
+  const p: string[] = [];
+  if (e.ctrlKey) p.push("Control");
+  if (e.metaKey) p.push("Super");
+  if (e.altKey) p.push("Alt");
+  if (e.shiftKey) p.push("Shift");
+  const k = e.code.startsWith("Key") || e.code.startsWith("Digit") ? e.code : e.code;
+  p.push(k);
+  return p.join("+");
+}
+
+/** "Control+Alt+KeyS" é o que o sistema entende; ninguém quer ler isso. */
+function comboLegivel(c: string | null): string {
+  if (!c) return "escolher";
+  return c
+    .split("+")
+    .map((t) =>
+      t.replace(/^Key/, "").replace(/^Digit/, "").replace("Control", "Ctrl").replace("Super", "Win")
+    )
+    .join("+");
+}
+
 export default function Cronometro({
   cursos,
   onErro,
@@ -41,6 +73,7 @@ export default function Cronometro({
   const [tipos, setTipos] = useState<Tipo[]>([]);
   const [atalhos, setAtalhos] = useState<Record<string, string>>({});
   const [capturando, setCapturando] = useState<string | null>(null);
+  const [sistema, setSistema] = useState<Sistema | null>(null);
   const [novo, setNovo] = useState(false);
   const [rotulo, setRotulo] = useState("");
   const [desc, setDesc] = useState("");
@@ -84,6 +117,36 @@ export default function Cronometro({
       }
       if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
       gravarAtalhos({ ...atalhos, [capturando]: combo(e) });
+      setCapturando(null);
+    };
+    window.addEventListener("keydown", ouvir, true);
+    return () => window.removeEventListener("keydown", ouvir, true);
+  });
+
+  useEffect(() => {
+    if (ehMovel) return;
+    invoke<Sistema>("sistema_estado").then(setSistema).catch(() => {});
+  }, []);
+
+  const salvarAtalhoGlobal = (ativo: boolean, combo: string | null) =>
+    invoke("sistema_atalho", { ativo, combo })
+      .then(() => {
+        setSistema((s) => (s ? { ...s, atalho: { ativo, combo } } : s));
+        onErro(null);
+      })
+      .catch((e) => {
+        onErro(String(e));
+        invoke<Sistema>("sistema_estado").then(setSistema).catch(() => {});
+      });
+
+  // Captura própria: a combinação global é gravada com outro vocabulário.
+  useEffect(() => {
+    if (capturando !== "global") return;
+    const ouvir = (e: KeyboardEvent) => {
+      e.preventDefault();
+      if (e.key === "Escape") return setCapturando(null);
+      if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+      salvarAtalhoGlobal(true, comboGlobal(e));
       setCapturando(null);
     };
     window.addEventListener("keydown", ouvir, true);
@@ -197,6 +260,47 @@ export default function Cronometro({
           </div>
         </div>
       </Modal>
+
+      {!ehMovel && sistema && (
+        <section className="card">
+          <h2>Sistema</h2>
+
+          <label className="perm-linha">
+            <input
+              type="checkbox"
+              checked={sistema.inicio_automatico}
+              onChange={(e) =>
+                invoke("sistema_inicio_automatico", { ligado: e.target.checked })
+                  .then(() =>
+                    setSistema((s) => (s ? { ...s, inicio_automatico: e.target.checked } : s))
+                  )
+                  .catch((x) => onErro(String(x)))
+              }
+              style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
+            />
+            <span>Abrir com o sistema, direto na bandeja</span>
+          </label>
+
+          <label className="perm-linha">
+            <input
+              type="checkbox"
+              checked={sistema.atalho.ativo}
+              onChange={(e) => salvarAtalhoGlobal(e.target.checked, sistema.atalho.combo)}
+              style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
+            />
+            <span style={{ flex: 1 }}>Atalho global para iniciar e parar</span>
+            <button
+              className={`tecla${capturando === "global" ? " tecla-capturando" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                setCapturando("global");
+              }}
+            >
+              {capturando === "global" ? "pressione…" : comboLegivel(sistema.atalho.combo)}
+            </button>
+          </label>
+        </section>
+      )}
 
       {/* Atalho de teclado é conceito de computador com teclado. No celular a
           seção seria uma lista de combinações que ninguém consegue apertar. */}

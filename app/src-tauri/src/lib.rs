@@ -36,6 +36,8 @@ mod janela;
 mod obsidian;
 #[cfg(desktop)]
 mod permissoes;
+#[cfg(desktop)]
+mod sistema;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -196,11 +198,33 @@ pub fn run() {
                 // A bandeja depende do banco e do cronômetro já registrados:
                 // ela monta o menu a partir dos dois.
                 bandeja::montar(app.handle())?;
+                bandeja::spawn_relogio(app.handle().clone());
+                janela::vigiar_principal(app.handle());
+                sistema::aplicar_salvo(app.handle());
+
+                // Aberto pelo registro de inicialização do sistema: vai direto
+                // para a bandeja em vez de aparecer na frente de quem acabou de
+                // ligar a máquina.
+                if std::env::args().any(|a| a == sistema::ARG_OCULTO) {
+                    if let Some(j) = app.get_webview_window("main") {
+                        let _ = j.hide();
+                    }
+                }
             }
 
             Ok(())
         })
         ;
+
+    // Plugins de desktop: o Android não tem registro de inicialização nem
+    // atalho global. Ver `sistema.rs`.
+    #[cfg(desktop)]
+    let construtor = construtor
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![sistema::ARG_OCULTO]),
+        ))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
     // O celular é um companheiro: cronômetro, Pomodoro, o dia, cursos e
     // notas, sincronizando com o desktop pelo Supabase.
@@ -225,6 +249,9 @@ pub fn run() {
         janela::mini_altura,
         bridge::ponte_info,
         bridge::ponte_revogar,
+        sistema::sistema_estado,
+        sistema::sistema_inicio_automatico,
+        sistema::sistema_atalho,
     ]);
     #[cfg(mobile)]
     let construtor = registrar!(construtor, []);

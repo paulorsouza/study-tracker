@@ -416,6 +416,8 @@ input[type="checkbox"], input[type="radio"] { width: auto; height: auto; padding
 
 /* --- cronômetro fixo na lateral ------------------------------------------ */
 
+.lateral-acoes { margin-top: auto; display: flex; justify-content: flex-end; margin-bottom: 4px; }
+
 .dock {
   margin-top: auto;
   padding: 14px;

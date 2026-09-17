@@ -52,3 +52,11 @@ tauri = { version = "2", features = ["tray-icon"] }
 keyring = "4.2.0"
 tiny_http = "0.12.0"
 percent-encoding = "2"
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-global-shortcut = "2.3.2"
+
+# Só no Android: o verificador de certificados padrão do reqwest consulta o
+# sistema por JNI e exige uma inicialização que o app não faz — sem estas
+# raízes, toda chamada HTTPS falharia no celular. Ver `rede.rs`.
+[target.'cfg(target_os = "android")'.dependencies]
+webpki-root-certs = "1"

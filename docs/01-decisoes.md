@@ -1157,3 +1157,37 @@ Três defeitos apareceram no caminho, e sem eles o primeiro uso numa máquina no
 Um quarto é só do Android: o verificador de certificados padrão do reqwest precisa de uma
 inicialização por JNI que o app não faz, e **toda** chamada HTTPS falharia no celular. Lá o
 cliente usa as raízes do Mozilla embutidas (`rede.rs`). No desktop nada muda.
+
+---
+
+## D-045 — O app mora no sistema
+
+**2026-09-17**
+
+Pedido: um app de uso o tempo todo, minimizado no canto, com controle perto do
+relógio — como o vídeo do Chrome.
+
+- **Fechar esconde, não encerra.** O app conta tempo: fechar no X no meio de uma
+  sessão perderia o que estava em andamento. Sair fica no menu da bandeja.
+- **Minimizar abre a janela compacta** (D-026), que já era sem decoração, sempre
+  por cima e fora da barra de tarefas.
+- **A bandeja mostra o cronômetro:** ponto azul contando, âmbar pausado, e o
+  tempo corrente na dica. O ícone é desenhado sobre o padrão em vez de virar
+  três PNG para manter em sincronia com `gerar-icone.mjs`. O menu ganhou pausar,
+  retomar e modo compacto.
+- **Botão na miniatura da barra de tarefas ficou de fora**: exige `ITaskbarList3`
+  por COM, que o Tauri não expõe — código nativo só para Windows, pelo mesmo
+  que o ponto no ícone já entrega.
+- **Início automático** pelo plugin de autostart, com `--oculto`: sobe direto
+  para a bandeja em vez de aparecer na frente de quem ligou a máquina.
+- **Atalho global** para iniciar e parar. Isto contraria D-031, e de propósito:
+  atalho global tira a tecla de dentro do Chrome, onde o estudo acontece. Por
+  isso nasce **desligado**, com a combinação escolhida pelo usuário — quem liga
+  aceita o preço, e quem nunca abrir a tela não paga nada.
+- **Busca única (Ctrl+K)**: tarefa começa o cronômetro, curso abre a última aula,
+  nota leva à tela. Não é tela nova, é o caminho curto para o que já existia.
+
+Junto foi a limpeza pedida: saíram as legendas de tela, as justificativas de
+desenho e as explicações do que o controle já diz. Ficaram estado de carregando
+e vazio, dado, erro, passo de configuração e aviso de ação destrutiva. O porquê
+das decisões vive aqui, não na interface.
