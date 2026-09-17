@@ -8,6 +8,7 @@ mod notas;
 mod notebooklm;
 mod pomodoro;
 mod rede;
+mod rotinas;
 mod supabase;
 mod sync;
 mod tasks;
@@ -110,6 +111,9 @@ macro_rules! registrar {
             tasks::mudar_estado_tarefa,
             tasks::excluir_tarefa,
             tasks::replanejar_atrasadas,
+            rotinas::listar_rotinas,
+            rotinas::salvar_rotina,
+            rotinas::excluir_rotina,
             pomodoro::pomodoro_config,
             pomodoro::pomodoro_salvar_config,
             pomodoro::pomodoro_iniciar,
@@ -189,6 +193,7 @@ pub fn run() {
             pomodoro::spawn_relogio(app.handle().clone());
             familia::spawn_envio(app.handle().clone());
             tempo_real::iniciar(app.handle().clone());
+            rotinas::spawn_materializacao(app.handle().clone());
 
             #[cfg(desktop)]
             {

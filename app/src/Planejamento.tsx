@@ -4,6 +4,7 @@ import { Curso, durCurta } from "./App";
 import { Tipo, corDe } from "./tempo-comum";
 import { useCompacto } from "./dispositivo";
 import Modal from "./Modal";
+import Rotinas from "./Rotinas";
 import Menu from "./Menu";
 import * as I from "./icones";
 
@@ -97,6 +98,7 @@ export default function Planejamento({
   const [dia, setDia] = useState(() => new Date());
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [form, setForm] = useState<Form>(null);
+  const [rotinas, setRotinas] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [atrasadas, setAtrasadas] = useState(0);
   const [tipos, setTipos] = useState<Tipo[]>([]);
@@ -300,16 +302,25 @@ export default function Planejamento({
 
   return (
     <>
+      <Rotinas
+        aberto={rotinas}
+        cursos={cursos}
+        onFechar={() => setRotinas(false)}
+        onErro={onErro}
+        onMudou={() => {
+          carregar();
+          onMudou();
+        }}
+      />
+
       <div className="pagina-cab">
         <div>
           <h1 className="titulo-pagina">Planejamento</h1>
-          <p className="legenda">
-            {modo === "dia"
-              ? "O dia em três etapas. A tarefa é o começo da sessão: o play já liga o cronômetro nela."
-              : "A tarefa é o começo da sessão: o play já liga o cronômetro nela."}
-          </p>
         </div>
         <div className="pagina-acoes">
+          <button className="btn" onClick={() => setRotinas(true)}>
+            <I.Repetir /> Rotinas
+          </button>
           <button className="btn btn-primario" onClick={() => setForm({ modo: "nova" })}>
             <I.Mais /> Nova tarefa
           </button>

@@ -1160,6 +1160,33 @@ cliente usa as raízes do Mozilla embutidas (`rede.rs`). No desktop nada muda.
 
 ---
 
+## D-044 — Rotinas: a recorrência que D-011 adiou
+
+**2026-09-17**
+
+D-011 cortou recorrência por duas perguntas em aberto: onde a tarefa repetida
+existe, e como duas máquinas não a criam duas vezes. As duas têm resposta agora.
+
+**A rotina é a regra; a tarefa do dia continua sendo linha de `tasks`.** Nada
+fora de `rotinas.rs` sabe que rotina existe — cronômetro, planejamento,
+relatórios e sincronização seguem lendo tarefa. Gerar a tarefa na leitura, sem
+materializar, não teria onde guardar o que o uso produz: conclusão, tempo
+realizado, ordem na coluna, troca de dia por arrasto.
+
+**O id da tarefa do dia é derivado, não sorteado:** `sha256("rotina:<id>:<dia>")`
+no formato de uuid. As duas máquinas chegam ao mesmo id para o mesmo dia, então
+a segunda a sincronizar reconhece a tarefa como a mesma em vez de duplicar. É a
+mesma idempotência de §7, aplicada antes da fila.
+
+Materializa 14 dias à frente, na abertura e de hora em hora — não à meia-noite,
+que o computador desligado perderia. `INSERT OR IGNORE`: rodar de novo não
+duplica, e tarefa apagada pelo usuário continua apagada em vez de voltar no dia
+seguinte.
+
+Editar a rotina alcança só tarefa **futura e ainda aberta**: corrigir o título
+não reescreve o que já foi estudado, e dia que saiu da regra some do futuro sem
+tocar no passado.
+
 ## D-045 — O app mora no sistema
 
 **2026-09-17**

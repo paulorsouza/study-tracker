@@ -14,7 +14,7 @@ já encerrada.
 | Item | Onde | Decisão |
 |---|---|---|
 | Central Hotmart, T2, navegador de estudo e modo foco | §3.7, §3.8, §3.9 | D-007 — o app não abre conteúdo de plataforma |
-| Recorrência de tarefas e modelos de rotina | §3.3 | D-011 — exige decidir materialização e não-duplicação na sync |
+| ~~Recorrência de tarefas~~ | §3.3 | **feita** em D-044; modelos de rotina continuam fora |
 | **Exportação CSV/JSON e a tela de Relatórios** | §3.11 | **D-030** |
 | Sincronização do vault pelo próprio app | — | D-021 — o git faz isso melhor |
 | Calendário externo e gamificação | §16 | fora do MVP no próprio plano |

@@ -349,6 +349,28 @@ const respostas: Record<string, (a: any) => unknown> = {
     recebimento: { aplicadas: 7, ignoradas: 2, conflitos: 1 },
     erro: null,
   }),
+  listar_rotinas: () => [
+    {
+      id: "r1",
+      titulo: "CPA — estudo",
+      course_id: null,
+      activity_type_id: "at-estudo",
+      duracao_estimada_min: 120,
+      prioridade: 0,
+      dias: "0123456",
+      ativa: true,
+      inicio: null,
+      fim: null,
+    },
+  ],
+  salvar_rotina: () => "r1",
+  excluir_rotina: () => null,
+  sistema_estado: () => ({
+    inicio_automatico: false,
+    atalho: { ativo: false, combo: null },
+  }),
+  sistema_inicio_automatico: () => null,
+  sistema_atalho: () => null,
   sync_tempo_real: () => ({
     conectado: true,
     ultima_rodada: Date.now() - 20000,

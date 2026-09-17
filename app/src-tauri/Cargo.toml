@@ -1,6 +1,6 @@
 [package]
 name = "estudos"
-version = "0.0.2"
+version = "0.0.4"
 description = "Gestao de estudos"
 authors = ["paulorsouza"]
 edition = "2021"
