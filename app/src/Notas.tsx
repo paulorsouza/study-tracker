@@ -134,10 +134,6 @@ export default function Notas({
       <div className="pagina-cab">
         <div>
           <h1 className="titulo-pagina">Notas</h1>
-          <p className="legenda">
-            O que ficou da sessão. Uma nota pode se amarrar ao curso, à tarefa e
-            ao instante em que foi escrita.
-          </p>
         </div>
         <div className="pagina-acoes">
           <button className="btn btn-primario" onClick={() => setAberta("nova")}>
@@ -179,7 +175,7 @@ export default function Notas({
         <div className="vazio">
           {busca || tag || curso || aRevisar
             ? "Nada com esses filtros."
-            : "Nenhuma nota ainda. Com o cronômetro rodando, o botão Nota na lateral já amarra o que você escrever àquela sessão."}
+            : "Nenhuma nota ainda."}
         </div>
       ) : (
         <div className="notas-grade">
@@ -315,8 +311,7 @@ function Editor({
         <div className="aviso">
           <I.Relogio />
           <div>
-            <strong>Amarrada à sessão em andamento</strong>
-            <p>“{rapida.descricao || "sem descrição"}” — a nota vai ficar ligada a esse lançamento de tempo.</p>
+            <strong>Amarrada a “{rapida.descricao || "sem descrição"}”</strong>
           </div>
         </div>
       )}
@@ -394,10 +389,6 @@ function Editor({
           />
           <span>
             Disponível para a IA
-            <span className="nota" style={{ display: "block", margin: 0 }}>
-              Só notas marcadas aqui podem ser lidas pelo Claude Desktop. O padrão
-              é o silêncio: nota pessoal não vira contexto de IA por esquecimento.
-            </span>
           </span>
         </label>
 

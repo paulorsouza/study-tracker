@@ -48,10 +48,6 @@ export default function Materias({
   return (
     <section className="card">
       <h2>Matérias</h2>
-      <p className="legenda" style={{ marginBottom: 14 }}>
-        Áreas de conhecimento, ao lado do curso e não dentro dele — a mesma
-        matéria costuma atravessar mais de um curso.
-      </p>
 
       <div className="grade" style={{ marginBottom: itens.length ? 18 : 0 }}>
         <div className="campo cresce">
@@ -143,10 +139,6 @@ export default function Materias({
         )
       )}
 
-      <p className="nota">
-        Excluir uma matéria não apaga o tempo gasto nela — só a etiqueta. Os
-        lançamentos ficam.
-      </p>
     </section>
   );
 }

@@ -349,11 +349,6 @@ export default function Planejamento({
             <strong>
               {tarefas.length} tarefa{tarefas.length > 1 ? "s" : ""} de dias anteriores
             </strong>
-            <p>
-              {confirmando
-                ? "Todas passam para hoje. As datas originais ficam no histórico."
-                : "Replanejar move todas para hoje de uma vez."}
-            </p>
           </div>
           {confirmando ? (
             <>
@@ -686,10 +681,6 @@ function FormTarefa({
           </select>
         </div>
       </div>
-      <p className="nota">
-        Só o título é obrigatório. A estimativa serve para comparar com o
-        realizado, não para cobrar você.
-      </p>
     </Modal>
   );
 }

@@ -174,10 +174,6 @@ export default function Semana({
         })}
       </div>
 
-      <p className="nota">
-        Cartão vazio é dia sem registro, não dia zerado — a semana não cobra
-        preenchimento. Clique no dia para abrir a lista dele.
-      </p>
     </>
   );
 }

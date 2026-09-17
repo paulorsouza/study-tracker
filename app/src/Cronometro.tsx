@@ -118,10 +118,6 @@ export default function Cronometro({
             <I.Mais /> Nova
           </button>
         </div>
-        <p className="legenda" style={{ marginBottom: 14 }}>
-          Atalhos para o que você começa sempre igual. Aparecem no cronômetro da
-          barra lateral, ordenados pelo que você mais aciona.
-        </p>
 
         {favoritos.length === 0 ? (
           <div className="vazio">Nenhuma combinação favorita ainda.</div>
@@ -207,10 +203,6 @@ export default function Cronometro({
       {!ehMovel && (
       <section className="card">
         <h2>Atalhos de teclado</h2>
-        <p className="legenda" style={{ marginBottom: 14 }}>
-          Valem dentro do app, não no sistema inteiro. Um atalho global roubaria
-          a tecla de dentro do Chrome, que é onde você estuda.
-        </p>
 
         <table className="medidas">
           <tbody>

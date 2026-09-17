@@ -178,9 +178,7 @@ export default function Obsidian({
               <span>
                 <b>Somente criar</b>
                 <span className="nota" style={{ display: "block", margin: 0 }}>
-                  O app cria arquivos novos e nunca mexe em nenhum já existente.
-                  É o modo sem risco algum — ao custo de o diário não se
-                  atualizar durante o dia.
+                  Nunca altera arquivo já existente.
                 </span>
               </span>
             </label>
@@ -210,9 +208,6 @@ export default function Obsidian({
             <button className="btn btn-primario" onClick={exportar} disabled={exportando}>
               <I.Externo /> {exportando ? "Exportando…" : "Exportar hoje"}
             </button>
-            <span className="nota" style={{ margin: 0 }}>
-              Exportação é manual por enquanto.
-            </span>
           </div>
 
           {res && (

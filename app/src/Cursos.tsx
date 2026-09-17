@@ -147,10 +147,6 @@ export default function Cursos({
       <div className="pagina-cab">
         <div>
           <h1 className="titulo-pagina">Cursos</h1>
-          <p className="legenda">
-            Cada curso guarda a rota da última aula. Abrir leva direto para lá, no
-            seu navegador.
-          </p>
         </div>
         <div className="pagina-acoes">
           <button className="btn btn-primario" onClick={() => setNovo(true)}>
@@ -183,7 +179,7 @@ export default function Cursos({
       {visiveis.length === 0 ? (
         <div className="vazio">
           {cursos.length === 0
-            ? "Nenhum curso ainda. Estando na aula no Chrome, use a extensão para salvar a rota — ou adicione aqui."
+            ? "Nenhum curso ainda."
             : "Nada com esses filtros."}
         </div>
       ) : (
@@ -256,10 +252,6 @@ export default function Cursos({
             />
           </div>
         </div>
-        <p className="nota">
-          O resto — professor, plataforma, capa, meta — entra depois, na página
-          do curso.
-        </p>
       </Modal>
     </>
   );
@@ -402,9 +394,6 @@ function Pagina({
                 </div>
               ))}
             </div>
-            <p className="nota">
-              Da mais antiga à atual. Soma acumulada esconde abandono; esta não.
-            </p>
           </>
         )}
 
@@ -673,10 +662,6 @@ function FormCurso({
           {capaMsg && <span className="nota" style={{ margin: 0 }}>{capaMsg}</span>}
         </div>
       </div>
-      <p className="nota">
-        A capa é baixada uma vez e guardada dentro do app; o endereço, não a
-        imagem, é o que viaja na sincronização.
-      </p>
     </Modal>
   );
 }

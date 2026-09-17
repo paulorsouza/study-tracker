@@ -229,10 +229,6 @@ export default function Painel({
   return (
     <>
       <h1 className="titulo-pagina">Painel</h1>
-      <p className="legenda">
-        Visão macro da rotina. Todos os números vêm da mesma consulta, então não
-        podem discordar entre si.
-      </p>
 
       {/* Conflito de sincronização aparece aqui, não só em Configurações
           (§3.2). Dado que chegou e não foi aplicado é a única coisa neste app
@@ -243,7 +239,7 @@ export default function Painel({
           <I.Alerta />
           <span>
             {pend.conflitos} conflito{pend.conflitos === 1 ? "" : "s"} de
-            sincronização esperando decisão. Nada foi descartado.
+            sincronização esperando decisão.
           </span>
           <button className="btn" onClick={() => irPara("config")}>
             Resolver
@@ -478,10 +474,6 @@ export default function Painel({
               </div>
             ))
           )}
-          <p className="nota">
-            Exercício e descanso aparecem aqui, mas nunca somam nas horas
-            estudadas.
-          </p>
         </section>
       </div>
 
@@ -516,9 +508,6 @@ export default function Painel({
               </button>
             </div>
           ))}
-          <p className="nota">
-            Abre direto na última aula acessada, no seu navegador.
-          </p>
         </section>
       )}
 
@@ -538,10 +527,6 @@ export default function Painel({
               </span>
             </div>
           ))}
-          <p className="nota">
-            Sem atividade há mais de duas semanas. Não é cobrança — pode ser hora
-            de arquivar.
-          </p>
         </section>
       )}
 

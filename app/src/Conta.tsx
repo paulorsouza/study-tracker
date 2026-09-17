@@ -107,10 +107,6 @@ export default function Conta({
 
       <section className="card">
         <h2>Meus dados</h2>
-        <p className="legenda" style={{ marginBottom: 14 }}>
-          Tudo o que o app guarda sobre você, num arquivo só. Sem recorte e sem
-          filtro — é um arquivo de resgate, não um relatório.
-        </p>
 
         <div className="linha">
           <button className="btn btn-primario" onClick={exportar} disabled={ocupado}>
@@ -142,11 +138,6 @@ export default function Conta({
 
       <section className="card">
         <h2>Máquinas</h2>
-        <p className="legenda" style={{ marginBottom: 14 }}>
-          De onde vieram os dados que este computador já leu. Não são as sessões
-          de login: listá-las exigiria a chave de administrador do projeto, que
-          um app instalado no seu computador não deve guardar.
-        </p>
 
         {maquinas.length === 0 ? (
           <div className="vazio">Nenhuma sincronização ainda.</div>
@@ -225,10 +216,6 @@ export default function Conta({
             Mandar link de redefinição
           </button>
         </div>
-        <p className="nota">
-          O link abre a página do seu próprio Supabase. O app não vê nem
-          intermedeia a senha nova.
-        </p>
 
         {est?.conectado && (
           <>
@@ -259,10 +246,6 @@ export default function Conta({
                 Trocar senha
               </button>
             </div>
-            <p className="nota">
-              Vai direto para o Supabase e não encosta em disco — nem no banco do
-              app, nem no cofre, nem em log.
-            </p>
           </>
         )}
       </section>
@@ -270,8 +253,7 @@ export default function Conta({
       <section className="card">
         <h2>Apagar</h2>
         <p className="legenda" style={{ marginBottom: 14 }}>
-          Apaga do seu Supabase todas as operações desta conta. O banco local
-          <b> não é tocado</b>: seu histórico continua aqui.
+          Apaga os dados desta conta no Supabase. O banco local não é tocado.
         </p>
 
         {confirmando ? (

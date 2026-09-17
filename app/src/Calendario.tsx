@@ -421,10 +421,7 @@ export default function Calendario({
             }}
           />
         ) : (
-          <p className="nota">
-            Arraste numa faixa vazia para criar. Arraste o bloco para mover, ou
-            as bordas para esticar. O passo é de 5 minutos.
-          </p>
+          null
         )}
       </section>
     </>

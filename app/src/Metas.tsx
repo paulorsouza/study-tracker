@@ -132,10 +132,6 @@ export default function Metas({
           </div>
         );
       })}
-      <p className="nota">
-        Piso e teto são referência, não cobrança. Ficar fora da faixa num dia
-        não significa nada sozinho.
-      </p>
     </section>
   );
 }

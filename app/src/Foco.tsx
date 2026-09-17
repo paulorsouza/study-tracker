@@ -163,10 +163,6 @@ export default function Foco({
       <div className="pagina-cab">
         <div>
           <h1 className="titulo-pagina">Foco</h1>
-          <p className="legenda">
-            O ciclo corre no processo do app, não na tela — continua certo com a
-            janela minimizada atrás do navegador.
-          </p>
         </div>
         <div className="pagina-acoes">
           <button className="btn" onClick={() => setAjustando(true)} disabled={!cfg}>
@@ -315,19 +311,6 @@ export default function Foco({
               </div>
             )}
 
-            {est.pausada && (
-              <p className="nota">
-                O relógio parou onde estava. Retomar abre o que falta da fase,
-                não ela inteira.
-              </p>
-            )}
-            {est.aguardando && (
-              <p className="nota">
-                A próxima fase não começa sozinha — essa é a configuração
-                padrão. Encadear a pausa automaticamente tiraria de você a
-                decisão de parar.
-              </p>
-            )}
           </div>
         ) : (
           <div className="foco-inicio">
@@ -554,10 +537,6 @@ function FormConfig({
           </label>
         ))}
       </div>
-      <p className="nota">
-        Vale a partir do próximo ciclo — mudar no meio não move a fase que já
-        está correndo.
-      </p>
     </Modal>
   );
 }

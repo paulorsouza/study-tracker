@@ -84,10 +84,6 @@ export default function NotebookLM({
   return (
     <section className="card">
       <h2>NotebookLM</h2>
-      <p className="legenda" style={{ marginBottom: 14 }}>
-        Junta sessões, notas, dúvidas, tarefas e links num arquivo Markdown para
-        você adicionar como fonte. O app não sobe nada sozinho.
-      </p>
 
       <div className="grade">
         <div className="campo cresce">
@@ -147,8 +143,7 @@ export default function NotebookLM({
               Em <b>Fontes</b>, use <b>Adicionar</b> e escolha o arquivo acima.
             </li>
             <li>
-              Gerar de novo cria um arquivo novo — o NotebookLM não atualiza a
-              fonte sozinho, então a antiga precisa ser removida à mão.
+              Gerar de novo cria outro arquivo: remova a fonte antiga à mão.
             </li>
           </ol>
 
@@ -163,10 +158,6 @@ export default function NotebookLM({
         </>
       )}
 
-      <p className="nota">
-        Nota marcada como <b>indisponível para IA</b> nunca entra no pacote — o
-        NotebookLM é IA, e essa marca existe justamente para isso.
-      </p>
     </section>
   );
 }

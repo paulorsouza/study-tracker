@@ -156,12 +156,6 @@ export default function Categorias({
           </div>
         ))}
 
-        <p className="nota">
-          Arraste para reordenar. A ordem não é cosmética: as cores foram
-          validadas para daltonismo <b>por pares vizinhos</b>, então quem fica ao
-          lado de quem faz parte da acessibilidade. Clique na meta para ajustar
-          piso e teto.
-        </p>
       </section>
 
       <FormTipo
@@ -343,13 +337,6 @@ function FormTipo({
           Compartilhar com a família
         </label>
       </div>
-      <p className="nota">
-        A cor sai de uma paleta fechada de oito, validada para daltonismo nos
-        dois temas. O campo extra aparece só nos lançamentos desta categoria, e
-        continua opcional. Compartilhar com a família manda só o total de
-        minutos do dia para o hub — nunca o nome do curso, da tarefa ou da
-        nota.
-      </p>
     </Modal>
   );
 }
@@ -395,10 +382,6 @@ function FormMeta({
       {tipo && (
         <div className="linha" style={{ marginBottom: 0 }}>
           <span className="chip-cor" style={{ background: corDe(tipo, tema) }} />
-          <span className="nota" style={{ margin: 0 }}>
-            Piso, teto, ou os dois. Estudo costuma querer piso; lazer, teto;
-            academia, os dois.
-          </span>
         </div>
       )}
       <div className="campos" onKeyDown={(e) => e.key === "Enter" && salvar()}>
@@ -430,10 +413,6 @@ function FormMeta({
           </select>
         </div>
       </div>
-      <p className="nota">
-        Piso e teto são referência, não cobrança. Semana é o padrão: dia é
-        rígido demais para rotina real.
-      </p>
     </Modal>
   );
 }

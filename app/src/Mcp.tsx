@@ -108,10 +108,7 @@ export default function Mcp({
       </div>
 
       {!cfg.habilitado ? (
-        <p className="nota" style={{ margin: 0 }}>
-          Desligada. Enquanto estiver assim, o servidor MCP recebe recusa em
-          tudo — inclusive leitura.
-        </p>
+        null
       ) : (
         <>
           <div className="perm">
@@ -125,8 +122,7 @@ export default function Mcp({
               <span>
                 <b>Leitura</b>
                 <span className="nota" style={{ display: "block", margin: 0 }}>
-                  Planejamento, cursos, resumo de tempo e as notas que você
-                  marcou como disponíveis para a IA — só essas.
+                  Planejamento, cursos, tempo e notas liberadas.
                 </span>
               </span>
             </label>
@@ -140,10 +136,6 @@ export default function Mcp({
               />
               <span>
                 <b>Escrita</b>
-                <span className="nota" style={{ display: "block", margin: 0 }}>
-                  Desligada por padrão. Ligada, valem só as ferramentas marcadas
-                  abaixo.
-                </span>
               </span>
             </label>
           </div>
@@ -198,11 +190,6 @@ export default function Mcp({
             </button>
           </div>
 
-          <p className="nota">
-            É um token <b>separado</b> do da extensão do Chrome, de propósito:
-            revogar um não derruba o outro.
-          </p>
-
           <details className="detalhe">
             <summary>Como ligar no Claude Desktop</summary>
             <p className="nota">
@@ -211,11 +198,6 @@ export default function Mcp({
               <code>mcp/</code> uma vez antes.
             </p>
             <pre className="bloco-codigo">{trecho}</pre>
-            <p className="nota">
-              O servidor MCP não abre o banco: ele fala com este app pela mesma
-              ponte local da extensão. Com o app fechado, ele responde que
-              precisa do app aberto — e não faz nada pela metade.
-            </p>
           </details>
 
           <div className="linha" style={{ marginTop: 14 }}>
@@ -299,10 +281,6 @@ export default function Mcp({
                   </div>
                 ))
               )}
-              <p className="nota">
-                As recusas também ficam registradas — é justamente o que
-                interessa investigar depois.
-              </p>
             </div>
           )}
         </>
@@ -312,11 +290,6 @@ export default function Mcp({
         <I.Alerta />
         <div>
           <strong>Nota só chega à IA se você marcar</strong>
-          <p>
-            O filtro acontece dentro deste app, não no servidor MCP. Um defeito
-            no servidor não expõe nota nenhuma — ele simplesmente não recebe o
-            que não foi liberado.
-          </p>
         </div>
       </div>
     </section>

@@ -469,7 +469,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; height: auto; padding
 .dock-desc-botao:hover { color: var(--tx); }
 .dock-desc-botao:hover svg { opacity: 0.7; }
 
-.dock-favoritos { margin-top: 12px; display: grid; gap: 2px; }
+.dock-favoritos { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
 
 .dock-favorito {
   display: flex;
@@ -488,7 +488,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; height: auto; padding
 }
 
 .dock-favorito:hover { background: var(--surf-3); color: var(--tx); }
-.dock-favorito span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-favorito span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dock-favorito .ponto { flex: none; border: 0; width: 7px; height: 7px; }
 
 /* Um lançamento que divide relógio com outro. Continua legítimo — só não pode
@@ -1543,7 +1543,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   white-space: nowrap;
 }
 
-.dock-recentes { margin-top: 10px; display: grid; gap: 3px; }
+.dock-recentes { margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 
 /* Reclassificar a pausa direto na lista de ciclos. Discreto até o cursor
    chegar: é uma correção ocasional, não um controle que se usa todo ciclo. */
@@ -1969,7 +1969,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   letter-spacing: 0;
 }
 
-.etapa-lista { display: grid; gap: 8px; }
+.etapa-lista { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 
 .etapa-vazia {
   padding: 26px 14px;
@@ -1991,6 +1991,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .tarefa-card {
   position: relative;
   display: grid;
+  /* Coluna `auto` cresce até o texto sem quebra (o nome do curso): o cartão
+     ficava estreito e o conteúdo vazava por cima da borda. */
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 8px;
   padding: 12px 14px 12px;
   background: var(--surf);

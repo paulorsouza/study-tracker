@@ -577,12 +577,7 @@ export default function App() {
               <I.Alerta />
               <div>
                 <strong>O relógio divergiu</strong>
-                <p>
-                  {Math.round(status!.drift_ms / 1000)}s de diferença entre o
-                  relógio de parede e o monotônico: a máquina suspendeu ou a hora
-                  do sistema mudou. Vai virar pergunta ao parar, nunca desconto
-                  automático.
-                </p>
+                <p>{Math.round(status!.drift_ms / 1000)}s de diferença. O app pergunta ao parar.</p>
               </div>
             </div>
           )}

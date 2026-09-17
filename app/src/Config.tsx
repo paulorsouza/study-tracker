@@ -59,10 +59,6 @@ export default function Config({
   return (
     <>
       <h1 className="titulo-pagina">Configurações</h1>
-      <p className="legenda">
-        Aparência, categorias, e as pontes com o navegador, o Obsidian e o
-        Claude Desktop.
-      </p>
 
       <div className="abas">
         {SECOES.map((x) => (
@@ -152,12 +148,6 @@ export default function Config({
               </button>
             </div>
 
-            <p className="nota">
-              A ponte escuta em <code>127.0.0.1:{ponte.porta}</code> — só nesta
-              máquina, nunca na rede. O token autoriza a extensão; trocá-lo
-              desconecta ela na hora.
-            </p>
-
             <div className="linha" style={{ marginTop: 6 }}>
               {confirmandoRevoga ? (
                 <>
@@ -209,10 +199,6 @@ export default function Config({
               <I.Alerta />
               <div>
                 <strong>A extensão só funciona com este app aberto</strong>
-                <p>
-                  É consequência do desenho, não defeito: a ponte vive dentro do
-                  app. Fechou o app, a extensão perde o contato.
-                </p>
               </div>
             </div>
           </>

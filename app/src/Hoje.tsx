@@ -190,7 +190,6 @@ export default function Hoje({
         <div className="aviso">
           <div style={{ flex: 1 }}>
             <strong>Lançamento excluído</strong>
-            <p>Ele continua no banco — nada foi perdido de verdade.</p>
           </div>
           <button
             className="btn"
@@ -607,11 +606,6 @@ function FormLancamento({
           <input id="fl-obs" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="opcional" />
         </div>
       </div>
-      <p className="nota">
-        {item
-          ? "A versão anterior fica guardada no histórico."
-          : "Informe o fim ou a duração; se vierem os dois, o fim ganha. Fora o tempo, nada é obrigatório."}
-      </p>
     </Modal>
   );
 }
