@@ -55,6 +55,8 @@ pub struct Estado {
     pub conectado: bool,
     pub ultima_rodada: Option<i64>,
     pub erro_rodada: Option<String>,
+    /// Falha nos arquivos das imagens (D-047), à parte da rodada.
+    pub erro_anexos: Option<String>,
     pub erro_conexao: Option<String>,
 }
 
@@ -150,7 +152,14 @@ async fn sincronizador(app: AppHandle, aviso: Arc<Notify>) {
                 r.enviadas, r.recebimento.aplicadas, r.recebimento.conflitos
             );
         }
-        if r.recebimento.aplicadas > 0 {
+        if r.anexos.enviados > 0 || r.anexos.baixados > 0 {
+            eprintln!("[anexos] {} enviado(s), {} baixado(s)", r.anexos.enviados, r.anexos.baixados);
+        }
+        if let Some(e) = &r.anexos.erro {
+            eprintln!("[anexos] {e}");
+        }
+        marcar(|s| s.erro_anexos = r.anexos.erro.clone());
+        if r.recebimento.aplicadas > 0 || r.anexos.baixados > 0 {
             let _ = app.emit("sync:mudou", ());
         }
     }

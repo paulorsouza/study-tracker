@@ -28,6 +28,9 @@ pub struct Nota {
     pub created_at: i64,
     pub updated_at: i64,
     pub tags: Vec<String>,
+    /// Quantas imagens a nota tem, e a miniatura da primeira (D-047).
+    pub imagens: i64,
+    pub mini: Option<String>,
 }
 
 const SELECT: &str = "
@@ -66,6 +69,8 @@ fn ler(r: &rusqlite::Row) -> rusqlite::Result<Nota> {
         created_at: r.get(13)?,
         updated_at: r.get(14)?,
         tags: Vec::new(),
+        imagens: 0,
+        mini: None,
     })
 }
 
@@ -120,8 +125,10 @@ pub fn listar_notas(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
 
+    let anexos = crate::imagens::pasta()?;
     for n in &mut notas {
         n.tags = tags_de(&conn, &n.id);
+        (n.imagens, n.mini) = crate::imagens::mini_da_nota(&conn, &anexos, &n.id);
     }
     Ok(notas)
 }

@@ -32,6 +32,12 @@ pub struct Config {
     pub exportar_notas: bool,
     /// Modelo da nota diária, editável pelo usuário (§4.1).
     pub modelo_diario: String,
+    /// Exporta sozinho quando os dados param de mudar (D-047, F3). Desligado
+    /// até o usuário ligar: escrever no vault sem pedido é o tipo de surpresa
+    /// que §4.1 evita. `serde(default)` porque configurações salvas antes não
+    /// têm o campo.
+    #[serde(default)]
+    pub automatico: bool,
 }
 
 impl Default for Config {
@@ -43,6 +49,7 @@ impl Default for Config {
             exportar_cursos: true,
             exportar_notas: true,
             modelo_diario: MODELO_DIARIO.into(),
+            automatico: false,
         }
     }
 }
@@ -256,7 +263,6 @@ fn hm(ms: i64) -> String {
 
 /// Exporta o dia. `dia` é `AAAA-MM-DD` local e as fronteiras chegam prontas em
 /// milissegundos — a interface é quem sabe o fuso, como em todo o resto do app.
-#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn obsidian_exportar(
     db: tauri::State<Db>,
@@ -264,7 +270,12 @@ pub fn obsidian_exportar(
     inicio: i64,
     fim: i64,
 ) -> Result<Resultado, String> {
-    let cfg = config_de(&db);
+    exportar(&db, &dia, inicio, fim)
+}
+
+fn exportar(db: &Db, dia: &str, inicio: i64, fim: i64) -> Result<Resultado, String> {
+    let dia = dia.to_string();
+    let cfg = config_de(db);
     let pasta = cfg
         .pasta
         .clone()
@@ -319,6 +330,7 @@ pub fn obsidian_exportar(
 
     // --- notas do app ---
     if cfg.exportar_notas {
+        copiar_imagens(db, &raiz, &mut r);
         for (nome, corpo) in notas_arquivos(&db) {
             escrever(
                 &db,
@@ -496,7 +508,7 @@ fn notas_arquivos(db: &Db) -> Vec<(String, String)> {
     let mut saida = Vec::new();
     let _ = conn
         .prepare(
-            "SELECT COALESCE(n.titulo, substr(n.conteudo, 1, 60)), n.conteudo,
+            "SELECT n.id, COALESCE(n.titulo, substr(n.conteudo, 1, 60)), n.conteudo,
                     c.titulo, n.created_at
                FROM notes n
                LEFT JOIN courses c ON c.id = n.course_id
@@ -507,22 +519,188 @@ fn notas_arquivos(db: &Db) -> Vec<(String, String)> {
                 Ok((
                     r.get::<_, String>(0)?,
                     r.get::<_, String>(1)?,
-                    r.get::<_, Option<String>>(2)?,
-                    r.get::<_, i64>(3)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, Option<String>>(3)?,
+                    r.get::<_, i64>(4)?,
                 ))
             })?;
             for x in it {
-                let (titulo, conteudo, curso, _criada) = x?;
+                let (id, titulo, conteudo, curso, _criada) = x?;
                 let curso_prop = curso
                     .map(|c| format!("curso: \"[[{}]]\"\n", nome_seguro(&c)))
                     .unwrap_or_default();
-                let corpo =
-                    format!("---\ntipo: nota-de-estudo\n{curso_prop}---\n\n# {titulo}\n\n{conteudo}\n");
+                let imagens = imagens_md(&conn, &id);
+                let corpo = format!(
+                    "---\ntipo: nota-de-estudo\n{curso_prop}---\n\n# {titulo}\n\n{conteudo}\n{imagens}"
+                );
                 saida.push((titulo, corpo));
             }
             Ok(())
         });
     saida
+}
+
+/// As imagens da nota (D-047) no fim do arquivo, como embed do Obsidian.
+///
+/// O nome é o id da imagem, único no vault inteiro — o Obsidian acha o
+/// arquivo pelo nome, onde quer que a pasta de exportação esteja.
+fn imagens_md(conn: &rusqlite::Connection, nota_id: &str) -> String {
+    conn.prepare(
+        "SELECT id, mime FROM note_images WHERE note_id = ?1 AND deleted_at IS NULL
+          ORDER BY ordem, created_at",
+    )
+    .and_then(|mut s| {
+        s.query_map(params![nota_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<Result<Vec<_>, _>>()
+    })
+    .map(|l| {
+        l.iter()
+            .map(|(id, mime)| format!("\n![[{}]]\n", crate::imagens::arquivo(id, mime)))
+            .collect()
+    })
+    .unwrap_or_default()
+}
+
+/// Copia para `anexos/` do vault as imagens que ainda não estão lá.
+///
+/// A imagem nunca muda depois de criada — editar é excluir e pôr outra —, então
+/// basta copiar a que falta; não há hash a vigiar como nos `.md`. Imagem que
+/// ainda não chegou a esta máquina fica para a próxima exportação.
+fn copiar_imagens(db: &Db, raiz: &Path, r: &mut Resultado) {
+    let Ok(origem) = crate::imagens::pasta() else { return };
+    let lista: Vec<(String, String)> = db
+        .conn
+        .lock()
+        .ok()
+        .and_then(|c| {
+            c.prepare(
+                "SELECT i.id, i.mime FROM note_images i
+                   JOIN notes n ON n.id = i.note_id AND n.deleted_at IS NULL
+                  WHERE i.deleted_at IS NULL",
+            )
+            .and_then(|mut s| {
+                s.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .ok()
+        })
+        .unwrap_or_default();
+
+    for (id, mime) in lista {
+        let nome = crate::imagens::arquivo(&id, &mime);
+        let de = origem.join(&nome);
+        if !de.is_file() {
+            continue;
+        }
+        let relativo = format!("anexos/{nome}");
+        match destino(raiz, &relativo) {
+            Ok(alvo) if alvo.exists() => {}
+            Ok(alvo) => match std::fs::copy(&de, &alvo) {
+                Ok(_) => r.criados.push(relativo),
+                Err(e) => r.erros.push(format!("{relativo}: {e}")),
+            },
+            Err(e) => r.erros.push(format!("{relativo}: {e}")),
+        }
+    }
+}
+
+// --- exportação automática (D-047, F3) ---------------------------------------
+
+/// Quanto tempo os dados ficam parados antes de exportar. Curto o bastante
+/// para o vault estar em dia quando se abre o Obsidian; longo o bastante para
+/// não reescrever o arquivo a cada tecla de uma nota sendo editada.
+const QUIETO: std::time::Duration = std::time::Duration::from_secs(30);
+/// Teto da espera: com edição contínua, exporta mesmo assim a cada 5 min.
+const ESPERA_MAXIMA: std::time::Duration = std::time::Duration::from_secs(300);
+const OLHAR: std::time::Duration = std::time::Duration::from_secs(10);
+
+#[derive(Serialize, Clone, Default)]
+pub struct EstadoAuto {
+    pub ultima_em: Option<i64>,
+    pub erro: Option<String>,
+}
+
+fn estado_auto() -> &'static std::sync::Mutex<EstadoAuto> {
+    static E: std::sync::OnceLock<std::sync::Mutex<EstadoAuto>> = std::sync::OnceLock::new();
+    E.get_or_init(Default::default)
+}
+
+#[tauri::command]
+pub fn obsidian_auto_estado() -> EstadoAuto {
+    estado_auto().lock().map(|e| e.clone()).unwrap_or_default()
+}
+
+/// Muda sempre que muda algo que vai para o vault — inclusive o que chegou de
+/// outra máquina pela sincronização, que não passa pela fila local. A contagem
+/// de `anexos_na_nuvem` pega a imagem cujo arquivo acabou de ser baixado.
+fn assinatura(db: &Db) -> Option<String> {
+    let c = db.conn.lock().ok()?;
+    c.query_row(
+        "SELECT (SELECT COALESCE(max(updated_at), 0) FROM notes) || '|' ||
+                (SELECT COALESCE(max(updated_at), 0) FROM note_images) || '|' ||
+                (SELECT COALESCE(max(updated_at), 0) FROM time_entries) || '|' ||
+                (SELECT COALESCE(max(updated_at), 0) FROM tasks) || '|' ||
+                (SELECT COALESCE(max(updated_at), 0) FROM courses) || '|' ||
+                (SELECT count(*) FROM anexos_na_nuvem)",
+        [],
+        |r| r.get(0),
+    )
+    .ok()
+}
+
+pub fn spawn_automatico(app: tauri::AppHandle) {
+    use std::time::Instant;
+    use tauri::Manager;
+    std::thread::spawn(move || {
+        let mut vista: Option<String> = None;
+        let mut mudou_em = Instant::now();
+        // Ligar a opção exporta logo: `None` aqui faz a primeira volta contar
+        // como mudança.
+        let mut pendente_desde: Option<Instant> = None;
+        loop {
+            std::thread::sleep(OLHAR);
+            let Some(db) = app.try_state::<Db>() else { continue };
+            let cfg = config_de(&db);
+            if !cfg.automatico || cfg.pasta.as_deref().unwrap_or("").is_empty() {
+                vista = None;
+                pendente_desde = None;
+                continue;
+            }
+            let sig = assinatura(&db);
+            if sig != vista || vista.is_none() {
+                vista = sig;
+                mudou_em = Instant::now();
+                pendente_desde.get_or_insert(mudou_em);
+            }
+            let Some(desde) = pendente_desde else { continue };
+            if mudou_em.elapsed() < QUIETO && desde.elapsed() < ESPERA_MAXIMA {
+                continue;
+            }
+            pendente_desde = None;
+
+            let (inicio, fim, dia) = crate::familia::janela_do_dia_local();
+            let r = exportar(&db, &dia, inicio, fim);
+            if let Ok(mut e) = estado_auto().lock() {
+                match r {
+                    Ok(r) => {
+                        if !r.criados.is_empty() || !r.atualizados.is_empty() {
+                            eprintln!(
+                                "[obsidian] {} criado(s), {} atualizado(s)",
+                                r.criados.len(),
+                                r.atualizados.len()
+                            );
+                        }
+                        e.ultima_em = Some(agora_ms());
+                        e.erro = r.erros.first().cloned();
+                    }
+                    Err(err) => {
+                        eprintln!("[obsidian] {err}");
+                        e.erro = Some(err);
+                    }
+                }
+            }
+        }
+    });
 }
 
 /// Arquivos que deixaram de ser atualizados por terem sido editados no vault.

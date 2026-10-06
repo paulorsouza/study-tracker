@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Curso } from "./App";
 import * as I from "./icones";
+import {
+  Galeria,
+  ItemImagem,
+  gravarImagens,
+  imagensDe,
+  imagensSalvas,
+} from "./ImagensNota";
 
 export type Nota = {
   id: string;
@@ -20,6 +27,8 @@ export type Nota = {
   created_at: number;
   updated_at: number;
   tags: string[];
+  imagens: number;
+  mini: string | null;
 };
 
 /** Esqueleto inicial do texto. Só isso — não muda comportamento nenhum. */
@@ -86,6 +95,20 @@ export default function Notas({
   const [curso, setCurso] = useState("");
   const [aRevisar, setARevisar] = useState(false);
   const [aberta, setAberta] = useState<Nota | "nova" | null>(null);
+  const [iniciais, setIniciais] = useState<ItemImagem[]>([]);
+  const escolher = useRef<HTMLInputElement>(null);
+
+  // "Nova nota com imagem": escolhe primeiro, abre o editor já com elas.
+  const comImagens = (arquivos: FileList | null) => {
+    if (!arquivos?.length) return;
+    imagensDe(Array.from(arquivos))
+      .then((itens) => {
+        if (!itens.length) return;
+        setIniciais(itens);
+        setAberta("nova");
+      })
+      .catch((e) => onErro(String(e)));
+  };
 
   const carregar = useCallback(() => {
     invoke<Nota[]>("listar_notas", {
@@ -115,12 +138,15 @@ export default function Notas({
         nota={aberta === "nova" ? null : aberta}
         rapida={aberta === "nova" ? rapida : null}
         cursos={cursos}
+        iniciais={aberta === "nova" ? iniciais : []}
         onFechar={() => {
           setAberta(null);
+          setIniciais([]);
           onRapidaUsada();
         }}
         onSalvo={() => {
           setAberta(null);
+          setIniciais([]);
           onRapidaUsada();
           carregar();
         }}
@@ -136,6 +162,20 @@ export default function Notas({
           <h1 className="titulo-pagina">Notas</h1>
         </div>
         <div className="pagina-acoes">
+          <input
+            ref={escolher}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              comImagens(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <button className="btn" onClick={() => escolher.current?.click()}>
+            <I.Imagem size={16} /> Nova com imagem
+          </button>
           <button className="btn btn-primario" onClick={() => setAberta("nova")}>
             <I.Mais /> Nova nota
           </button>
@@ -185,12 +225,19 @@ export default function Notas({
             className="nota-card"
             onClick={() => setAberta(n)}
           >
+            {n.mini && (
+              <div className="nota-capa">
+                <img src={n.mini} alt="" />
+                {n.imagens > 1 && <span className="nota-capa-conta">{n.imagens}</span>}
+              </div>
+            )}
             <div className="nota-cab">
               {n.fixada && <I.Estrela size={13} cheia />}
               <strong>{n.titulo || primeiraLinha(n.conteudo)}</strong>
+              {!n.mini && n.imagens > 0 && <I.Imagem size={14} />}
               <span className="nota-data">{quando(n.updated_at)}</span>
             </div>
-            <p className="nota-previa">{previa(n.conteudo)}</p>
+            {n.conteudo.trim() && <p className="nota-previa">{previa(n.conteudo)}</p>}
             <div className="nota-pes">
               {n.curso && <span className="nota-marca">{n.curso}</span>}
               {n.tags.map((t) => (
@@ -223,6 +270,7 @@ function Editor({
   nota,
   rapida,
   cursos,
+  iniciais,
   onFechar,
   onSalvo,
   onErro,
@@ -230,10 +278,39 @@ function Editor({
   nota: Nota | null;
   rapida: NotaRapida;
   cursos: Curso[];
+  iniciais: ItemImagem[];
   onFechar: () => void;
   onSalvo: () => void;
   onErro: (e: string | null) => void;
 }) {
+  const [imagens, setImagens] = useState<ItemImagem[]>(iniciais);
+  const [removidas, setRemovidas] = useState<string[]>([]);
+  const [salvando, setSalvando] = useState(false);
+  // Id da nota nova depois do primeiro salvar: se uma imagem falhar, salvar de
+  // novo atualiza a mesma nota em vez de criar outra.
+  const idSalvo = useRef<string | null>(nota?.id ?? null);
+  const escolher = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!nota) return;
+    imagensSalvas(nota.id)
+      .then((salvas) => setImagens((atuais) => [...salvas, ...atuais.filter((i) => i.nova)]))
+      .catch((e) => onErro(String(e)));
+  }, [nota, onErro]);
+
+  const acrescentar = (arquivos: File[]) => {
+    if (!arquivos.length) return;
+    imagensDe(arquivos)
+      .then((itens) => setImagens((atuais) => [...atuais, ...itens]))
+      .catch((e) => onErro(String(e)));
+  };
+
+  const remover = (chave: string) => {
+    const item = imagens.find((i) => i.chave === chave);
+    if (item?.id) setRemovidas((r) => [...r, item.id!]);
+    setImagens((atuais) => atuais.filter((i) => i.chave !== chave));
+  };
+
   const [titulo, setTitulo] = useState(nota?.titulo ?? "");
   const [conteudo, setConteudo] = useState(nota?.conteudo ?? "");
   const [modelo, setModelo] = useState(nota?.modelo ?? "livre");
@@ -249,10 +326,22 @@ function Editor({
     if (m && !conteudo.trim()) setConteudo(m.corpo);
   };
 
-  const salvar = () =>
+  // Nota só com desenho também vale: sem texto, o título é a data.
+  const tituloFinal = () => {
+    if (titulo.trim()) return titulo.trim();
+    if (!conteudo.trim() && imagens.length) {
+      const d = new Date();
+      return `Desenho ${p2(d.getDate())}/${p2(d.getMonth() + 1)} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    }
+    return null;
+  };
+
+  const salvar = () => {
+    if (salvando) return;
+    setSalvando(true);
     invoke<string>("salvar_nota", {
-      id: nota?.id ?? null,
-      titulo: titulo.trim() || null,
+      id: idSalvo.current,
+      titulo: tituloFinal(),
       conteudo,
       modelo,
       cursoId: curso || null,
@@ -262,11 +351,26 @@ function Editor({
       disponivelParaIa: ia,
       tags: tagsTxt.split(",").map((t) => t.trim()).filter(Boolean),
     })
+      .then((id) => {
+        idSalvo.current = id;
+        return gravarImagens(
+          id,
+          imagens,
+          removidas,
+          (chave, novoId) =>
+            setImagens((atuais) =>
+              atuais.map((i) => (i.chave === chave ? { ...i, id: novoId, nova: undefined } : i))
+            ),
+          (excluida) => setRemovidas((r) => r.filter((x) => x !== excluida))
+        );
+      })
       .then(() => {
         onErro(null);
         onSalvo();
       })
-      .catch((e) => onErro(String(e)));
+      .catch((e) => onErro(String(e)))
+      .finally(() => setSalvando(false));
+  };
 
   return (
     <>
@@ -316,7 +420,24 @@ function Editor({
         </div>
       )}
 
-      <section className="card">
+      <section
+        className="card"
+        onPaste={(e) => {
+          const arquivos = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+          if (arquivos.length) {
+            e.preventDefault();
+            acrescentar(arquivos);
+          }
+        }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          acrescentar(Array.from(e.dataTransfer.files));
+        }}
+      >
         <div className="grade">
           <div className="campo cresce">
             <label htmlFor="nt">Título</label>
@@ -346,8 +467,28 @@ function Editor({
             value={conteudo}
             onChange={(e) => setConteudo(e.target.value)}
             placeholder="Markdown simples: ## título, - lista, **negrito**"
-            rows={14}
+            rows={imagens.length ? 8 : 14}
           />
+        </div>
+
+        <div className="campo" style={{ marginTop: 12 }}>
+          <Galeria itens={imagens} onRemover={remover} onErro={onErro} />
+          <input
+            ref={escolher}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              acrescentar(Array.from(e.target.files ?? []));
+              e.target.value = "";
+            }}
+          />
+          <div>
+            <button className="btn" onClick={() => escolher.current?.click()}>
+              <I.Imagem size={16} /> Imagem
+            </button>
+          </div>
         </div>
 
         <div className="grade" style={{ marginTop: 12 }}>
@@ -393,7 +534,7 @@ function Editor({
         </label>
 
         <div className="linha" style={{ marginTop: 18 }}>
-          <button className="btn btn-primario" onClick={salvar}>
+          <button className="btn btn-primario" onClick={salvar} disabled={salvando}>
             Salvar
           </button>
           <button className="btn btn-fantasma" onClick={onFechar}>

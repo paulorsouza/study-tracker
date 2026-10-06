@@ -101,7 +101,7 @@ pub fn familia_estado(db: tauri::State<Db>) -> Estado {
 /// Início (incluso) e fim (exclusivo) do dia local de hoje, em ms UTC desde a
 /// época — para filtrar `time_entries.started_at`, que é sempre UTC (001).
 /// Por início, não por fim: mesma convenção de D-033 para bucketizar o dia.
-fn janela_do_dia_local() -> (i64, i64, String) {
+pub(crate) fn janela_do_dia_local() -> (i64, i64, String) {
     let hoje = Local::now().date_naive();
     let inicio = Local
         .from_local_datetime(&hoje.and_time(NaiveTime::MIN))

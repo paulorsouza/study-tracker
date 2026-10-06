@@ -10,7 +10,10 @@ type Config = {
   exportar_cursos: boolean;
   exportar_notas: boolean;
   modelo_diario: string;
+  automatico: boolean;
 };
+
+type EstadoAuto = { ultima_em: number | null; erro: string | null };
 
 type Resultado = {
   criados: string[];
@@ -65,6 +68,14 @@ export default function Obsidian({
   const [conflitos, setConflitos] = useState<Conflito[]>([]);
   const [editandoModelo, setEditandoModelo] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [auto, setAuto] = useState<EstadoAuto | null>(null);
+
+  useEffect(() => {
+    const ler = () => invoke<EstadoAuto>("obsidian_auto_estado").then(setAuto).catch(() => {});
+    ler();
+    const t = setInterval(ler, 10_000);
+    return () => clearInterval(t);
+  }, []);
 
   const carregar = useCallback(() => {
     invoke<Config>("obsidian_config").then(setCfg).catch((e) => onErro(String(e)));
@@ -204,11 +215,28 @@ export default function Obsidian({
             </p>
           </details>
 
-          <div className="linha" style={{ marginTop: 16 }}>
+          <div className="linha" style={{ marginTop: 16, alignItems: "center" }}>
             <button className="btn btn-primario" onClick={exportar} disabled={exportando}>
               <I.Externo /> {exportando ? "Exportando…" : "Exportar hoje"}
             </button>
+            <label style={{ display: "flex", gap: 9, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={cfg.automatico}
+                onChange={(e) => salvar({ ...cfg, automatico: e.target.checked })}
+                style={{ width: 15, height: 15, accentColor: "var(--acc)" }}
+              />
+              Exportar sozinho
+            </label>
+            {cfg.automatico && auto?.ultima_em && (
+              <span className="nota" style={{ margin: 0 }}>
+                {new Date(auto.ultima_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
           </div>
+          {cfg.automatico && auto?.erro && (
+            <p style={{ color: "var(--danger)", marginBottom: 0 }}>{auto.erro}</p>
+          )}
 
           {res && (
             <div className="aviso" style={{ marginTop: 14 }}>

@@ -2439,7 +2439,118 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   align-items: start;
 }
 
-.notas-grade .nota-card { margin-bottom: 0; height: 100%; }
+.notas-grade .nota-card { margin-bottom: 0; height: 100%; display: flex; flex-direction: column; }
+
+/* --- imagens da nota (D-047) ------------------------------------------------
+   O desenho vem do tablet. Na lista vira capa do cartão; no editor, uma fileira
+   de miniaturas que abre em tela cheia. */
+
+.nota-capa {
+  position: relative;
+  margin: -16px -18px 12px;
+  height: 150px;
+  overflow: hidden;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.nota-capa img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+
+.nota-capa-conta {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(6, 8, 12, .62);
+}
+
+.nota-cab > svg:last-child { color: var(--tx-3); }
+
+.nota-imagens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.nota-imagem { position: relative; }
+
+.nota-imagem-abrir {
+  width: 132px;
+  height: 100px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--tx-3);
+  cursor: zoom-in;
+  transition: border-color .14s var(--curva), transform .14s var(--curva);
+}
+
+.nota-imagem-abrir:hover:not(:disabled) { border-color: var(--line-2); transform: translateY(-1px); }
+.nota-imagem-abrir:disabled { cursor: default; background: var(--surf-2); }
+.nota-imagem-abrir img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.nota-imagem-tirar {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surf);
+  color: var(--tx-2);
+  cursor: pointer;
+  box-shadow: var(--sombra-1);
+}
+
+.nota-imagem-tirar:hover { color: var(--danger); }
+
+/* No toque não há hover: o botão de tirar fica maior para o dedo. */
+@media (pointer: coarse) {
+  .nota-imagem-tirar { width: 30px; height: 30px; top: -10px; right: -10px; }
+  .nota-imagem-abrir { width: 150px; height: 114px; }
+}
+
+.tela-cheia {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 8, 12, .86);
+  cursor: zoom-out;
+  animation: tela-cheia-entrar .16s var(--curva);
+}
+
+.tela-cheia img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--sombra-3);
+}
+
+.tela-cheia-fechar { position: absolute; top: 14px; right: 14px; color: #fff; }
+
+@keyframes tela-cheia-entrar { from { opacity: 0; } }
 
 /* --- ficha do curso --------------------------------------------------------- */
 

@@ -14,6 +14,7 @@ type TempoReal = {
   conectado: boolean;
   ultima_rodada: number | null;
   erro_rodada: string | null;
+  erro_anexos: string | null;
   erro_conexao: string | null;
 };
 type Conflito = {
@@ -208,6 +209,7 @@ export default function Sincronizacao({
                 </strong>
                 {tr?.ultima_rodada && <p>Última troca: {quando(tr.ultima_rodada)}</p>}
                 {tr?.erro_rodada && <p style={{ color: "var(--warn)" }}>{tr.erro_rodada}</p>}
+                {tr?.erro_anexos && <p style={{ color: "var(--warn)" }}>{tr.erro_anexos}</p>}
                 {!tr?.conectado && tr?.erro_conexao && (
                   <p style={{ color: "var(--warn)" }}>{tr.erro_conexao}</p>
                 )}

@@ -3,6 +3,8 @@ mod db;
 mod entries;
 mod exportacao;
 mod familia;
+mod imagens;
+mod anexos_nuvem;
 mod library;
 mod notas;
 mod notebooklm;
@@ -144,6 +146,10 @@ macro_rules! registrar {
             notas::excluir_nota,
             notas::fixar_nota,
             notas::revisar_nota,
+            imagens::nota_imagens,
+            imagens::nota_imagem,
+            imagens::nota_imagem_adicionar,
+            imagens::nota_imagem_excluir,
             supabase::supabase_salvar_config,
             supabase::supabase_entrar,
             supabase::supabase_sair,
@@ -179,6 +185,7 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
 
             let conn = db::abrir(&dir.join("estudos.sqlite3"))?;
+            imagens::definir_pasta(dir.join("anexos"));
             let device_id = db::device_id(&conn)?;
             db::semear(&conn, &device_id)?;
             // O token da extensão nasce aqui para já existir na tela de
@@ -213,6 +220,7 @@ pub fn run() {
                 // ela monta o menu a partir dos dois.
                 bandeja::montar(app.handle())?;
                 bandeja::spawn_relogio(app.handle().clone());
+                obsidian::spawn_automatico(app.handle().clone());
                 janela::vigiar_principal(app.handle());
                 sistema::aplicar_salvo(app.handle());
 
@@ -252,6 +260,7 @@ pub fn run() {
         obsidian::obsidian_config,
         obsidian::obsidian_salvar_config,
         obsidian::obsidian_exportar,
+        obsidian::obsidian_auto_estado,
         obsidian::obsidian_conflitos,
         obsidian::obsidian_aceitar_externo,
         git::git_estado,

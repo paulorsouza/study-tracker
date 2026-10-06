@@ -39,6 +39,7 @@ const ENTIDADES: &[&str] = &[
     "rotinas",
     "podcasts",
     "episodios",
+    "note_images",
 ];
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -556,6 +557,9 @@ pub struct ResultadoSync {
     pub enviadas: usize,
     pub recebimento: Recebimento,
     pub erro: Option<String>,
+    /// Arquivos das imagens (D-047). Erro aqui não é erro da rodada: as
+    /// operações já foram e voltaram.
+    pub anexos: crate::anexos_nuvem::Transferencia,
 }
 
 /// Uma rodada completa: recebe, depois envia.
@@ -572,6 +576,7 @@ pub async fn rodar(db: &Db) -> ResultadoSync {
         enviadas: 0,
         recebimento: Recebimento::default(),
         erro: None,
+        anexos: Default::default(),
     };
 
     let cfg = crate::supabase::config_de(db);
@@ -592,6 +597,11 @@ pub async fn rodar(db: &Db) -> ResultadoSync {
             return r;
         }
     }
+    // Arquivos das imagens (D-047): baixa o que a fila acabou de anunciar e
+    // sobe o daqui antes de mandar as operações, para a outra máquina, avisada
+    // pelo tempo real, já encontrar o arquivo.
+    crate::anexos_nuvem::baixar_pendentes(db, &cfg, &token, &mut r.anexos).await;
+    crate::anexos_nuvem::subir_pendentes(db, &cfg, &token, &mut r.anexos).await;
     match enviar(db, &cfg, &token).await {
         Ok(n) => r.enviadas = n,
         Err(e) => r.erro = Some(e),

@@ -324,7 +324,7 @@ pub fn supabase_estado(db: tauri::State<Db>) -> Estado {
 
 // --- transporte das operações ------------------------------------------------
 
-fn base(cfg: &Config) -> Result<(String, String), String> {
+pub(crate) fn base(cfg: &Config) -> Result<(String, String), String> {
     match (cfg.url.as_ref(), cfg.anon_key.as_ref()) {
         (Some(u), Some(k)) if !u.is_empty() && !k.is_empty() => {
             Ok((u.trim_end_matches('/').to_string(), k.clone()))
@@ -454,6 +454,35 @@ begin
     alter publication supabase_realtime add table public.sync_operations;
   end if;
 end $$;
+
+-- Imagens das notas (D-047): bucket privado, uma pasta por conta. O caminho é
+-- `<id da conta>/<arquivo>`, e as políticas comparam a primeira pasta com
+-- `auth.uid()` — ninguém lê nem grava a pasta de outra conta.
+insert into storage.buckets (id, name, public)
+values ('anexos', 'anexos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "anexos dono le" on storage.objects;
+create policy "anexos dono le" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'anexos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "anexos dono grava" on storage.objects;
+create policy "anexos dono grava" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'anexos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- O app reenvia com `x-upsert` depois de uma falha no meio, e upsert pede
+-- permissão de atualizar.
+drop policy if exists "anexos dono atualiza" on storage.objects;
+create policy "anexos dono atualiza" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'anexos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "anexos dono apaga" on storage.objects;
+create policy "anexos dono apaga" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'anexos' and (storage.foldername(name))[1] = auth.uid()::text);
 "#;
 
 #[tauri::command]
@@ -651,6 +680,13 @@ pub async fn supabase_apagar_nuvem(db: tauri::State<'_, Db>) -> Result<u64, Stri
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.rsplit('/').next().and_then(|n| n.parse().ok()))
         .unwrap_or(0);
+
+    // Os desenhos vão junto: apagar a nuvem e deixar as imagens lá seria
+    // apagar pela metade.
+    crate::anexos_nuvem::apagar_tudo(&cfg, &token).await?;
+    if let Ok(conn) = db.conn.lock() {
+        let _ = conn.execute("DELETE FROM anexos_na_nuvem", []);
+    }
 
     // Os cursores voltam ao zero: sem isto, a próxima leitura começaria de uma
     // posição que não existe mais e o app pensaria estar em dia.

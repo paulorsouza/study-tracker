@@ -577,7 +577,7 @@ pub async fn baixar_capa(db: tauri::State<'_, Db>, id: String, url: String) -> R
 
 /// Base64 sem dependência: são doze linhas, e não vale uma caixa nova no
 /// `Cargo.toml` para isso.
-fn base64_simples(dados: &[u8]) -> String {
+pub(crate) fn base64_simples(dados: &[u8]) -> String {
     const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut s = String::with_capacity(dados.len().div_ceil(3) * 4);
     for bloco in dados.chunks(3) {

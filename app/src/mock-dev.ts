@@ -12,6 +12,9 @@
  */
 
 const hoje = new Date();
+
+// Imagens das notas (D-047), em memória: some ao recarregar, como o resto.
+const IMAGENS: { id: string; note_id: string; imagem: string; mini: string; largura: number; altura: number }[] = [];
 const emHoras = (h: number, m = 0) => {
   const d = new Date(hoje);
   d.setHours(h, m, 0, 0);
@@ -410,6 +413,7 @@ const respostas: Record<string, (a: any) => unknown> = {
     conectado: true,
     ultima_rodada: Date.now() - 20000,
     erro_rodada: null,
+    erro_anexos: null,
     erro_conexao: null,
   }),
   sync_conflitos: () => [
@@ -431,8 +435,10 @@ const respostas: Record<string, (a: any) => unknown> = {
     exportar_cursos: true,
     exportar_notas: false,
     modelo_diario: "---\ntipo: diario-de-estudo\ndata: {{data}}\n---\n\n# {{data}}\n\nEstudo efetivo: **{{estudo}}**\n\n## Sessoes\n\n{{sessoes}}\n",
+    automatico: true,
   }),
   obsidian_salvar_config: () => null,
+  obsidian_auto_estado: () => ({ ultima_em: Date.now() - 90000, erro: null }),
   obsidian_exportar: () => ({
     criados: ["diario/2026-09-02.md"],
     atualizados: ["cursos/Unidaystudio - Blender para jogos.md"],
@@ -473,10 +479,25 @@ const respostas: Record<string, (a: any) => unknown> = {
       resultado: "ok", created_at: Date.now() - 420000 },
   ],
   listar_tags: () => ["blender", "renda-variavel", "retopologia", "duvida"],
-  salvar_nota: () => "nova",
+  salvar_nota: ({ id }) => id ?? "nova",
   excluir_nota: () => null,
   fixar_nota: () => null,
   revisar_nota: () => null,
+  nota_imagens: ({ notaId }) =>
+    IMAGENS.filter((i) => i.note_id === notaId).map((i) => ({
+      id: i.id, largura: i.largura, altura: i.altura, bytes: i.imagem.length,
+      mini: i.mini, presente: true })),
+  nota_imagem: ({ id }) => IMAGENS.find((i) => i.id === id)?.imagem ?? "",
+  nota_imagem_adicionar: ({ notaId, imagem, mini, largura, altura }) => {
+    const id = crypto.randomUUID();
+    IMAGENS.push({ id, note_id: notaId, imagem, mini, largura, altura });
+    return id;
+  },
+  nota_imagem_excluir: ({ id }) => {
+    const i = IMAGENS.findIndex((x) => x.id === id);
+    if (i >= 0) IMAGENS.splice(i, 1);
+    return null;
+  },
   listar_notas: ({ busca, tag, revisarAte }) => {
     const base = [
       { id: "n1", titulo: "Retopologia — o que travou",
@@ -501,7 +522,10 @@ const respostas: Record<string, (a: any) => unknown> = {
         created_at: Date.now() - 5 * 86400000, updated_at: Date.now() - 5 * 86400000,
         tags: ["blender"] },
     ];
-    let r = base;
+    let r = base.map((n) => {
+      const imgs = IMAGENS.filter((i) => i.note_id === n.id);
+      return { ...n, imagens: imgs.length, mini: imgs[0]?.mini ?? null };
+    });
     if (busca) r = r.filter((n) => (n.conteudo + (n.titulo ?? "")).toLowerCase().includes(busca.toLowerCase()));
     if (tag) r = r.filter((n) => n.tags.includes(tag));
     if (revisarAte) r = r.filter((n) => n.revisar_em && n.revisar_em <= revisarAte && !n.revisada_em);

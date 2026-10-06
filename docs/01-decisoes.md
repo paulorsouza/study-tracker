@@ -1252,3 +1252,47 @@ porta aberta, não como promessa.
 Ids de podcast e episódio são **derivados** do endereço do feed e do guid, como
 em D-044: reimportar o mesmo OPML não duplica nada, e duas máquinas chegam ao
 mesmo id.
+
+## D-047 — Desenho do tablet entra como imagem da nota
+
+**2026-10-05**
+
+Pedido: um jeito fácil de pôr no app os desenhos feitos à caneta no tablet
+(Lenovo Idea Tab, Android), e o Obsidian recebendo sem apertar botão.
+
+**O app não desenha.** App de caneta bom já existe (Squid, MyScript Notes); uma
+tela de desenho aqui seria a versão ruim deles. O desenho sai de lá como imagem
+e entra na nota: pelo botão de imagem (no Android o seletor do WebView já abre
+a galeria), colado com Ctrl+V ou arrastado no desktop. "Nova com imagem" na
+lista escolhe primeiro e abre o editor já com elas — nota só com desenho vale,
+e o título vira a data.
+
+**A imagem fica presa à nota, não ao texto.** O conteúdo continua texto puro
+sem renderização; referência inline (`![](...)`) exigiria um renderizador de
+Markdown só para isso. A nota mostra uma fileira de miniaturas e a lista usa a
+primeira como capa do cartão.
+
+**Arquivo fora do banco.** A linha de `note_images` (migração 017) descreve a
+imagem e sincroniza como qualquer entidade; o arquivo fica em `anexos/` na
+pasta de dados. Bytes no SQLite inchariam o WAL e cada operação da fila.
+
+**A interface reduz antes de mandar**: 2400px no lado maior, miniatura de
+640px, WebP onde o motor gera (WebView2, Android) e PNG onde não gera
+(WebKitGTK). Fundo branco por baixo: desenho exportado transparente sumiria no
+tema escuro. O Rust confere o formato pelos bytes, não pelo que a interface diz.
+
+Fases: **F1** imagem na nota (local); **F2** o arquivo viaja pelo Supabase
+Storage, bucket privado com pasta por usuário — até lá a outra máquina recebe a
+linha e mostra o lugar vazio; **F3** exportação automática para o Obsidian, com
+as imagens em `anexos/`; **F4** "Compartilhar → Estudos" direto do app de
+desenho, que pede código nativo no Android.
+
+**F3 — Obsidian sozinho.** Opção "Exportar sozinho", desligada até o usuário
+ligar. Uma thread olha a cada 10 s uma assinatura (maior `updated_at` de notas,
+imagens, lançamentos, tarefas e cursos, mais quantos arquivos já baixaram) e
+exporta o dia quando ela fica 30 s parada — ou a cada 5 min, se não parar. A
+assinatura vem das tabelas e não da fila local porque o que chega de outra
+máquina também tem de ir para o vault. As imagens são copiadas uma vez para
+`anexos/` (nunca mudam depois de criadas) e entram no fim da nota como
+`![[<id>.<ext>]]`: o nome é único, e o Obsidian o acha onde quer que a pasta de
+exportação esteja. O git do vault continua manual.

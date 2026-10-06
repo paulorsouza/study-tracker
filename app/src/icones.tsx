@@ -191,6 +191,14 @@ export const Nota = ({ size = 17 }: P) => (
   </svg>
 );
 
+export const Imagem = ({ size = 17 }: P) => (
+  <svg {...base(size)}>
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <circle cx="9" cy="9.5" r="1.6" />
+    <path d="M21 15.5l-4.5-4.5L7 20" />
+  </svg>
+);
+
 export const Alfinete = ({ size = 15, preso = true }: P & { preso?: boolean }) => (
   <svg {...base(size)} fill={preso ? "currentColor" : "none"}>
     <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z" />
