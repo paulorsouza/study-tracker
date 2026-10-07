@@ -150,6 +150,7 @@ macro_rules! registrar {
             imagens::nota_imagem,
             imagens::nota_imagem_adicionar,
             imagens::nota_imagem_excluir,
+            imagens::compartilhados_pendentes,
             supabase::supabase_salvar_config,
             supabase::supabase_entrar,
             supabase::supabase_sair,
@@ -237,6 +238,10 @@ pub fn run() {
             Ok(())
         })
         ;
+
+    // Só no Android: a tela que recebe o "Compartilhar" (D-047, F4).
+    #[cfg(target_os = "android")]
+    let construtor = construtor.plugin(tauri_plugin_compartilhar::init());
 
     // Plugins de desktop: o Android não tem registro de inicialização nem
     // atalho global. Ver `sistema.rs`.

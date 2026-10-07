@@ -81,11 +81,16 @@ export default function Notas({
   cursos,
   rapida,
   onRapidaUsada,
+  compartilhadas,
+  onCompartilhadasUsadas,
   onErro,
 }: {
   cursos: Curso[];
   rapida: NotaRapida;
   onRapidaUsada: () => void;
+  /** Imagens vindas do "Compartilhar" do Android: abrem uma nota nova. */
+  compartilhadas: ItemImagem[] | null;
+  onCompartilhadasUsadas: () => void;
   onErro: (e: string | null) => void;
 }) {
   const [notas, setNotas] = useState<Nota[]>([]);
@@ -127,6 +132,13 @@ export default function Notas({
     return () => clearTimeout(t);
   }, [carregar]);
 
+  useEffect(() => {
+    if (!compartilhadas?.length) return;
+    setIniciais(compartilhadas);
+    setAberta("nova");
+    onCompartilhadasUsadas();
+  }, [compartilhadas, onCompartilhadasUsadas]);
+
   // A nota rápida chega do cronômetro: abre o editor já amarrado à sessão.
   useEffect(() => {
     if (rapida) setAberta("nova");
@@ -135,6 +147,9 @@ export default function Notas({
   if (aberta) {
     return (
       <Editor
+        // Chave por nota: trocar de nota com o editor aberto (uma imagem
+        // compartilhada chegando, por exemplo) recomeça o formulário.
+        key={aberta === "nova" ? `nova:${iniciais.map((i) => i.chave).join(",")}` : aberta.id}
         nota={aberta === "nova" ? null : aberta}
         rapida={aberta === "nova" ? rapida : null}
         cursos={cursos}

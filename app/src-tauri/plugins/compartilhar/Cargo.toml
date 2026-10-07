@@ -1,0 +1,13 @@
+[package]
+name = "tauri-plugin-compartilhar"
+version = "0.1.0"
+description = "Recebe imagens do \"Compartilhar\" do Android (D-047, F4)"
+authors = ["paulorsouza"]
+edition = "2021"
+links = "tauri-plugin-compartilhar"
+
+[dependencies]
+tauri = "2"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }

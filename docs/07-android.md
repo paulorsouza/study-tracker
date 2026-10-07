@@ -163,6 +163,13 @@ alteração feita num só. Está no `.gitignore`.
 
 A exceção seria configuração de assinatura, que ainda não existe.
 
+## Compartilhar → Estudos
+
+Imagem compartilhada de qualquer app (o de desenho, a galeria) abre uma nota
+nova com ela (D-047, F4). A tela que recebe vem do plugin local
+`app/src-tauri/plugins/compartilhar`, porque o manifesto de `gen/android` não é
+versionado: o plugin traz o próprio manifesto e o Tauri o junta ao do app.
+
 ## O que falta
 
 - **Assinatura.** O APK sai assinado com a chave de depuração, que serve para

@@ -9,6 +9,7 @@ import Tempo from "./Tempo";
 import Planejamento from "./Planejamento";
 import Foco from "./Foco";
 import Notas, { NotaRapida } from "./Notas";
+import { ItemImagem, imagensDeUrls } from "./ImagensNota";
 import Cursos from "./Cursos";
 import Podcasts from "./Podcasts";
 import Config from "./Config";
@@ -123,6 +124,32 @@ export default function App() {
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [versao, setVersao] = useState(0);
   const [rapida, setRapida] = useState<NotaRapida>(null);
+  const [compartilhadas, setCompartilhadas] = useState<ItemImagem[] | null>(null);
+  const usarCompartilhadas = useCallback(() => setCompartilhadas(null), []);
+
+  // "Compartilhar → Estudos" no Android (D-047, F4): a tela nativa deixa as
+  // imagens na pasta de dados e traz o app para a frente; é aqui que se
+  // descobre que elas chegaram.
+  useEffect(() => {
+    const ver = () => {
+      if (document.visibilityState !== "visible") return;
+      invoke<string[]>("compartilhados_pendentes")
+        .then((urls) => (urls.length ? imagensDeUrls(urls) : null))
+        .then((itens) => {
+          if (!itens?.length) return;
+          setCompartilhadas(itens);
+          setAba("notas");
+        })
+        .catch((e) => setErro(String(e)));
+    };
+    ver();
+    document.addEventListener("visibilitychange", ver);
+    window.addEventListener("focus", ver);
+    return () => {
+      document.removeEventListener("visibilitychange", ver);
+      window.removeEventListener("focus", ver);
+    };
+  }, []);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
   const [recentes, setRecentes] = useState<Recente[]>([]);
@@ -636,6 +663,8 @@ export default function App() {
               cursos={cursos}
               rapida={rapida}
               onRapidaUsada={() => setRapida(null)}
+              compartilhadas={compartilhadas}
+              onCompartilhadasUsadas={usarCompartilhadas}
               onErro={setErro}
             />
           )}

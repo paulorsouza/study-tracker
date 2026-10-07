@@ -483,6 +483,7 @@ const respostas: Record<string, (a: any) => unknown> = {
   excluir_nota: () => null,
   fixar_nota: () => null,
   revisar_nota: () => null,
+  compartilhados_pendentes: () => [],
   nota_imagens: ({ notaId }) =>
     IMAGENS.filter((i) => i.note_id === notaId).map((i) => ({
       id: i.id, largura: i.largura, altura: i.altura, bytes: i.imagem.length,

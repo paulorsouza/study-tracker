@@ -1,0 +1,5 @@
+# Gerados pelo build do Android: o Gradle compila aqui e o Tauri copia a
+# própria API para `.tauri/`.
+android/build/
+android/.tauri/
+/target

@@ -261,6 +261,40 @@ pub fn nota_imagem_excluir(db: tauri::State<Db>, id: String) -> Result<(), Strin
     Ok(())
 }
 
+/// Imagens que chegaram pelo "Compartilhar" do Android (F4), como data URL.
+///
+/// A `CompartilharActivity` grava em `compartilhados/`, ao lado de `anexos/`, e
+/// abre o app; a interface pergunta aqui ao voltar ao primeiro plano. Lido é
+/// apagado: a imagem continua na galeria de onde veio. No desktop a pasta não
+/// existe e a lista sai vazia.
+#[tauri::command]
+pub fn compartilhados_pendentes() -> Result<Vec<String>, String> {
+    let Some(dir) = PASTA.get().and_then(|p| p.parent()).map(|p| p.join("compartilhados")) else {
+        return Ok(Vec::new());
+    };
+    let Ok(lidos) = std::fs::read_dir(&dir) else {
+        return Ok(Vec::new());
+    };
+    let mut caminhos: Vec<PathBuf> = lidos
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        // `.parcial` ainda está sendo copiado pela tela do Android.
+        .filter(|p| p.extension().is_some_and(|x| x == "img"))
+        .collect();
+    caminhos.sort();
+
+    let mut saida = Vec::new();
+    for p in caminhos {
+        let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
+        let _ = std::fs::remove_file(&p);
+        // Formato que o WebView não abre (HEIC, por exemplo) fica de fora em
+        // vez de virar um erro sem saída.
+        if let Some(mime) = formato(&bytes) {
+            saida.push(data_url(mime, &bytes));
+        }
+    }
+    Ok(saida)
+}
+
 #[cfg(test)]
 mod testes {
     use super::{decodificar, formato};

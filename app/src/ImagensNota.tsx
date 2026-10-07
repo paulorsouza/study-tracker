@@ -108,6 +108,16 @@ export async function imagensDe(arquivos: Iterable<File>): Promise<ItemImagem[]>
   return itens;
 }
 
+/** Imagens que chegaram pelo "Compartilhar" do Android (F4), como data URL. */
+export async function imagensDeUrls(urls: string[]): Promise<ItemImagem[]> {
+  const itens: ItemImagem[] = [];
+  for (const u of urls) {
+    const nova = await reduzir(await (await fetch(u)).blob());
+    itens.push({ chave: crypto.randomUUID(), mini: nova.mini, presente: true, nova });
+  }
+  return itens;
+}
+
 export function imagensSalvas(notaId: string): Promise<ItemImagem[]> {
   return invoke<ImagemSalva[]>("nota_imagens", { notaId }).then((l) =>
     l.map((i) => ({ chave: i.id, id: i.id, mini: i.mini, presente: i.presente }))

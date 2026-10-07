@@ -1,6 +1,6 @@
 [package]
 name = "estudos"
-version = "0.0.4"
+version = "0.0.5"
 description = "Gestao de estudos"
 authors = ["paulorsouza"]
 edition = "2021"
@@ -61,3 +61,6 @@ tauri-plugin-global-shortcut = "2.3.2"
 # raízes, toda chamada HTTPS falharia no celular. Ver `rede.rs`.
 [target.'cfg(target_os = "android")'.dependencies]
 webpki-root-certs = "1"
+# "Compartilhar → Estudos" (D-047, F4): leva ao projeto Android a tela que
+# recebe a imagem. Ver `plugins/compartilhar`.
+tauri-plugin-compartilhar = { path = "plugins/compartilhar" }

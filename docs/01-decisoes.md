@@ -1296,3 +1296,14 @@ máquina também tem de ir para o vault. As imagens são copiadas uma vez para
 `anexos/` (nunca mudam depois de criadas) e entram no fim da nota como
 `![[<id>.<ext>]]`: o nome é único, e o Obsidian o acha onde quer que a pasta de
 exportação esteja. O git do vault continua manual.
+
+**F4 — "Compartilhar → Estudos".** O Android só oferece o app no menu de
+compartilhar se uma tela dele declarar o `intent-filter` no manifesto, e o
+manifesto do app mora em `gen/android`, que é gerado e fica fora do
+repositório. Por isso a tela vem num plugin local, `plugins/compartilhar`, cuja
+biblioteca Android traz o próprio manifesto e entra no projeto pelo mecanismo
+normal de plugins do Tauri. A `CompartilharActivity` não tem interface: copia
+as imagens para `compartilhados/` na pasta de dados (a permissão de ler a
+`content://` acaba quando ela fecha), abre o app e sai. A interface pergunta
+por elas ao voltar ao primeiro plano (`compartilhados_pendentes`) e abre uma
+nota nova já com as imagens. Lido é apagado; a original continua na galeria.
