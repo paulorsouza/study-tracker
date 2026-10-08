@@ -211,7 +211,11 @@ body {
   flex-direction: column;
   padding: 18px 12px 12px;
   gap: 2px;
-  overflow: hidden;
+  /* Em janela baixa (768px) o dock passava da altura e os atalhos sumiam
+     cortados: a lateral rola em vez de esconder. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .marca {
@@ -420,6 +424,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; height: auto; padding
 
 .dock {
   margin-top: auto;
+  flex-shrink: 0;
   padding: 14px;
   background: var(--surf-2);
   border: 1px solid var(--line);
@@ -667,10 +672,13 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   margin-bottom: var(--e4);
   width: fit-content;
   max-width: 100%;
-  overflow-x: auto;
+  /* Quebra em linhas em vez de rolar: com seis abas em 800px a rolagem
+     escondia as últimas e espremia os rótulos em três linhas. */
+  flex-wrap: wrap;
 }
 
 .aba {
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1718,7 +1726,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
   /* A faixa de abas rola em vez de quebrar. Quebrando, a última aba descia
      para uma segunda linha sem borda e parecia outra coisa — "Concluídas"
      sumia de vista sem nada indicando que existia. */
-  .abas { flex-wrap: nowrap; width: 100%; scrollbar-width: none; }
+  .abas { flex-wrap: nowrap; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .abas::-webkit-scrollbar { display: none; }
   .aba { white-space: nowrap; flex: none; }
 
@@ -1780,10 +1788,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .menu-anc { position: relative; display: inline-flex; }
 
 .menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 20;
+  position: fixed;
+  z-index: 55;
   min-width: 176px;
   padding: 6px;
   display: grid;
@@ -2106,7 +2112,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
 .metas-dia {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  /* 190px: abaixo disso o nome da categoria virava "Sem cat…" e o
+     "2h 07m / 2h 15m" quebrava em duas linhas. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -2130,6 +2138,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
 .meta-dia-topo span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta-dia-topo b { color: var(--tx); font-weight: 600; }
+.meta-dia-topo span:last-child { flex: none; white-space: nowrap; }
 
 .tarefa-barra {
   height: 4px;
@@ -2253,6 +2262,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 .lt-titulo { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lt-atividade { color: var(--tx-2); font-weight: 500; }
 .lt-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--tx-3); }
+/* O curso encolhe com reticências em vez de quebrar: quebrado, a linha de
+   baixo começava com um "·" solto. */
+.lt-curso { min-width: 0; flex: 1 1 0; max-width: max-content; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lt-direita { display: flex; align-items: center; gap: 6px; flex: none; }
 .lt-dur { font-weight: 600; font-size: 14px; min-width: 56px; text-align: right; }
 .lt-sel { flex: none; width: 16px; height: 16px; accent-color: var(--acc); }

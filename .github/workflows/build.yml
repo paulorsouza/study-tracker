@@ -15,6 +15,11 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+# O `GITHUB_TOKEN` só lê por padrão; criar o rascunho de release pede escrita.
+# Sem isto o build passava e a última etapa falhava (v0.0.5).
+permissions:
+  contents: write
+
 jobs:
   bundle:
     strategy:

@@ -419,7 +419,7 @@ export default function App() {
         {!compacto && !ehMovel && (
           <div className="lateral-acoes">
             <button
-              className="btn-icone"
+              className="btn btn-fantasma btn-icone"
               title="Modo compacto"
               aria-label="Modo compacto"
               onClick={() => invoke("abrir_mini").catch((e) => setErro(String(e)))}

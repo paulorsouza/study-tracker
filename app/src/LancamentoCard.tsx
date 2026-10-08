@@ -56,7 +56,7 @@ export default function LancamentoCard({
           </div>
           <div className="lt-meta">
             <span>{l.atividade}</span>
-            {l.curso && <span>· {l.curso}</span>}
+            {l.curso && <span className="lt-curso">· {l.curso}</span>}
             {l.materia && <span className="pill">{l.materia}</span>}
             {l.aula && <span className="pill">{l.aula}</span>}
             {l.distancia_m != null && (

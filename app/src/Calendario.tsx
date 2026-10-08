@@ -373,14 +373,29 @@ export default function Calendario({
                             className="cal-alca cal-alca-topo"
                             onPointerDown={(e) => comecar(e, "inicio", dia, l)}
                           />
-                          {alt > 26 && (
-                            <span className="cal-bloco-txt">
-                              {l.description || l.atividade}
-                            </span>
+                          {/* Alto: título e duração em duas linhas. Médio: uma
+                              linha só, título primeiro — antes ele mostrava só
+                              "30m", sem dizer do quê. Minúsculo: nada, o título
+                              do bloco (passar o mouse) diz o resto. */}
+                          {alt > 26 ? (
+                            <>
+                              <span className="cal-bloco-txt">
+                                {l.description || l.atividade}
+                              </span>
+                              <span className="cal-bloco-dur num">
+                                {durCurta((fim - ini) * MIN)}
+                              </span>
+                            </>
+                          ) : (
+                            alt >= 14 && (
+                              <span className="cal-bloco-txt">
+                                {l.description || l.atividade}{" "}
+                                <span className="cal-bloco-dur num">
+                                  {durCurta((fim - ini) * MIN)}
+                                </span>
+                              </span>
+                            )
                           )}
-                          <span className="cal-bloco-dur num">
-                            {durCurta((fim - ini) * MIN)}
-                          </span>
                           <span
                             className="cal-alca cal-alca-baixo"
                             onPointerDown={(e) => comecar(e, "fim", dia, l)}

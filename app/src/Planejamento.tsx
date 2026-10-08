@@ -612,7 +612,8 @@ function Cartao({
           <I.Check size={13} />
         </button>
         <span className="tarefa-tempo num">
-          {t.realizado_ms > 0 ? <b>{durCurta(t.realizado_ms)}</b> : feita ? "feita" : "—"}
+          {/* Travessão sozinho, sem estimativa, era um traço solto no cartão. */}
+          {t.realizado_ms > 0 ? <b>{durCurta(t.realizado_ms)}</b> : feita ? "feita" : estimado > 0 ? "—" : null}
           {estimado > 0 && <span> / {durCurta(estimado)}</span>}
         </span>
         {rodando ? (
