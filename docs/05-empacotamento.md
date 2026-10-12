@@ -95,6 +95,12 @@ Em tag, publica um **rascunho** de release, e não uma pública: ninguém quer
 descobrir um instalador quebrado depois de ele já estar no ar. Revise, baixe,
 teste e só então publique.
 
+O rascunho precisa de `permissions: contents: write` no workflow: o
+`GITHUB_TOKEN` só lê por padrão, e sem isso o build passa e a última etapa
+falha com `Resource not accessible by integration` (v0.0.5). Corrigido na
+v0.0.6. `workflow_dispatch` não cria release; os instaladores ficam nos
+artefatos da execução (`gh run download <id>`).
+
 Os testes do Rust rodam antes do empacotamento. Compilar não é o mesmo que estar
 certo, e um instalador gerado a partir de código quebrado é pior que nenhum
 instalador.

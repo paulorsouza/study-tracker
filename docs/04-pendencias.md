@@ -190,9 +190,28 @@ Escrito e compilando, **nunca exercitado de verdade**. Não conta como pronto.
 - [ ] Instalar pelo instalador do Windows, numa máquina que não seja a de
       desenvolvimento — o que roda aqui é o `tauri dev`
 - [ ] Redimensionar a janela pelas bordas, com a decoração desligada (D-028)
-- [ ] Linux, inteiro (D-003) — roteiro em `06-linux.md`
+- [x] ~~Linux, inteiro (D-003)~~ **Feito em 05–08/10.** App nativo usado no dia a dia,
+      instalado pelo `.deb` (0.0.5 e 0.0.6), conectado ao Supabase. Imagens,
+      Storage e exportação automática para o Obsidian provados aqui (D-047)
 - [x] ~~**Android, inteiro.**~~ **Parcial.** A 0.0.2 foi instalada e usada num
       celular: o app sobe, a interface funciona e o toque responde — e foi esse
       uso que produziu o D-039. Continuam sem prova o **tablet** (a faixa entre
       760px e 900px), onde o banco nasce, a notificação do Pomodoro em segundo
       plano e a sincronização. Ver `07-android.md`
+- [ ] "Compartilhar → Estudos" (D-047, F4) num Android de verdade. Provado só o
+      manifesto final (a tela entra no APK) e o caminho Rust + interface no
+      desktop; o emulador não roda nesta máquina (SVM desligado na BIOS)
+- [ ] Imagem feita no tablet chegando ao desktop pelo Storage. O download foi
+      provado no Linux apagando a cópia local; de outro aparelho, ainda não
+
+## Defeitos conhecidos (2026-10-08)
+
+- **Categorias semeadas viram conflito em toda instalação nova.** As oito
+  categorias padrão têm id fixo (`at-estudo`…) e sobem com `version` 1 no
+  primeiro login; quem já tem as mesmas linhas registra "edição concorrente"
+  com valores idênticos. No Linux foram 12 conflitos, resolvidos à mão como
+  `usar_remoto`. A semente não deveria entrar na fila de sincronização.
+- **Recuperar senha não tem para onde voltar.** O e-mail do Supabase leva a
+  `localhost:3000` (Site URL padrão do projeto) e o app não serve página
+  nenhuma. Saída pensada: `redirect_to` para `127.0.0.1:47823/recuperar`, uma
+  página na própria ponte que lê o token do endereço e grava a senha nova.
